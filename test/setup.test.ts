@@ -19,7 +19,7 @@ for (const terminal of [false, true]) test(`setup shows prompts, protects secret
       ['Public HTTPS URL', 'https://security.example.test'],
       ['GitHub OAuth client ID:', 'client-id'],
       ['GitHub OAuth client secret (hidden):', 'secret-never-echoed'],
-      ['Allowed GitHub usernames', 'alice,bob'],
+      ['Administrator GitHub username:', 'alice'],
     ];
     let output = '', index = 0;
     child.stderr.on('data', chunk => { output += chunk; });
@@ -36,6 +36,8 @@ for (const terminal of [false, true]) test(`setup shows prompts, protects secret
     const contents = await readFile(path, 'utf8');
     assert.match(contents, /BETTER_AUTH_SECRET='[a-f0-9]{64}'/);
     assert.match(contents, /GITHUB_CLIENT_SECRET='secret-never-echoed'/);
+    assert.match(contents, /GITHUB_ADMIN_USER='alice'/);
+    assert.match(output, /compose\.local\.yaml/);
     assert.equal((await stat(path)).mode & 0o777, 0o600);
     const second = spawn(process.execPath, ['scripts/setup.mjs'], { cwd: directory, stdio: 'ignore' });
     assert.equal((await once(second, 'exit'))[0], 1);

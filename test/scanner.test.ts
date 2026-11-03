@@ -6,16 +6,16 @@ import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { createHmac } from 'node:crypto';
-import { readConfig, allowedUsers, isAllowed } from '../src/server/config';
+import { readConfig, isGithubUsername } from '../src/server/config';
 import { containerInfo, inventory, watchEvents } from '../src/server/docker';
 import { candidateTags, publicImage } from '../src/server/registry';
 import { snapshotHost } from '../src/server/host';
 import { compareReports, parseReport } from '../src/server/trivy';
 import { scanTarget } from '../src/server/scanner';
 import { Store } from '../src/server/store';
-import { createAuth, migrateAuth, requireSameOrigin, requireSession } from '../src/server/auth';
+import { createAuth, isAllowed, migrateAuth, requireSameOrigin, requireSession } from '../src/server/auth';
 
-const env = { BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'testing-only-secret-with-at-least-32-characters', GITHUB_CLIENT_ID: 'test-client', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ALLOWED_USERS: 'alice,Bob' };
+const env = { BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'testing-only-secret-with-at-least-32-characters', GITHUB_CLIENT_ID: 'test-client', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'Alice' };
 const digest = `sha256:${'a'.repeat(64)}`;
 const dockerContainer = { Id: 'b'.repeat(64), Names: ['/web-1'], Image: 'nginx:1.26.0', ImageID: digest, Labels: { 'com.docker.compose.project': 'website', 'com.docker.compose.service': 'web' } };
 const raw = { SchemaVersion: 2, Metadata: { OS: { Family: 'debian', Name: '12', EOSL: false } }, Results: [{ Target: 'debian', Type: 'debian', Packages: [{ Name: 'libssl3', Version: '3.0.1' }], Vulnerabilities: [
@@ -26,11 +26,10 @@ const report = parseReport(JSON.stringify(raw));
 
 test('configuration fails closed; username matching is exact and case-insensitive', () => {
   assert.equal(readConfig(env).intervalHours, 6);
-  const users = allowedUsers(' Alice,BOB,, ');
-  assert.ok(isAllowed('alice', users));
-  assert.ok(!isAllowed('alice-attacker', users));
-  assert.ok(!isAllowed(undefined, users));
-  for (const patch of [{ GITHUB_ALLOWED_USERS: '' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { SCAN_INTERVAL_HOURS: 'NaN' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
+  assert.equal(readConfig(env).admin, 'alice');
+  assert.ok(isGithubUsername('octocat'));
+  for (const invalid of ['', '-alice', 'alice-', 'alice@example.com', 'alice,bob', 'a'.repeat(40), undefined]) assert.ok(!isGithubUsername(invalid));
+  for (const patch of [{ GITHUB_ADMIN_USER: '' }, { GITHUB_ADMIN_USER: 'alice@example.com' }, { GITHUB_ADMIN_USER: 'alice,bob' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { SCAN_INTERVAL_HOURS: 'NaN' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
   assert.throws(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { method: 'POST', headers: { origin: 'https://attacker.test' } }), env.BETTER_AUTH_URL), (e: unknown) => e instanceof Response && e.status === 403);
   assert.doesNotThrow(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { headers: { origin: env.BETTER_AUTH_URL } }), env.BETTER_AUTH_URL));
 });
@@ -131,6 +130,13 @@ test('Better Auth migrates SQLite, rejects missing sessions and blocks non-allow
   try {
     const config = readConfig(env), auth = createAuth(config, store);
     await migrateAuth(auth);
+    assert.ok(isAllowed('ALICE', config, store));
+    assert.ok(!isAllowed('alice-attacker', config, store));
+    assert.ok(!isAllowed(undefined, config, store));
+    store.addUser('bob');
+    assert.ok(isAllowed('BOB', config, store));
+    store.removeUser('bob');
+    assert.ok(!isAllowed('bob', config, store));
     const providers = (await auth.$context).socialProviders;
     assert.ok(providers.some(p => p.id === 'github'));
     const map = auth.options.socialProviders?.github?.mapProfileToUser;
@@ -139,17 +145,24 @@ test('Better Auth migrates SQLite, rejects missing sessions and blocks non-allow
     const profile = (login: string) => ({ login }) as Parameters<NonNullable<typeof map>>[0];
     assert.throws(() => map(profile('mallory')));
     assert.deepEqual(map(profile('ALICE')), { githubLogin: 'alice' });
-    await assert.rejects(requireSession(new Request(`${config.origin}/api/data/inventory`), auth, config), (e: unknown) => e instanceof Response && e.status === 401);
+    await assert.rejects(requireSession(new Request(`${config.origin}/api/data/inventory`), auth, config, store), (e: unknown) => e instanceof Response && e.status === 401);
     const context = await auth.$context;
     const user = await context.internalAdapter.createUser({ name: 'Alice', email: 'alice@example.test', emailVerified: true, githubLogin: 'alice' }, { method: 'oauth', oauth: { providerId: 'github', profile: { login: 'alice' } } });
     const session = await context.internalAdapter.createSession(user.id);
     assert.ok(session);
     const signed = `${session.token}.${createHmac('sha256', config.secret).update(session.token).digest('base64')}`;
     const request = new Request(`${config.origin}/api/data/inventory`, { headers: { cookie: `${context.authCookies.sessionToken.name}=${encodeURIComponent(signed)}` } });
-    assert.equal((await requireSession(request, auth, config)).user.githubLogin, 'alice');
-    await assert.rejects(requireSession(request, auth, { ...config, users: new Set(['bob']) }), (e: unknown) => e instanceof Response && e.status === 401);
+    assert.equal((await requireSession(request, auth, config, store)).user.githubLogin, 'alice');
+    await assert.rejects(requireSession(request, auth, { ...config, admin: 'bob' }, store), (e: unknown) => e instanceof Response && e.status === 401);
     // Bearer tokens are deliberately not enabled: arbitrary API tokens cannot bypass cookie auth.
-    await assert.rejects(requireSession(new Request(`${config.origin}/api/data/inventory`, { headers: { authorization: `Bearer ${session.token}` } }), auth, config), (e: unknown) => e instanceof Response && e.status === 401);
+    await assert.rejects(requireSession(new Request(`${config.origin}/api/data/inventory`, { headers: { authorization: `Bearer ${session.token}` } }), auth, config, store), (e: unknown) => e instanceof Response && e.status === 401);
+    const otherAdmin = { ...config, admin: 'bob' };
+    store.addUser('alice');
+    assert.equal((await requireSession(request, auth, otherAdmin, store)).user.githubLogin, 'alice');
+    store.removeUser('alice');
+    await assert.rejects(requireSession(request, auth, otherAdmin, store));
+    store.addUser('alice');
+    await assert.rejects(requireSession(request, auth, otherAdmin, store), 'Re-granting access must not revive a revoked session.');
   } finally { store.db.close(); }
 });
 

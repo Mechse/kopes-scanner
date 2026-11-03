@@ -1,8 +1,11 @@
 import { betterAuth, APIError } from 'better-auth';
 import { getMigrations } from 'better-auth/db/migration';
-import { isAllowed, type Config } from './config';
+import { isGithubUsername, type Config } from './config';
 import type { Store } from './store';
 
+export function isAllowed(login: unknown, config: Config, store: Store) {
+  return isGithubUsername(login) && (login.toLowerCase() === config.admin || store.hasUser(login.toLowerCase()));
+}
 export function createAuth(config: Config, store: Store) {
   return betterAuth({
     appName: 'kopes.ai', baseURL: config.origin, secret: config.secret,
@@ -14,7 +17,7 @@ export function createAuth(config: Config, store: Store) {
       clientId: config.githubId, clientSecret: config.githubSecret,
       scope: ['read:user', 'user:email'],
       mapProfileToUser(profile) {
-        if (!isAllowed(profile.login, config.users)) throw new APIError('FORBIDDEN', { message: 'This GitHub account is not on the installation allowlist.' });
+        if (!isAllowed(profile.login, config, store)) throw new APIError('FORBIDDEN', { message: 'This GitHub account is not on the installation allowlist.' });
         return { githubLogin: profile.login.toLowerCase() };
       },
     } },
@@ -28,9 +31,9 @@ export async function migrateAuth(auth: ReturnType<typeof createAuth>) {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
 }
-export async function requireSession(request: Request, auth: ReturnType<typeof createAuth>, config: Config) {
+export async function requireSession(request: Request, auth: ReturnType<typeof createAuth>, config: Config, store: Store) {
   const session = await auth.api.getSession({ headers: request.headers });
-  if (!session || !isAllowed(session.user.githubLogin, config.users)) throw new Response('Sign in with an allowed GitHub account.', { status: 401 });
+  if (!session || !isAllowed(session.user.githubLogin, config, store)) throw new Response('Sign in with an allowed GitHub account.', { status: 401 });
   return session;
 }
 export function requireSameOrigin(request: Request, origin: string) {

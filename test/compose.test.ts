@@ -5,17 +5,33 @@ import { cp, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-test('Compose preserves the Linux read-only root bind and removes it for Desktop', { skip: !process.env.DOCKER_TEST }, async () => {
+test('Compose supports a public checkout, Coolify values, local ports and Desktop without weakening isolation', { skip: !process.env.DOCKER_TEST }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kopes-compose-test-'));
   try {
-    for (const file of ['compose.yaml', 'compose.desktop.yaml']) await cp(file, join(directory, file));
-    await cp('.env.example', join(directory, '.env'));
-    const config = (desktop: boolean) => JSON.parse(execFileSync('docker', [
-      'compose', '-f', 'compose.yaml', ...(desktop ? ['-f', 'compose.desktop.yaml'] : []), 'config', '--format', 'json',
-    ], { cwd: directory, encoding: 'utf8', timeout: 10_000 }));
-    const linux = config(false), desktop = config(true);
+    for (const file of ['compose.yaml', 'compose.local.yaml', 'compose.desktop.yaml']) await cp(file, join(directory, file));
+    // No .env: simulate the variables Coolify generates and the three user inputs.
+    const env = { ...process.env, BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '', SERVICE_URL_SCANNER_3100: 'https://scanner.example.test', SERVICE_PASSWORD_64_AUTH: 'a'.repeat(64), GITHUB_CLIENT_ID: 'test-id', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'alice' };
+    const config = (files: string[], environment = env) => JSON.parse(execFileSync('docker', [
+      'compose', '-f', 'compose.yaml', ...files.flatMap(file => ['-f', file]), 'config', '--format', 'json',
+    ], { cwd: directory, env: environment, encoding: 'utf8', timeout: 10_000 }));
+    const linux = config([]), local = config(['compose.local.yaml']), desktop = config(['compose.local.yaml', 'compose.desktop.yaml']);
     assert.equal(linux.services.scanner.build.context, await realpath(directory));
     assert.equal(linux.services.scanner.build.dockerfile, 'Dockerfile');
+    assert.equal(linux.services['socket-proxy'].build.dockerfile, 'Dockerfile.socket-proxy');
+    assert.equal(linux.services['socket-proxy'].volumes.length, 1);
+    assert.equal(linux.services['socket-proxy'].volumes[0].source, '/var/run/docker.sock');
+    assert.equal(linux.services['socket-proxy'].ports, undefined);
+    assert.deepEqual(Object.keys(linux.services['socket-proxy'].networks), ['proxy']);
+    assert.equal(linux.services.scanner.ports, undefined);
+    assert.equal(linux.services.scanner.env_file, undefined);
+    assert.equal(linux.services.scanner.environment.BETTER_AUTH_URL, env.SERVICE_URL_SCANNER_3100);
+    assert.equal(linux.services.scanner.environment.BETTER_AUTH_SECRET, env.SERVICE_PASSWORD_64_AUTH);
+    assert.equal(linux.services.scanner.environment.GITHUB_ADMIN_USER, 'alice');
+    assert.equal(local.services.scanner.ports[0].host_ip, '127.0.0.1');
+    assert.equal(local.services.scanner.ports[0].published, '3100');
+    const manual = config([], { ...env, BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'b'.repeat(64) });
+    assert.equal(manual.services.scanner.environment.BETTER_AUTH_URL, 'http://localhost:3100');
+    assert.equal(manual.services.scanner.environment.BETTER_AUTH_SECRET, 'b'.repeat(64));
     const root = linux.services.scanner.volumes.find((v: { target: string }) => v.target === '/host');
     assert.equal(root.source, '/');
     assert.equal(root.read_only, true);

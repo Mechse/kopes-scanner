@@ -30,13 +30,13 @@ try {
       BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
       GITHUB_CLIENT_ID: await ask('GitHub OAuth client ID: '),
       GITHUB_CLIENT_SECRET: await ask('GitHub OAuth client secret (hidden): ', true),
-      GITHUB_ALLOWED_USERS: await ask('Allowed GitHub usernames, comma-separated: '),
+      GITHUB_ADMIN_USER: await ask('Administrator GitHub username: '),
       SCAN_INTERVAL_HOURS: '6',
     };
     readConfig(env);
     if (Object.values(env).some(value => /['\r\n]/.test(value))) throw new Error('Configuration values cannot contain quotes or newlines.');
     await writeFile(destination, Object.entries(env).map(([key, value]) => `${key}='${value}'`).join('\n') + '\n', { mode: 0o600, flag: 'wx' });
-    console.log('\nSaved .env with owner-only permissions. From the scanner repository, run:\n  docker compose up -d --build\n\nFor HTTPS, route your existing reverse proxy to port 3100 on the host loopback interface.\n');
+    console.log('\nSaved .env with owner-only permissions. From the scanner repository, run:\n  docker compose -f compose.yaml -f compose.local.yaml up -d --build\n\nFor HTTPS, route your existing reverse proxy to port 3100 on the host loopback interface.\n');
   } catch (error) {
     console.error(`Setup not completed: ${error.message}`);
     process.exitCode = 1;

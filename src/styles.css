@@ -101,6 +101,13 @@ h3 { font-size: 17px; font-weight: 550; }
 .recommendations summary { font-size: 12px; color: var(--ink-muted); }
 .digest { display: block; padding: 12px; margin-top: 8px; background: var(--surface-sunken); }
 .recommendation-note { color: var(--ink-muted); font-size: 12px; margin: 16px 0 24px; }
+.user-access { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px; }
+.user-access summary { font-weight: 500; }
+.user-access summary + p { margin-top: 16px; }
+.user-access-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.user-access-form .search { flex: 1; min-width: 180px; }
+.user-access ul { list-style: none; padding: 0; }
+.user-access li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .filters { display: flex; margin-top: 20px; }
 .search { width: 100%; }
 .search input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--ink); }

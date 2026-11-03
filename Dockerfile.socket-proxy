@@ -1,0 +1,3 @@
+FROM haproxy:3.2-alpine
+# Bake in the policy so deployment does not depend on a retained Git checkout.
+COPY socket-proxy.cfg /usr/local/etc/haproxy/haproxy.cfg

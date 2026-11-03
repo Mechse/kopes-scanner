@@ -4,16 +4,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: kopes-scanner:local
     restart: unless-stopped
     init: true
-    env_file: .env
     environment:
+      # Coolify generates these fallback values; local installs supply .env values.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${SERVICE_URL_SCANNER_3100}}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-${SERVICE_PASSWORD_64_AUTH}}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?Set the GitHub OAuth client ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?Set the GitHub OAuth client secret}
+      GITHUB_ADMIN_USER: ${GITHUB_ADMIN_USER:?Set the administrator GitHub username}
+      SCAN_INTERVAL_HOURS: ${SCAN_INTERVAL_HOURS:-6}
       DOCKER_HOST: http://socket-proxy:2375
       DATA_DIR: /data
       HOST_ROOT: /host
-    ports:
-      - '127.0.0.1:3100:3100'
+    expose:
+      - '3100'
     volumes:
       - scanner-data:/data
       - type: bind
@@ -43,12 +48,13 @@ services:
     networks: [proxy, outbound]
     depends_on: [socket-proxy]
   socket-proxy:
-    image: haproxy:3.2-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.socket-proxy
     user: '0:0'
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./socket-proxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

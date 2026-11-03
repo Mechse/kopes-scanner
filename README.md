@@ -13,7 +13,65 @@ business use is permitted; providing competing products or services is restricte
 even when they are free. The full license controls, including its exceptions.
 Third-party dependencies retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Install on a Linux Docker host
+## Install with Coolify (recommended)
+
+Use **Public Repository → Docker Compose** on the Linux server you want to scan.
+No host Node installation, setup script, `.env` upload or external database is
+needed. Both images build directly from this repository.
+
+1. Point a domain such as `security.example.com` at your Coolify server. In your
+   project/environment, add a **Public Repository**, paste this repository's HTTPS
+   GitHub URL, and select your branch.
+2. Select the **Docker Compose** build pack/strategy, base directory `/`, and
+   Compose location `/compose.yaml`. Save/load the Compose configuration. Do not
+   use the Dockerfile-only build pack: it omits the Docker proxy and host mounts.
+3. Assign **only `scanner`** the domain `https://security.example.com:3100`.
+   The `:3100` tells Coolify which internal port to route to; your browser URL is
+   still `https://security.example.com` (no port). Do not assign a domain to
+   `socket-proxy`; leave **Connect to predefined network** off.
+4. Create a **GitHub OAuth App** at <https://github.com/settings/developers>:
+   - Homepage URL: `https://security.example.com`
+   - Authorization callback URL: `https://security.example.com/api/auth/callback/github`
+   - No repository access is needed; login uses profile/email scopes only.
+5. In Coolify's runtime environment variables, fill in:
+   - `GITHUB_CLIENT_ID`: the OAuth app's client ID.
+   - `GITHUB_CLIENT_SECRET`: the OAuth app's client secret.
+   - `GITHUB_ADMIN_USER`: your exact GitHub username, **not an email address**.
+   Coolify generates `SERVICE_PASSWORD_64_AUTH` for the persistent auth secret and
+   `SERVICE_URL_SCANNER_3100` from the scanner domain. Check that the resolved
+   `BETTER_AUTH_URL` is exactly your browser HTTPS origin, without `:3100`, a path
+   or a trailing callback. If your Coolify version does not resolve the generated
+   URL as expected, set `BETTER_AUTH_URL` explicitly. Keep the generated secret;
+   do not regenerate it on redeploy.
+6. Deploy, wait for `scanner` to become healthy, then sign in with GitHub. Expand
+   **User access** to grant/revoke access by GitHub username. Other users can view
+   scans, download SBOMs and request scans; only the configured admin manages users.
+
+GitHub OAuth app registration is the only external setup. There are no shared
+admin passwords or public signups. The admin is always authorized through
+`GITHUB_ADMIN_USER` and cannot be removed in the UI. Access changes persist in
+SQLite and revocation blocks existing sessions immediately; re-granting access
+requires signing in again. If you change or relinquish a GitHub username, update
+its access entry (or the admin variable) promptly: authorization is username-based.
+
+Redeploy from Coolify to update; keep the `scanner-data` volume and auth secret.
+Do not enable replicas or pull-request previews against this host's Docker socket.
+The app scans the server where **it is deployed**, which may differ from the
+server running the Coolify control plane. Initial scans can take several minutes.
+The proxy policy is baked into its image, so **Preserve repository during
+deployment** is not required.
+
+If deployment fails, check the runtime logs and environment values first. A 503
+from `/healthz` indicates initialization/configuration failure. A healthy app with
+scan errors usually indicates Docker connectivity, host-package permissions or
+Trivy download issues; inspect the authenticated dashboard. A GitHub callback
+error usually means the browser URL and OAuth app callback do not match.
+
+See [Coolify's Compose documentation](https://coolify.io/docs/applications/builds/docker-compose)
+for version-specific UI wording. This configuration is tested with Docker Compose;
+a live Coolify/GitHub callback still needs verification on your server.
+
+## Linux host requirements
 
 Requires Docker Engine + Compose v2, a modern Linux kernel (5.12+ for recursively
 read-only bind mounts), and outbound HTTPS. Start with 2 GiB available RAM and
@@ -26,6 +84,8 @@ The Linux root bind uses `rslave`: Docker rejects `rprivate` because `/` contain
 its data root. Host mount changes can propagate inward, never back to the host;
 new submounts are not guaranteed to inherit read-only restrictions.
 
+## Install without Coolify
+
 From a checkout of this repository:
 
 ```sh
@@ -34,8 +94,8 @@ cd kopes-scanner
 node scripts/setup.mjs
 # Or: pnpm run setup
 
-docker compose up -d --build
-docker compose logs -f scanner
+docker compose -f compose.yaml -f compose.local.yaml up -d --build
+docker compose -f compose.yaml -f compose.local.yaml logs -f scanner
 ```
 
 The setup helper generates a random auth secret, prints the exact GitHub callback
@@ -47,18 +107,18 @@ generate a secret with `openssl rand -hex 32`, and fill in the values manually.
    `http://localhost:3100` for local use/SSH forwarding.
 2. Create a **GitHub OAuth App** at <https://github.com/settings/developers>.
    Homepage: your browser URL. Callback: `<browser URL>/api/auth/callback/github`.
-3. Supply its client ID, client secret and a comma-separated GitHub username
-   allowlist. This uses profile/email scopes, **not repository access**.
-4. Open your browser URL and sign in. Only explicitly allowed accounts can access
-   inventory, reports, SBOMs or scan controls. Removing a username and recreating
-   the scanner revokes that user's API access, including existing sessions.
+3. Supply its client ID, client secret and your administrator GitHub username as
+   `GITHUB_ADMIN_USER`. This uses profile/email scopes, **not repository access**.
+4. Open your browser URL and sign in. Grant additional GitHub users access through
+   **User access** in the dashboard; no environment edits or redeploy are needed.
 
-The app binds to **127.0.0.1:3100** by default. For production, configure your
+Keep both `-f` flags for subsequent local Compose commands. The local override
+binds the app to **127.0.0.1:3100**; the base file publishes no host ports. For production, configure your
 existing HTTPS reverse proxy to forward to this port; set `BETTER_AUTH_URL` to
 that exact public HTTPS origin. HTTP is accepted only for localhost/127.0.0.1.
 For a containerized reverse proxy (including Coolify/Dokploy), attach **only the
 scanner** to its ingress network and route to `scanner:3100`; do not attach the
-socket proxy or publish port 2375. In that case the host-port binding can be removed.
+socket proxy or publish port 2375. In that case use only the base Compose file.
 
 There is no published release image yet: Compose builds locally from the repo.
 The app image includes Node, the web server and the Trivy executable; it is **one
@@ -68,13 +128,13 @@ container guards Docker's API. SQLite, SBOMs, reports and Trivy's cache live in 
 
 ## Local preview on Docker Desktop
 
-After the same setup step, use Docker Compose **2.24.4+** and both files:
+After the same setup step, use Docker Compose **2.24.4+** and these three files:
 
 ```sh
-docker compose -f compose.yaml -f compose.desktop.yaml up -d --build
+docker compose -f compose.yaml -f compose.local.yaml -f compose.desktop.yaml up -d --build
 ```
 
-Keep both `-f` flags for subsequent Compose commands on Desktop. The override
+Keep all three `-f` flags for subsequent Compose commands on Desktop. The override
 removes the host root bind and supplies an empty read-only `/host`; container
 inventory and image scans still use the socket proxy. **Host OS scanning is
 unavailable** and its target will show “No supported host package database found.”
@@ -153,11 +213,12 @@ packages or different scanner coverage, not necessarily a package fix.
 ## Operate / develop
 
 ```sh
-# After editing .env (including the allowlist)
-docker compose up -d --force-recreate scanner
+# Local installs: after editing .env (e.g. the admin or OAuth settings)
+docker compose -f compose.yaml -f compose.local.yaml up -d --force-recreate scanner
 
 # Update source first, then rebuild without deleting the data volume
-docker compose up -d --build
+# On Coolify, use Redeploy instead.
+docker compose -f compose.yaml -f compose.local.yaml up -d --build
 
 # Local development (Linux host + accessible socket proxy + Trivy on PATH)
 pnpm install --frozen-lockfile
@@ -168,7 +229,11 @@ pnpm build
 pnpm test:production
 ```
 
-`pnpm dev` and `pnpm start` load `.env`; Compose injects it into the container. For development outside Compose,
+`pnpm dev` and `pnpm start` load `.env`; Compose maps the declared environment
+variables from `.env` or Coolify into the container. Existing installations using
+`GITHUB_ALLOWED_USERS` must set `GITHUB_ADMIN_USER` and re-add other users through
+the UI; the old environment allowlist is no longer used. Scan data is retained,
+but the updated database schema must not be opened by older releases. For development outside Compose,
 set `DOCKER_HOST` to an accessible private HTTP socket-proxy origin, `HOST_ROOT`
 to a test Linux root, and optionally `TRIVY_BIN` to a local Trivy executable.
 Never expose an unauthenticated Docker API on a public interface.
@@ -186,13 +251,14 @@ with the backup in secure storage. `docker compose down` preserves data;
 
 ### Verification status
 
-Automated tests cover config/allowlisting, OAuth profile rejection and session
-revocation, origin checks, grouping/events, queues/recovery, host snapshots,
+Automated tests cover config/allowlisting, OAuth profile rejection, admin-only
+access management, persisted access grants, session revocation, origin checks, grouping/events, queues/recovery, host snapshots,
 Trivy parsing, candidate filtering and the scan pipeline. `test:production`
 build-smokes the emitted server in an isolated directory. To also exercise the
 proxy ACL against a local HAProxy executable, run `HAPROXY_TEST_BIN=/path/to/haproxy pnpm test`.
-With Docker Compose installed, `DOCKER_TEST=1 pnpm test` also validates the Linux
-mount policy and Desktop override. Desktop mounts were smoke-tested in a
+With Docker Compose installed, `DOCKER_TEST=1 pnpm test` also validates a checkout
+without `.env`, generated Coolify values, private proxy networking, local ports,
+the Linux mount policy and Desktop override. Desktop mounts were smoke-tested in a
 non-root, read-only container; a full Desktop scan was not verified.
 Manual checks passed for browser login/dashboard/themes/mobile navigation and real
 Trivy SBOM/CVE matching of a Debian package fixture and a public Alpine image.

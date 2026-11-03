@@ -26,7 +26,7 @@ test('standalone production output: SSR, assets, auth, access control and data',
   await new Promise<void>(done => portProbe.close(() => done()));
   const origin = `http://localhost:${port}`;
   const env = { ...process.env, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: String(port), BETTER_AUTH_URL: origin,
-    BETTER_AUTH_SECRET: 'smoke-test-random-looking-secret-123456789', GITHUB_CLIENT_ID: 'test-client', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ALLOWED_USERS: 'alice',
+    BETTER_AUTH_SECRET: 'smoke-test-random-looking-secret-123456789', GITHUB_CLIENT_ID: 'test-client', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'alice',
     DATA_DIR: join(directory, 'data'), HOST_ROOT: join(directory, 'missing-host'), TRIVY_BIN: '/nonexistent-test-trivy', DOCKER_HOST: `http://127.0.0.1:${(docker.address() as { port: number }).port}` };
   let child: ReturnType<typeof spawn> | undefined;
   let output = '';
@@ -39,6 +39,11 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const session = await context.internalAdapter.createSession(user.id);
     const signed = `${session.token}.${createHmac('sha256', config.secret).update(session.token).digest('base64')}`;
     const cookie = `${context.authCookies.sessionToken.name}=${encodeURIComponent(signed)}`;
+    store.addUser('bob');
+    const member = await context.internalAdapter.createUser({ name: 'Bob', email: 'bob@example.test', githubLogin: 'bob', emailVerified: true }, { method: 'oauth', oauth: { providerId: 'github', profile: { login: 'bob' } } });
+    const memberSession = await context.internalAdapter.createSession(member.id);
+    const memberSigned = `${memberSession.token}.${createHmac('sha256', config.secret).update(memberSession.token).digest('base64')}`;
+    const memberCookie = `${context.authCookies.sessionToken.name}=${encodeURIComponent(memberSigned)}`;
     store.syncInventory([]);
     store.next(3_600_000);
     store.complete('host', { findings: [], packages: [{ name: 'test-package', version: '1', type: 'debian', path: 'debian' }], os: 'debian 12', eol: false }, '{"bomFormat":"CycloneDX"}', null, [], 'Test fixture');
@@ -59,11 +64,31 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);
     assert.ok(asset, 'SSR should link a compiled CSS/JS asset');
     assert.equal((await fetch(origin + asset[1])).status, 200);
-    for (const path of ['inventory', 'report?id=host', 'sbom?id=host']) assert.equal((await fetch(`${origin}/api/data/${path}`)).status, 401);
+    for (const path of ['inventory', 'report?id=host', 'sbom?id=host', 'users']) assert.equal((await fetch(`${origin}/api/data/${path}`)).status, 401);
     const data = await fetch(`${origin}/api/data/inventory`, { headers: { cookie } });
     assert.equal(data.status, 200, await data.clone().text());
     assert.equal(data.headers.get('cache-control'), 'no-store');
-    assert.equal((await data.json()).targets[0].summary.os, 'debian 12');
+    const dashboard = await data.json();
+    assert.equal(dashboard.targets[0].summary.os, 'debian 12');
+    assert.equal(dashboard.isAdmin, true);
+    const memberData = await fetch(`${origin}/api/data/inventory`, { headers: { cookie: memberCookie } });
+    assert.equal(memberData.status, 200);
+    assert.equal((await memberData.json()).isAdmin, false);
+    assert.equal((await fetch(`${origin}/api/data/users`, { headers: { cookie: memberCookie } })).status, 403);
+    const changeAccess = (body: unknown, sessionCookie = cookie, requestOrigin = origin) => fetch(`${origin}/api/data/users`, { method: 'POST', headers: { cookie: sessionCookie, origin: requestOrigin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await changeAccess({ action: 'add', login: 'mallory' }, memberCookie)).status, 403);
+    assert.equal((await changeAccess({ action: 'add', login: 'mallory' }, cookie, 'https://attacker.example')).status, 403);
+    for (const body of [null, { action: 'add', login: 'alice' }, { action: 'remove', login: 'ALICE' }, { action: 'add', login: 'user@example.com' }, { action: 'oops', login: 'bob' }]) assert.equal((await changeAccess(body)).status, 400);
+    assert.equal((await fetch(`${origin}/api/data/users`, { method: 'POST', headers: { cookie, origin }, body: '{' })).status, 400);
+    const added = await changeAccess({ action: 'add', login: ' CAROL ' });
+    assert.equal(added.status, 200);
+    assert.deepEqual(await added.json(), { admin: 'alice', users: ['bob', 'carol'] });
+    assert.equal((await changeAccess({ action: 'remove', login: 'bob' })).status, 200);
+    assert.equal((await fetch(`${origin}/api/data/inventory`, { headers: { cookie: memberCookie } })).status, 401);
+    assert.equal((await changeAccess({ action: 'add', login: 'bob' })).status, 200);
+    assert.equal((await fetch(`${origin}/api/data/inventory`, { headers: { cookie: memberCookie } })).status, 401);
+    const persisted = new Store(config.dataDir);
+    try { assert.deepEqual(persisted.allowedUsers(), ['bob', 'carol']); } finally { persisted.db.close(); }
     assert.equal((await fetch(`${origin}/api/data/report?id=host`, { headers: { cookie } })).status, 200);
     const sbom = await fetch(`${origin}/api/data/sbom?id=host`, { headers: { cookie } });
     assert.match(sbom.headers.get('content-disposition')!, /attachment/);

@@ -1,14 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { runtime } from '../server/runtime';
 import { requireSameOrigin, requireSession } from '../server/auth';
+import { isGithubUsername } from '../server/config';
 
 async function handle({ request }: { request: Request }) {
   const { auth, store, config } = await runtime();
-  await requireSession(request, auth, config);
+  const session = await requireSession(request, auth, config, store);
+  const isAdmin = session.user.githubLogin?.toLowerCase() === config.admin;
   const url = new URL(request.url);
   const action = url.pathname.replace('/api/data/', '');
   const id = url.searchParams.get('id') ?? '';
-  if (request.method === 'GET' && action === 'inventory') return Response.json(store.dashboard(config.intervalHours));
+  if (action === 'users') {
+    if (!isAdmin) return new Response('Administrator access required.', { status: 403 });
+    if (request.method === 'POST') {
+      requireSameOrigin(request, config.origin);
+      const body = await request.json().catch(() => null);
+      const login = typeof body?.login === 'string' ? body.login.trim().toLowerCase() : '';
+      if (!isGithubUsername(login) || !['add', 'remove'].includes(body?.action)) return new Response('Supply a GitHub username and add/remove action.', { status: 400 });
+      if (login === config.admin) return new Response('The administrator is managed through GITHUB_ADMIN_USER.', { status: 400 });
+      if (body.action === 'add') store.addUser(login);
+      else store.removeUser(login);
+    }
+    return Response.json({ admin: config.admin, users: store.allowedUsers() });
+  }
+  if (request.method === 'GET' && action === 'inventory') return Response.json({ ...store.dashboard(config.intervalHours), isAdmin });
   if (id !== 'host' && !/^image:sha256:[a-f0-9]{64}$/.test(id)) return new Response('Invalid target.', { status: 400 });
   if (request.method === 'GET' && action === 'report') {
     const report = store.report(id);

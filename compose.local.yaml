@@ -1,0 +1,5 @@
+# Local/SSH access only; Coolify routes directly to scanner:3100 instead.
+services:
+  scanner:
+    ports:
+      - '127.0.0.1:3100:3100'

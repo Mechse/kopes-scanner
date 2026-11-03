@@ -12,7 +12,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 1) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 2) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -27,7 +27,8 @@ export class Store {
         project TEXT NOT NULL, service TEXT NOT NULL, manager TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      PRAGMA user_version=1;
+      CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
+      PRAGMA user_version=2;
     `);
   }
   transaction(fn: () => void) {
@@ -38,6 +39,15 @@ export class Store {
     this.db.prepare('INSERT INTO metadata VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, value);
   }
   getMeta(key: string) { return (this.db.prepare('SELECT value FROM metadata WHERE key=?').get(key) as { value: string } | undefined)?.value; }
+  allowedUsers() { return (this.db.prepare('SELECT login FROM allowed_users ORDER BY login').all() as { login: string }[]).map(row => row.login); }
+  hasUser(login: string) { return Boolean(this.db.prepare('SELECT 1 FROM allowed_users WHERE login=?').get(login)); }
+  addUser(login: string) { this.db.prepare('INSERT OR IGNORE INTO allowed_users (login) VALUES (?)').run(login); }
+  removeUser(login: string) {
+    this.transaction(() => {
+      this.db.prepare('DELETE FROM allowed_users WHERE login=?').run(login);
+      this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=?)').run(login);
+    });
+  }
   recover() { this.db.exec("UPDATE targets SET status='queued', requested=1 WHERE status='scanning'"); }
   syncInventory(containers: Container[]) {
     this.transaction(() => {

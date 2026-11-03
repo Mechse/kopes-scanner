@@ -3,6 +3,7 @@ import { createAuthClient } from 'better-auth/react';
 import { useEffect, useState } from 'react';
 import { IconArrowUpRight, IconBrandGithub, IconCube, IconDownload, IconLogout, IconMoon, IconRefresh, IconServer, IconSun } from '@tabler/icons-react';
 import { Logo } from '../components/logo';
+import { UserAccess } from '../components/user-access';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { severities, type Dashboard, type Report, type Severity, type Target } from '../lib/model';
@@ -30,7 +31,7 @@ function App() {
     {error && <div className="notice error" role="alert">{error}</div>}
     {isPending ? <main id="main" className="login"><p role="status">Checking your session…</p></main> : session ? <Workspace /> : <main id="main" className="login">
       <section><p className="eyebrow">One host. A clear next step.</p><h1>Know what’s running.<br /><span>Know what to fix.</span></h1><p className="lead">Container images and host packages, checked against known vulnerabilities. No agents to manage. No automatic changes to your server.</p><div className="login-facts"><div><IconCube /><span>Compose, Coolify & Dokploy</span></div><div><IconServer /><span>Linux host package inventory</span></div><div><IconRefresh /><span>Trivy scans & scheduled re-matching</span></div></div></section>
-      <section className="sign-in"><span className="mini-mark"><IconServer size={24} /></span><h2>Your server, in view.</h2><p>Sign in with an allowed GitHub account to open this installation.</p>{sessionError && <p role="alert" className="error">Authentication is unavailable. Check installation settings.</p>}<Button onClick={async () => { setError(''); try { const result = await auth.signIn.social({ provider: 'github', callbackURL: '/', errorCallbackURL: '/?authError=1' }); if (result.error) setError('GitHub sign-in failed. Check OAuth configuration and the allowlist.'); } catch { setError('Unable to contact GitHub sign-in. Please retry.'); } }}><IconBrandGithub />Continue with GitHub<IconArrowUpRight /></Button><AuthError /><div className="sign-in-note">Access is restricted by <code>GITHUB_ALLOWED_USERS</code>. Your GitHub repositories are not requested or scanned.</div></section>
+      <section className="sign-in"><span className="mini-mark"><IconServer size={24} /></span><h2>Your server, in view.</h2><p>Sign in with an allowed GitHub account to open this installation.</p>{sessionError && <p role="alert" className="error">Authentication is unavailable. Check installation settings.</p>}<Button onClick={async () => { setError(''); try { const result = await auth.signIn.social({ provider: 'github', callbackURL: '/', errorCallbackURL: '/?authError=1' }); if (result.error) setError('GitHub sign-in failed. Check OAuth configuration and the allowlist.'); } catch { setError('Unable to contact GitHub sign-in. Please retry.'); } }}><IconBrandGithub />Continue with GitHub<IconArrowUpRight /></Button><AuthError /><div className="sign-in-note">Access is granted by this installation’s administrator. Your GitHub repositories are not requested or scanned.</div></section>
     </main>}<footer className="app-footer"><span>kopes.ai · Local scanning with Trivy</span><span>Inventory and CVE matching—not runtime protection.</span></footer></>;
 }
 function AuthError() {
@@ -39,7 +40,7 @@ function AuthError() {
   return failed ? <p className="error" role="alert">Sign-in was not completed. Check your allowed username and the GitHub OAuth callback URL.</p> : null;
 }
 function Workspace() {
-  const [data, setData] = useState<Dashboard | null>(null);
+  const [data, setData] = useState<(Dashboard & { isAdmin: boolean }) | null>(null);
   const [selected, setSelected] = useState('host');
   const [error, setError] = useState('');
   useEffect(() => {
@@ -48,7 +49,7 @@ function Workspace() {
     const load = async () => {
       if (loading) return;
       loading = true;
-      try { setData(await api<Dashboard>('inventory', controller.signal)); setError(''); }
+      try { setData(await api<Dashboard & { isAdmin: boolean }>('inventory', controller.signal)); setError(''); }
       catch (e) { if (!controller.signal.aborted) { setError((e as Error).message); setData(null); } }
       finally { loading = false; }
     };
@@ -60,6 +61,7 @@ function Workspace() {
   const allCounts = Object.fromEntries(severities.map(s => [s, data?.targets.reduce((n, t) => n + (t.summary?.counts[s] ?? 0), 0) ?? 0]));
   return <main id="main" className="workspace"><section className="workspace-heading"><div><p className="eyebrow">Single-host overview</p><h1>Less noise. Clear fixes.</h1><p className="muted">{data ? `${data.containers.length} running containers · ${data.targets.filter(t => t.kind === 'image').length} unique images · re-match every ${data.intervalHours} hours` : 'Connecting to your installation…'}</p></div><div className="inventory-stamp">Inventory refreshed<br /><strong>{date(data?.inventoryAt ?? null)}</strong></div></section>
     {error && <div role="alert" className="notice error">{error}</div>}{data?.inventoryError && <div role="alert" className="notice error">{data.inventoryError}</div>}
+    {data?.isAdmin && <UserAccess />}
     <section className="metrics" aria-label="Latest scan totals"><Metric label="Critical" value={allCounts.CRITICAL} severity="CRITICAL" /><Metric label="High" value={allCounts.HIGH} severity="HIGH" /><Metric label="Findings with a fix" value={data?.targets.reduce((n, t) => n + (t.summary?.fixable ?? 0), 0) ?? 0} /><Metric label="Targets awaiting a scan" value={data?.targets.filter(t => t.status !== 'ready').length ?? 0} /></section>
     <p className="metric-note">Latest completed results per unique image and host. Pending, failed, or unsupported scans are not a clean bill of health.</p>
     <div className="workspace-grid"><aside className="inventory" aria-label="Host and running containers"><div className="section-label">Inventory</div>{data?.targets.filter(t => t.kind === 'host').map(t => <TargetButton key={t.id} target={t} selected={selected === t.id} onClick={() => setSelected(t.id)} label="Host OS packages" />)}
