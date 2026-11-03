@@ -10,7 +10,7 @@ export function UserAccess() {
   useEffect(() => {
     const controller = new AbortController();
     void fetch('/api/data/users', { signal: controller.signal }).then(async response => {
-      if (!response.ok) throw new Error('Unable to load user access.');
+      if (!response.ok) throw new Error(response.status === 403 ? 'Administrator access required.' : 'Unable to load user access.');
       setAccess(await response.json());
     }).catch(e => { if (!controller.signal.aborted) setError((e as Error).message); });
     return () => controller.abort();
@@ -25,7 +25,7 @@ export function UserAccess() {
     } catch (e) { setError((e as Error).message || 'Unable to update user access.'); }
     finally { setBusy(false); }
   }
-  return <details className="user-access"><summary>User access</summary>
+  return <section className="user-access" aria-label="User access">
     <p className="muted">Allowed users can view reports, download SBOMs and request scans. Only the administrator manages access.</p>
     {error && <p className="error" role="alert">{error}</p>}
     {access ? <><p>Administrator: <strong>@{access.admin}</strong> · configured in Coolify or your deployment environment.</p>
@@ -36,5 +36,5 @@ export function UserAccess() {
       <ul aria-label="Allowed GitHub users">{access.users.map(user => <li key={user}><span>@{user}</span><Button variant="ghost" size="sm" disabled={busy} aria-label={`Revoke access for ${user}`} onClick={() => { void update('remove', user); }}>Revoke access</Button></li>)}</ul>
       {!access.users.length && <p className="muted" role="status">Only the administrator has access.</p>}
     </> : !error && <p role="status">Loading user access…</p>}
-  </details>;
+  </section>;
 }

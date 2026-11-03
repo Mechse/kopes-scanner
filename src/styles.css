@@ -45,6 +45,7 @@ h3 { font-size: 17px; font-weight: 550; }
 .workspace { max-width: 1600px; margin: auto; padding: 40px; min-height: calc(100vh - 145px); }
 .workspace-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; margin-bottom: 28px; }
 .workspace-heading p:last-child { margin-bottom: 0; }
+.overview-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .inventory-stamp { font-size: 12px; color: var(--ink-muted); text-align: right; }
 .inventory-stamp strong { color: var(--ink); font-weight: 400; }
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); }
@@ -94,8 +95,6 @@ h3 { font-size: 17px; font-weight: 550; }
 .digest { display: block; padding: 12px; margin-top: 8px; background: var(--surface-sunken); }
 .recommendation-note { color: var(--ink-muted); font-size: 12px; margin: 16px 0 24px; }
 .user-access { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px; }
-.user-access summary { font-weight: 500; }
-.user-access summary + p { margin-top: 16px; }
 .user-access-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .user-access-form .search { flex: 1; min-width: 180px; }
 .user-access ul { list-style: none; padding: 0; }

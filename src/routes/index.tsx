@@ -1,42 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { createAuthClient } from 'better-auth/react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { IconBrandGithub, IconCube, IconDownload, IconLogout, IconMoon, IconRefresh, IconServer, IconSun } from '@tabler/icons-react';
-import { Logo } from '../components/logo';
-import { UserAccess } from '../components/user-access';
+import { IconCube, IconDownload, IconRefresh, IconServer, IconUsers } from '@tabler/icons-react';
+import { AppShell } from '../components/app-shell';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { severities, type Dashboard, type Report, type Severity, type Target } from '../lib/model';
 
-export const Route = createFileRoute('/')({ component: App });
-const auth = createAuthClient();
+export const Route = createFileRoute('/')({ component: () => <AppShell><Workspace /></AppShell> });
 const date = (value: number | null) => value ? new Date(value).toLocaleString() : 'Not scanned yet';
 async function api<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/data/${path}`, { signal });
   if (!response.ok) throw new Error(response.status === 401 ? 'Your session is no longer authorized. Sign out and sign in again.' : 'Unable to load scan data. Check the server and try again.');
   return response.json();
-}
-function ThemeButton() {
-  const [dark, setDark] = useState(true);
-  useEffect(() => { setDark(document.documentElement.dataset.theme !== 'light'); }, []);
-  return <Button variant="ghost" size="icon" aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'} onClick={() => {
-    const next = !dark; setDark(next); document.documentElement.dataset.theme = next ? 'dark' : 'light';
-    try { localStorage.setItem('kopes-theme', next ? 'dark' : 'light'); } catch { /* Theme works without storage. */ }
-  }}>{dark ? <IconSun /> : <IconMoon />}</Button>;
-}
-function App() {
-  const { data: session, isPending, error: sessionError } = auth.useSession();
-  const [error, setError] = useState('');
-  return <><a href="#main" className="skip-link">Skip to content</a><header className="app-header"><a href="/" aria-label="kopes.dev host security"><Logo width={96} /></a><span className="product-name">Host security</span><div className="header-actions"><span className="local-label">Self-hosted</span><ThemeButton />{session && <Button variant="ghost" size="sm" onClick={async () => { try { const result = await auth.signOut(); if (result.error) setError('Sign out failed. Please retry.'); } catch { setError('Sign out failed. Please retry.'); } }}><IconLogout />Sign out</Button>}</div></header>
-    {error && <div className="notice error" role="alert">{error}</div>}
-    {isPending ? <main id="main" className="login"><p role="status">Checking your session…</p></main> : session ? <Workspace /> : <main id="main" className="login">
-      <section className="sign-in"><h1>Sign in</h1><p>View vulnerability scans for this host and its container images.</p>{sessionError && <p role="alert" className="error">Authentication is unavailable. Check installation settings.</p>}<Button onClick={async () => { setError(''); try { const result = await auth.signIn.social({ provider: 'github', callbackURL: '/', errorCallbackURL: '/?authError=1' }); if (result.error) setError('GitHub sign-in failed. Check OAuth configuration and the allowlist.'); } catch { setError('Unable to contact GitHub sign-in. Please retry.'); } }}><IconBrandGithub />Sign in with GitHub</Button><AuthError /><div className="sign-in-note">Access requires administrator approval. GitHub repositories are not requested or scanned. Scans do not change your server.</div></section>
-    </main>}<footer className="app-footer"><span>kopes.dev · Local vulnerability scanning</span><span>Inventory and CVE matching—not runtime protection.</span></footer></>;
-}
-function AuthError() {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => { setFailed(new URLSearchParams(location.search).has('authError')); }, []);
-  return failed ? <p className="error" role="alert">Sign-in was not completed. Check your allowed username and the GitHub OAuth callback URL.</p> : null;
 }
 function Workspace() {
   const [data, setData] = useState<(Dashboard & { isAdmin: boolean }) | null>(null);
@@ -58,9 +33,9 @@ function Workspace() {
   const target = data?.targets.find(t => t.id === selected);
   const groups = [...new Set(data?.containers.map(c => c.project) ?? [])];
   const allCounts = Object.fromEntries(severities.map(s => [s, data?.targets.reduce((n, t) => n + (t.summary?.counts[s] ?? 0), 0) ?? 0]));
-  return <main id="main" className="workspace"><section className="workspace-heading"><div><h1>Scan overview</h1><p className="muted">{data ? `${data.containers.length} running containers · ${data.targets.filter(t => t.kind === 'image').length} unique images · re-match every ${data.intervalHours} hours` : 'Connecting to your installation…'}</p></div><div className="inventory-stamp">Inventory refreshed<br /><strong>{date(data?.inventoryAt ?? null)}</strong></div></section>
+  return <main id="main" className="workspace"><section className="workspace-heading"><div><h1>Scan overview</h1><p className="muted">{data ? `${data.containers.length} running containers · ${data.targets.filter(t => t.kind === 'image').length} unique images · re-match every ${data.intervalHours} hours` : 'Connecting to your installation…'}</p></div><div className="overview-actions">{data?.isAdmin && <Button asChild variant="outline" size="sm"><Link to="/users"><IconUsers />User management</Link></Button>}<div className="inventory-stamp">Inventory refreshed<br /><strong>{date(data?.inventoryAt ?? null)}</strong></div></div></section>
     {error && <div role="alert" className="notice error">{error}</div>}{data?.inventoryError && <div role="alert" className="notice error">{data.inventoryError}</div>}
-    {data?.isAdmin && <UserAccess />}
+
     <section className="metrics" aria-label="Latest scan totals"><Metric label="Critical" value={allCounts.CRITICAL} severity="CRITICAL" /><Metric label="High" value={allCounts.HIGH} severity="HIGH" /><Metric label="Findings with a fix" value={data?.targets.reduce((n, t) => n + (t.summary?.fixable ?? 0), 0) ?? 0} /><Metric label="Targets awaiting a scan" value={data?.targets.filter(t => t.status !== 'ready').length ?? 0} /></section>
     <p className="metric-note">Latest completed results per unique image and host. Pending, failed, or unsupported scans are not a clean bill of health.</p>
     <div className="workspace-grid"><aside className="inventory" aria-label="Host and running containers"><div className="section-label">Inventory</div>{data?.targets.filter(t => t.kind === 'host').map(t => <TargetButton key={t.id} target={t} selected={selected === t.id} onClick={() => setSelected(t.id)} label="Host OS packages" />)}

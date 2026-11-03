@@ -66,6 +66,13 @@ test('standalone production output: SSR, assets, auth, access control and data',
     assert.match(html, /kopes\.dev · Local vulnerability scanning/);
     assert.doesNotMatch(html, /trivy/i);
     assert.doesNotMatch(html, /kopes\.ai/i);
+    const usersPage = await fetch(`${origin}/users`);
+    assert.equal(usersPage.status, 200);
+    const usersHtml = await usersPage.text();
+    assert.match(usersHtml, /<title>User management · kopes\.dev<\/title>/);
+    assert.match(usersHtml, /aria-label="kopes\.dev host security"/);
+    assert.match(usersHtml, /kopes\.dev · Local vulnerability scanning/);
+    assert.doesNotMatch(usersHtml, /Grant access|Revoke access/);
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);
     assert.ok(asset, 'SSR should link a compiled CSS/JS asset');
     assert.equal((await fetch(origin + asset[1])).status, 200);
