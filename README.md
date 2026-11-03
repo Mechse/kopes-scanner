@@ -86,6 +86,94 @@ new submounts are not guaranteed to inherit read-only restrictions.
 
 ## Install without Coolify
 
+### One-command VPS installer
+
+On the **VPS you want to scan**, SSH in and run:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Mechse/kopes-scanner/main/scripts/install.sh | sudo bash
+```
+
+Run as root without `sudo` if it is not installed. The download command requires
+`curl` (on a fresh Debian/Ubuntu host: `sudo apt-get update && sudo apt-get install -y curl`).
+For an inspect-first installation, download that URL to a file, review it, and
+run `sudo bash <file>` instead. Only run installers from a source you trust.
+This command becomes available after the installer is published to `main`.
+
+The interactive installer supports **Ubuntu 22.04+ or Debian 12+, amd64/arm64,
+kernel 5.12+**. Have at least 2 GiB available RAM and several GiB free disk.
+It asks before installing system packages, uses Docker's official apt repository
+when Docker is absent, and never removes/replaces existing container-runtime
+packages. An existing installation needs **Docker Engine 28+** (older engines
+can expose localhost-published ports to neighboring hosts), working Compose v2
+(including `--wait-timeout`) and Buildx plugins. Rootless/remote Docker is not supported;
+the installer always uses this VPS's `/var/run/docker.sock`.
+
+It downloads the repository into **`/opt/kopes-scanner`**, runs the setup helper
+in a temporary Node container (no host Node or pnpm installation), and offers:
+
+1. **Domain + automatic HTTPS:** enter `https://security.example.com`. Point its
+   DNS A/AAAA records at this VPS and allow inbound TCP **80/443** through your
+   provider/host firewall. These ports must be free. A dedicated Caddy container
+   handles certificates and renewals; the scanner itself has no published port.
+2. **Existing HTTPS reverse proxy:** enter your public HTTPS origin and configure
+   your host proxy to forward to **`http://127.0.0.1:3100`**. A containerized proxy
+   cannot use its own loopback to reach this port; use the manual ingress-network
+   approach below instead.
+3. **Private SSH tunnel:** no domain or public inbound app ports. The wizard uses
+   `http://localhost:3100` and prints an SSH forwarding command to run on your
+   computer. Keep the tunnel open while browsing and signing in.
+
+The wizard prints the exact GitHub OAuth homepage/callback URLs, asks for the
+client ID/secret and admin GitHub username, and saves `.env` with mode **0600**.
+You still need to register the OAuth app in GitHub yourself. It then builds and
+starts the services, waits for the scanner's health check, and checks the public
+HTTPS endpoint where applicable. Initial builds and vulnerability downloads can
+take several minutes. Internal health does not mean the first scan has finished.
+
+The installer does **not** alter your firewall, stop conflicting services, change
+Coolify deployments, or enable automatic app updates. Docker-published ports can
+bypass host firewall rules such as UFW; use provider firewall rules as appropriate.
+Caddy shares only the scanner's outbound network, never the private socket-proxy
+network. TLS state persists in separate Caddy volumes.
+
+**Retrying:** rerun the command after fixing an error. It reuses the existing
+checkout and `.env` without pulling updates or regenerating secrets. Build/start
+or public HTTPS failures leave data and credentials intact. If saved `kopes`
+volumes exist without the original checkout/`.env`, restore those from backup;
+the installer refuses to generate replacement credentials against old data.
+Package installation is not rolled back; if Docker's apt setup was interrupted, finish that setup
+manually before retrying. If required ports are occupied, choose a different
+access method or free them without disrupting existing apps. To change mode,
+edit `.env`: use `COMPOSE_FILE='compose.yaml:compose.https.yaml'` plus
+`CADDY_DOMAIN='security.example.com'` for automatic TLS, or
+`COMPOSE_FILE='compose.yaml:compose.local.yaml'` for proxy/SSH access. Update
+`BETTER_AUTH_URL` and your GitHub OAuth URLs together; preserve the auth secret.
+If switching away from automatic TLS, stop its Caddy service with
+`docker compose -f compose.yaml -f compose.https.yaml stop caddy` before changing
+`.env` (run from the installation directory as root).
+
+For maintenance, use a root shell (`sudo -i` if needed):
+
+```sh
+cd /opt/kopes-scanner
+# .env selects the correct Compose override; no -f flags needed.
+docker compose ps
+docker compose logs --tail=100 -f scanner
+# Update explicitly; keep .env and the named volumes.
+git pull --ff-only
+docker compose up -d --build --wait --wait-timeout 180
+# Stop without deleting data:
+docker compose down
+```
+
+Never run `docker compose down -v` unless you intend to delete scan/authentication
+and certificate data. Keep `.env` with your secure backups. If public HTTPS fails
+but the scanner is healthy, check DNS (including stale AAAA records), firewall
+rules, and `docker compose logs --tail=100 caddy` or your existing proxy's logs.
+
+### Manual installation / local setup
+
 From a checkout of this repository:
 
 ```sh
@@ -128,7 +216,8 @@ container guards Docker's API. SQLite, SBOMs, reports and Trivy's cache live in 
 
 ## Local preview on Docker Desktop
 
-After the same setup step, use Docker Compose **2.24.4+** and these three files:
+After the manual `node scripts/setup.mjs` step above (not the VPS installer), use
+Docker Compose **2.24.4+** and these three files:
 
 ```sh
 docker compose -f compose.yaml -f compose.local.yaml -f compose.desktop.yaml up -d --build
@@ -213,7 +302,8 @@ packages or different scanner coverage, not necessarily a package fix.
 ## Operate / develop
 
 ```sh
-# Local installs: after editing .env (e.g. the admin or OAuth settings)
+# Manual/local installs: after editing .env (e.g. the admin or OAuth settings)
+# VPS wizard installs: omit the -f flags below; .env selects the override.
 docker compose -f compose.yaml -f compose.local.yaml up -d --force-recreate scanner
 
 # Update source first, then rebuild without deleting the data volume
@@ -251,14 +341,17 @@ with the backup in secure storage. `docker compose down` preserves data;
 
 ### Verification status
 
-Automated tests cover config/allowlisting, OAuth profile rejection, admin-only
+Automated tests cover VPS setup modes, input validation, credential preservation,
+installer consent/dependency/port guards, config/allowlisting, OAuth profile rejection, admin-only
 access management, persisted access grants, session revocation, origin checks, grouping/events, queues/recovery, host snapshots,
 Trivy parsing, candidate filtering and the scan pipeline. `test:production`
 build-smokes the emitted server in an isolated directory. To also exercise the
 proxy ACL against a local HAProxy executable, run `HAPROXY_TEST_BIN=/path/to/haproxy pnpm test`.
 With Docker Compose installed, `DOCKER_TEST=1 pnpm test` also validates a checkout
 without `.env`, generated Coolify values, private proxy networking, local ports,
-the Linux mount policy and Desktop override. Desktop mounts were smoke-tested in a
+the Linux mount policy, standalone HTTPS isolation and Desktop override. The full
+fresh-VPS installer, live certificate issuance and GitHub callback still need
+end-to-end verification on a real Ubuntu/Debian VPS. Desktop mounts were smoke-tested in a
 non-root, read-only container; a full Desktop scan was not verified.
 Manual checks passed for browser login/dashboard/themes/mobile navigation and real
 Trivy SBOM/CVE matching of a Debian package fixture and a public Alpine image.
