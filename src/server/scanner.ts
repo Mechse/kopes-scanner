@@ -25,7 +25,7 @@ export async function scanTarget(config: Config, store: Store, target: Target, s
       await runTrivy(config, ['rootfs', '--pkg-types', 'os', '--format', 'cyclonedx', '--output', sbomPath, root], signal);
     }
     const report = await matchSbom(config, sbomPath, join(work, 'report.json'), signal);
-    if (target.kind === 'host' && (!report.os || !report.packages.length)) throw new Error('Trivy did not recognize host OS packages; this is not a clean scan.');
+    if (target.kind === 'host' && (!report.os || !report.packages.length)) throw new Error('Host OS packages were not recognized; this is not a clean scan.');
     const suggestions: Suggestion[] = [];
     let note = target.kind === 'host' ? 'Apply host package updates using your distribution package manager.' : 'No current findings to reduce.';
     if (target.kind === 'image' && report.findings.length) {

@@ -59,7 +59,8 @@ test('Trivy parsing preserves unknown severities and rejects malformed reports',
   assert.equal(report.findings[1].severity, 'UNKNOWN');
   assert.equal(report.packages.length, 1);
   assert.equal(report.findings[1].fixed, '');
-  assert.throws(() => parseReport('{}'));
+  assert.throws(() => parseReport('null'), { message: 'Invalid scan report.' });
+  assert.throws(() => parseReport('{}'), { message: 'Unsupported or empty scan report; refusing to mark this target clean.' });
   assert.throws(() => parseReport(JSON.stringify({ SchemaVersion: 2, Results: [{ Packages: {} }] })));
   const updated = { ...report, findings: [{ ...report.findings[0], installed: '3.0.2', path: 'different-layer' }] };
   assert.deepEqual(compareReports(report, updated), { removed: 1, introduced: 0, remaining: 1 });

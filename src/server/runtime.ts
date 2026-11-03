@@ -54,7 +54,7 @@ async function initialize() {
         try { await scanTarget(config, store, target, signal); }
         catch (error) {
           // Do not persist scanner stderr: it can contain image metadata and local paths.
-          const message = error instanceof Error && !('stderr' in error) ? error.message : 'Trivy scan failed. Check registry access, available disk/memory, and scanner configuration.';
+          const message = error instanceof Error && !('stderr' in error) ? error.message : 'Scan failed. Check registry access, available disk/memory, and scanner configuration.';
           store.fail(target.id, message.slice(0, 500));
         }
       } else await delay(2_000, undefined, { signal }).catch(() => {});

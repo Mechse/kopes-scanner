@@ -17,13 +17,13 @@ export async function readOutput(path: string) {
   return readFile(path, 'utf8');
 }
 function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Trivy report.');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid scan report.');
   return value as Record<string, unknown>;
 }
 function text(value: unknown) { return typeof value === 'string' ? value : ''; }
 export function parseReport(raw: string): Report {
   const input = record(JSON.parse(raw));
-  if (input.SchemaVersion !== 2 || !Array.isArray(input.Results)) throw new Error('Unsupported or empty Trivy report; refusing to mark this target clean.');
+  if (input.SchemaVersion !== 2 || !Array.isArray(input.Results)) throw new Error('Unsupported or empty scan report; refusing to mark this target clean.');
   const findings: Finding[] = [];
   const packages: Package[] = [];
   const seen = new Set<string>();

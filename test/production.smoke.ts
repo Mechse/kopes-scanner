@@ -63,7 +63,8 @@ test('standalone production output: SSR, assets, auth, access control and data',
     assert.match(html, /<title>Host security · kopes\.dev<\/title>/);
     assert.match(html, /aria-label="kopes\.dev host security"/);
     assert.match(html, /aria-label="kopes\.dev"/);
-    assert.match(html, /kopes\.dev · Local scanning with Trivy/);
+    assert.match(html, /kopes\.dev · Local vulnerability scanning/);
+    assert.doesNotMatch(html, /trivy/i);
     assert.doesNotMatch(html, /kopes\.ai/i);
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);
     assert.ok(asset, 'SSR should link a compiled CSS/JS asset');
