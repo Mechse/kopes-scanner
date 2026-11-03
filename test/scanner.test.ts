@@ -167,6 +167,50 @@ test('Better Auth migrates SQLite, rejects missing sessions and blocks non-allow
   } finally { store.db.close(); }
 });
 
+for (const existing of [false, true]) test(`GitHub sign-in stores the verified username for ${existing ? 'an existing' : 'a new'} account`, async () => {
+  const store = new Store(':memory:');
+  try {
+    const config = readConfig(env), auth = createAuth(config, store);
+    await migrateAuth(auth);
+    const context = await auth.$context;
+    const user = existing ? await context.internalAdapter.createUser({ name: 'Alice', email: 'alice@example.test', emailVerified: true }, { method: 'oauth', oauth: { providerId: 'github', profile: { login: 'alice' } } }) : null;
+    if (user) await context.internalAdapter.createAccount({ userId: user.id, providerId: 'github', accountId: '42' });
+    const provider = context.socialProviders.find(p => p.id === 'github')!;
+    const map = auth.options.socialProviders!.github!.mapProfileToUser!;
+    const profile = { id: '42', login: 'ALICE' } as Parameters<typeof map>[0];
+    // Stub only GitHub's network exchange; exercise the real callback and database update.
+    provider.validateAuthorizationCode = async () => ({ accessToken: 'test-access-token', scopes: ['read:user', 'user:email'] });
+    provider.getUserInfo = async () => ({
+      user: { name: 'Alice', email: 'alice@example.test', emailVerified: true, ...await map(profile) },
+      data: profile,
+    });
+    const signIn = await auth.handler(new Request(`${config.origin}/api/auth/sign-in/social`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', origin: config.origin },
+      body: JSON.stringify({ provider: 'github', callbackURL: '/' }),
+    }));
+    assert.equal(signIn.status, 200);
+    const { url } = await signIn.json();
+    const state = new URL(url).searchParams.get('state')!;
+    const callback = await auth.handler(new Request(`${config.origin}/api/auth/callback/github?code=test-code&state=${encodeURIComponent(state)}`, {
+      headers: { cookie: signIn.headers.getSetCookie().map(cookie => cookie.split(';')[0]).join('; ') },
+    }));
+    assert.equal(callback.status, 302);
+    assert.equal(callback.headers.get('location'), '/');
+    const request = new Request(`${config.origin}/api/data/inventory`, {
+      headers: { cookie: callback.headers.getSetCookie().map(cookie => cookie.split(';')[0]).join('; ') },
+    });
+    const session = await requireSession(request, auth, config, store);
+    if (user) assert.equal(session.user.id, user.id);
+    assert.equal(session.user.githubLogin, 'alice');
+    const update = await auth.handler(new Request(`${config.origin}/api/auth/update-user`, {
+      method: 'POST', headers: { cookie: request.headers.get('cookie')!, origin: config.origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ githubLogin: 'mallory' }),
+    }));
+    assert.equal(update.status, 404);
+    assert.equal((await requireSession(request, auth, config, store)).user.githubLogin, 'alice');
+  } finally { store.db.close(); }
+});
+
 test('scan pipeline persists SBOM and a completed report only after successful matching', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kopes-scan-test-'));
   const store = new Store(directory);

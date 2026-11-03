@@ -16,12 +16,16 @@ export function createAuth(config: Config, store: Store) {
     socialProviders: { github: {
       clientId: config.githubId, clientSecret: config.githubSecret,
       scope: ['read:user', 'user:email'],
+      // Refresh missing or renamed GitHub usernames on existing accounts after allowlist validation.
+      overrideUserInfoOnSignIn: true,
       mapProfileToUser(profile) {
         if (!isAllowed(profile.login, config, store)) throw new APIError('FORBIDDEN', { message: 'This GitHub account is not on the installation allowlist.' });
         return { githubLogin: profile.login.toLowerCase() };
       },
     } },
-    user: { additionalFields: { githubLogin: { type: 'string', required: false, input: false } } },
+    // Provider mapping needs input enabled; block client profile edits so usernames cannot be forged.
+    disabledPaths: ['/update-user'],
+    user: { additionalFields: { githubLogin: { type: 'string', required: false, input: true } } },
     account: { accountLinking: { enabled: false }, encryptOAuthTokens: true },
     session: { expiresIn: 60 * 60 * 24 * 7, cookieCache: { enabled: false } },
     rateLimit: { enabled: true, storage: 'database', window: 60, max: 60 },
