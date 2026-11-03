@@ -117,7 +117,7 @@ main() {
   require_host
   exec 3<>/dev/tty || fail 'An interactive terminal is required. Run this command in an SSH session.'
   umask 077
-  printf '\nkopes.ai — standalone VPS installation\n\nNeeds at least 2 GiB available RAM, several GiB free disk and outbound HTTPS.\nThis scanner reads host package databases and Docker image layers, which may contain secrets.\nIt installs into /opt/kopes-scanner. It does not modify your firewall or any Coolify deployment.\n'
+  printf '\nkopes.dev — standalone VPS installation\n\nNeeds at least 2 GiB available RAM, several GiB free disk and outbound HTTPS.\nThis scanner reads host package databases and Docker image layers, which may contain secrets.\nIt installs into /opt/kopes-scanner. It does not modify your firewall or any Coolify deployment.\n'
   confirm 'Install the scanner on this host?'
   trap 'printf "\nInstallation did not finish. Existing credentials and data were kept. Fix the error above and rerun this installer.\n" >&2' ERR
   install_dependencies

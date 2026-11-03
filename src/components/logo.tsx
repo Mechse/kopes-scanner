@@ -24,7 +24,7 @@ export function Logo({ variant = "wide", width, className, decorative = false, a
     className={["brand-logo", className].filter(Boolean).join(" ")}
     data-logo={variant}
     role={decorative ? undefined : "img"}
-    aria-label={decorative ? undefined : "kopes.ai"}
+    aria-label={decorative ? undefined : "kopes.dev"}
     aria-hidden={decorative || undefined}
     focusable="false"
   >

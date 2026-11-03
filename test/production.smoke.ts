@@ -60,7 +60,11 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const page = await fetch(origin);
     assert.equal(page.status, 200, output);
     const html = await page.text();
-    assert.match(html, /kopes/);
+    assert.match(html, /<title>Host security · kopes\.dev<\/title>/);
+    assert.match(html, /aria-label="kopes\.dev host security"/);
+    assert.match(html, /aria-label="kopes\.dev"/);
+    assert.match(html, /kopes\.dev · Local scanning with Trivy/);
+    assert.doesNotMatch(html, /kopes\.ai/i);
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);
     assert.ok(asset, 'SSR should link a compiled CSS/JS asset');
     assert.equal((await fetch(origin + asset[1])).status, 200);

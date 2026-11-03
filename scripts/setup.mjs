@@ -23,7 +23,7 @@ try {
     finally { hidden = false; if (secret) process.stdout.write('\n'); }
   }
   try {
-    console.log('\nkopes.ai — single-host setup\n');
+    console.log('\nkopes.dev — single-host setup\n');
     let mode = 'local';
     if (vps) {
       console.log('1. Domain + automatic HTTPS (ports 80/443 must be free)\n2. Existing HTTPS reverse proxy (upstream: 127.0.0.1:3100)\n3. Private access through an SSH tunnel');

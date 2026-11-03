@@ -1,4 +1,4 @@
-# kopes.ai — single-host scanner
+# kopes.dev — single-host scanner
 
 An installable TanStack Start app using Trivy, Better Auth/GitHub, SQLite, Tailwind
 and shadcn-style Radix components. This repository is self-contained: it includes

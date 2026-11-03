@@ -8,7 +8,7 @@ export function isAllowed(login: unknown, config: Config, store: Store) {
 }
 export function createAuth(config: Config, store: Store) {
   return betterAuth({
-    appName: 'kopes.ai', baseURL: config.origin, secret: config.secret,
+    appName: 'kopes.dev', baseURL: config.origin, secret: config.secret,
     database: store.db,
     trustedOrigins: [config.origin],
     // Startup runs migrations before serving requests; avoid caching a pre-migration schema failure.
