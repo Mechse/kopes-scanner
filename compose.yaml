@@ -1,0 +1,64 @@
+name: kopes
+services:
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kopes-scanner:local
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      DOCKER_HOST: http://socket-proxy:2375
+      DATA_DIR: /data
+      HOST_ROOT: /host
+    ports:
+      - '127.0.0.1:3100:3100'
+    volumes:
+      - scanner-data:/data
+      - type: bind
+        source: /
+        target: /host
+        read_only: true
+        bind:
+          # / includes Docker's data root; Docker requires slave/shared propagation.
+          propagation: rslave
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      # A read-only root bind still allows Unix socket connections. Hide standard
+      # runtime sockets and host process/device paths, in addition to running non-root.
+      - /host/run:ro,size=64k,mode=0555
+      - /host/var/run:ro,size=64k,mode=0555
+      - /host/proc:ro,size=64k,mode=0555
+      - /host/sys:ro,size=64k,mode=0555
+      - /host/dev:ro,size=64k,mode=0555
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 1.0
+    stop_grace_period: 30s
+    networks: [proxy, outbound]
+    depends_on: [socket-proxy]
+  socket-proxy:
+    image: haproxy:3.2-alpine
+    user: '0:0'
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./socket-proxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 64m
+    networks: [proxy]
+    # Never publish the Docker API port to the host or attach an ingress network.
+networks:
+  proxy:
+    internal: true
+  outbound: {}
+volumes:
+  scanner-data: {}

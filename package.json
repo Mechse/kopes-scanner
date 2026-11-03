@@ -1,0 +1,47 @@
+{
+  "name": "@kopes/scanner",
+  "version": "0.1.0",
+  "private": true,
+  "license": "PolyForm-Shield-1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@10.8.0",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port 3100",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env .output/server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:production": "tsx --test test/production.smoke.ts",
+    "setup": "node scripts/setup.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.2.8",
+    "@fontsource-variable/geist-mono": "^5.2.7",
+    "@tabler/icons-react": "^3.35.0",
+    "@tanstack/react-router": "1.170.46",
+    "@tanstack/react-start": "1.169.4",
+    "better-auth": "1.7.15",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "radix-ui": "1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "^3.3.0",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.2.1",
+    "nitro": "3.0.261103-rc",
+    "tailwindcss": "4.3.4",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vite": "8.3.5"
+  }
+}

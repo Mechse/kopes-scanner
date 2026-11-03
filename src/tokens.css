@@ -1,0 +1,54 @@
+/* Generated from docs/brand/tokens.json. Brand values are preserved verbatim. */
+:root, :root[data-theme="light"] {
+  --surface: #F6F6F2;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #E8E8E3;
+  --border: #D6D6D0;
+  --border-strong: #7C818C;
+  --ink: #111214;
+  --ink-muted: #5B6170;
+  --brand: #C6F24E;
+  --brand-hover: #A8D62F;
+  --on-brand: #111214;
+  --brand-ink: #4F6B0A;
+  --brand-tint: #E9F9C2;
+  --sev-critical: #D92638;
+  --sev-high: #C8580A;
+  --sev-medium: #A87400;
+  --sev-low: #2F7FC2;
+  --sev-info: #6B7080;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --surface: #111214;
+  --surface-raised: #1B1D21;
+  --surface-sunken: #0A0B0C;
+  --border: #2A2D33;
+  --border-strong: #666C7A;
+  --ink: #E8E8E3;
+  --ink-muted: #A3A6AE;
+  --brand: #C6F24E;
+  --brand-hover: #A8D62F;
+  --on-brand: #111214;
+  --brand-ink: #C6F24E;
+  --brand-tint: #1E2606;
+  --sev-critical: #FF4D5E;
+  --sev-high: #FF8A3D;
+  --sev-medium: #F5B83D;
+  --sev-low: #5AA9E6;
+  --sev-info: #8A8F9B;
+  color-scheme: dark;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}

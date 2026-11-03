@@ -1,0 +1,9 @@
+# Local Docker Desktop preview: container scans only, no host filesystem access.
+# Requires Docker Compose 2.24.4+ for !override.
+services:
+  scanner:
+    volumes: !override
+      - scanner-data:/data
+    tmpfs: !override
+      - /tmp:size=64m,mode=1777
+      - /host:ro,size=64k,mode=0555
