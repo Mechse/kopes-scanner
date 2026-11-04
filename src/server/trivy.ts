@@ -51,6 +51,17 @@ export function parseReport(raw: string): Report {
   findings.sort((a, b) => severities.indexOf(a.severity) - severities.indexOf(b.severity) || a.package.localeCompare(b.package));
   return { findings, packages, os: [text(os.Family), text(os.Name)].filter(Boolean).join(' '), eol: os.EOSL === true };
 }
+export class NoPackageCoverage extends Error {
+  constructor() {
+    super('The image inventory contains no identifiable packages. Vulnerability coverage is unknown. An image with dependency metadata or a build-generated package inventory is needed to assess its dependencies.');
+  }
+}
+
+export function hasEmptyImageInventory(raw: string) {
+  const bom = JSON.parse(raw);
+  return bom?.bomFormat === 'CycloneDX' && bom.metadata?.component?.type === 'container' &&
+    Array.isArray(bom.components) && bom.components.length === 0;
+}
 export async function matchSbom(config: Config, sbomPath: string, output: string, signal?: AbortSignal) {
   await runTrivy(config, ['sbom', '--scanners', 'vuln', '--list-all-pkgs', '--format', 'json', '--output', output, sbomPath], signal);
   return parseReport(await readOutput(output));

@@ -5,6 +5,7 @@ import { readConfig } from './config';
 import { Store } from './store';
 import { createAuth, migrateAuth } from './auth';
 import { inventory, watchEvents } from './docker';
+import { NoPackageCoverage } from './trivy';
 import { scanTarget } from './scanner';
 
 async function initialize() {
@@ -55,7 +56,7 @@ async function initialize() {
         catch (error) {
           // Do not persist scanner stderr: it can contain image metadata and local paths.
           const message = error instanceof Error && !('stderr' in error) ? error.message : 'Scan failed. Check registry access, available disk/memory, and scanner configuration.';
-          store.fail(target.id, message.slice(0, 500));
+          store.fail(target.id, message.slice(0, 500), error instanceof NoPackageCoverage ? 'unassessed' : 'error');
         }
       } else await delay(2_000, undefined, { signal }).catch(() => {});
     }

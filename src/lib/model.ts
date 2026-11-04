@@ -5,15 +5,19 @@ export type Finding = {
   severity: Severity; title: string; type: string; path: string;
 };
 export type Package = { name: string; version: string; type: string; path: string };
-export type Report = { findings: Finding[]; packages: Package[]; os: string; eol: boolean };
-export type Summary = { counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
+export const garageRelease = {
+  commit: '268334bd2530fa99f8b06c7383b2e9f776691edd',
+  binarySha256: '004b6081c6e3cccbb80317c69e3c5749fbb3fc889e217cc9b89c215bf0dd7ded',
+};
+export type Report = { coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
+export type Summary = { coverage?: Report['coverage']; counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
 export type Suggestion = {
   tag: string; reference: string; digest: string; platform: string;
   removed: number; introduced: number; remaining: number; checkedAt: number;
 };
 export type Target = {
   id: string; kind: 'host' | 'image'; name: string; image_id: string | null;
-  platform: string | null; status: 'queued' | 'scanning' | 'ready' | 'error';
+  platform: string | null; status: 'queued' | 'scanning' | 'ready' | 'error' | 'unassessed';
   scanned_at: number | null; attempted_at: number | null; error: string | null;
   summary: Summary | null; suggestions: Suggestion[]; recommendation_note: string | null;
 };
@@ -23,5 +27,5 @@ export type Dashboard = { targets: Target[]; containers: Container[]; inventoryA
 export function summarize(report: Report): Summary {
   const counts = Object.fromEntries(severities.map(s => [s, 0])) as Record<Severity, number>;
   for (const finding of report.findings) counts[finding.severity]++;
-  return { counts, packages: report.packages.length, fixable: report.findings.filter(f => f.fixed).length, os: report.os, eol: report.eol };
+  return { ...(report.coverage && { coverage: report.coverage }), counts, packages: report.packages.length, fixable: report.findings.filter(f => f.fixed).length, os: report.os, eol: report.eol };
 }

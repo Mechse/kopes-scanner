@@ -10,8 +10,9 @@ import { readConfig, isGithubUsername } from '../src/server/config';
 import { containerInfo, inventory, watchEvents } from '../src/server/docker';
 import { candidateTags, publicImage } from '../src/server/registry';
 import { snapshotHost } from '../src/server/host';
-import { compareReports, parseReport } from '../src/server/trivy';
+import { compareReports, hasEmptyImageInventory, parseReport } from '../src/server/trivy';
 import { scanTarget } from '../src/server/scanner';
+import { garageSourceInventory } from '../src/server/garage-release';
 import { Store } from '../src/server/store';
 import { createAuth, isAllowed, migrateAuth, requireSameOrigin, requireSession } from '../src/server/auth';
 
@@ -54,6 +55,24 @@ test('registry candidates stay in the same major/variant and exclude moving tags
   assert.deepEqual(candidateTags('1.2.0', ['1.3.0-rc1', '1.3.0-beta', '1.3.0-alpine']), []);
 });
 
+test('Garage release-source inventory requires the matching immutable image and ARM64 platform', () => {
+  const index = 'sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020';
+  assert.equal(garageSourceInventory(index, 'linux/amd64'), null);
+  assert.equal(garageSourceInventory('dxflrs/garage:v2.4.1', 'linux/arm64'), null);
+  const inventory = JSON.parse(garageSourceInventory(index, 'linux/arm64/v8')!);
+  assert.match(inventory.metadata.component.name, /source-derived/);
+  assert.ok(inventory.components.some((c: { name: string }) => c.name === 'fjall'));
+  assert.ok(!inventory.components.some((c: { name: string }) => c.name === 'libfuzzer-sys'));
+});
+
+test('an identified container with an empty CycloneDX inventory has unknown coverage', () => {
+  const bom = { bomFormat: 'CycloneDX', metadata: { component: { type: 'container' } }, components: [] };
+  assert.equal(hasEmptyImageInventory(JSON.stringify(bom)), true);
+  assert.equal(hasEmptyImageInventory(JSON.stringify({ ...bom, components: [{}] })), false);
+  assert.equal(hasEmptyImageInventory('{}'), false);
+  assert.throws(() => hasEmptyImageInventory('invalid'));
+});
+
 test('Trivy parsing preserves unknown severities and rejects malformed reports', () => {
   assert.equal(report.findings[0].severity, 'HIGH');
   assert.equal(report.findings[1].severity, 'UNKNOWN');
@@ -88,6 +107,21 @@ test('SQLite queue deduplicates images, preserves successful reports on failure,
     store.syncInventory([{ ...c, target_id: replacement }]);
     assert.ok(store.dashboard(6).targets.some(t => t.id === replacement && t.status === 'queued'));
     assert.ok(!store.dashboard(6).targets.some(t => t.id === c.target_id));
+  } finally { store.db.close(); }
+});
+
+test('finding search and scan activity follow the latest completed report', () => {
+  const store = new Store(':memory:');
+  try {
+    store.syncInventory([]);
+    store.complete('host', report, '{}', null, [], '');
+    assert.equal(store.searchFindings('LIBSSL')[0].matches, 2);
+    assert.equal(store.searchFindings('cve-2025-0001')[0].id, 'host');
+    store.complete('host', { ...report, findings: [] }, '{}', null, [], '');
+    assert.equal(store.searchFindings('LIBSSL').length, 0);
+    assert.equal(store.activity()[0].message, '0 new · 2 no longer detected');
+    store.fail('host', 'offline');
+    assert.equal(store.activity()[0].message, 'Scan failed · offline');
   } finally { store.db.close(); }
 });
 

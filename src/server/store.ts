@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Container, Dashboard, Report, Suggestion, Target } from '../lib/model';
+import { compareReports } from './trivy';
 import { summarize } from '../lib/model';
 
 type TargetRow = Omit<Target, 'summary' | 'suggestions'> & { summary_json: string | null; suggestions_json: string; requested: number };
@@ -25,6 +26,10 @@ export class Store {
         id TEXT PRIMARY KEY, name TEXT NOT NULL, image TEXT NOT NULL,
         target_id TEXT NOT NULL REFERENCES targets(id) ON DELETE CASCADE,
         project TEXT NOT NULL, service TEXT NOT NULL, manager TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS scan_activity (
+        seq INTEGER PRIMARY KEY, target TEXT NOT NULL, name TEXT NOT NULL, time INTEGER NOT NULL,
+        message TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
@@ -83,12 +88,34 @@ export class Store {
       suggestions: JSON.parse(row.suggestions_json), recommendation_note: row.recommendation_note };
   }
   complete(id: string, report: Report, sbom: string, platform: string | null, suggestions: Suggestion[], note: string) {
-    this.db.prepare(`UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE 'ready' END,
-      scanned_at=?, error=NULL, report_json=?, summary_json=?, sbom=?, platform=?, suggestions_json=?, recommendation_note=? WHERE id=?`)
-      .run(Date.now(), JSON.stringify(report), JSON.stringify(summarize(report)), sbom, platform, JSON.stringify(suggestions), note, id);
+    this.transaction(() => {
+      const previous = this.report(id);
+      const change = previous && previous.coverage === report.coverage && compareReports(previous, report);
+      const message = change ? `${change.introduced} new · ${change.removed} no longer detected` : `First scan · ${report.findings.length} findings`;
+      this.record(id, report.coverage ? `Release-source dependencies · ${message}` : message);
+      this.db.prepare(`UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE 'ready' END,
+        scanned_at=?, error=NULL, report_json=?, summary_json=?, sbom=?, platform=?, suggestions_json=?, recommendation_note=? WHERE id=?`)
+        .run(Date.now(), JSON.stringify(report), JSON.stringify(summarize(report)), sbom, platform, JSON.stringify(suggestions), note, id);
+    });
   }
-  fail(id: string, message: string) {
-    this.db.prepare("UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE 'error' END, error=? WHERE id=?").run(message, id);
+  fail(id: string, message: string, status: 'error' | 'unassessed' = 'error') {
+    this.transaction(() => {
+      this.record(id, status === 'unassessed' ? 'Inspection complete · No identifiable packages' : `Scan failed · ${message}`);
+      this.db.prepare("UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE ? END, error=? WHERE id=?").run(status, message, id);
+    });
+  }
+  private record(id: string, message: string) {
+    this.db.prepare('INSERT INTO scan_activity(target,name,time,message) SELECT id,name,?,? FROM targets WHERE id=?').run(Date.now(), message, id);
+    this.db.exec('DELETE FROM scan_activity WHERE seq <= (SELECT max(seq)-200 FROM scan_activity)');
+  }
+  activity() {
+    return this.db.prepare('SELECT * FROM scan_activity ORDER BY seq DESC').all();
+  }
+  searchFindings(term: string) {
+    return this.db.prepare(`SELECT t.id, count(*) AS matches FROM targets t,
+      json_each(t.report_json, '$.findings') f
+      WHERE instr(lower(f.value ->> '$.id'), lower(?)) OR instr(lower(f.value ->> '$.package'), lower(?))
+      GROUP BY t.id`).all(term, term);
   }
   sbom(id: string) { return (this.db.prepare('SELECT sbom FROM targets WHERE id=?').get(id) as { sbom: string | null } | undefined)?.sbom ?? null; }
   report(id: string): Report | null {
@@ -96,7 +123,7 @@ export class Store {
     return row?.report_json ? JSON.parse(row.report_json) : null;
   }
   dashboard(intervalHours: number): Dashboard {
-    return { targets: (this.db.prepare('SELECT * FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
+    return { targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
       containers: this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[],
       inventoryAt: Number(this.getMeta('inventoryAt')) || null, inventoryError: this.getMeta('inventoryError') || null, intervalHours };
   }

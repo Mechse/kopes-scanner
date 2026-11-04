@@ -24,6 +24,11 @@ async function handle({ request }: { request: Request }) {
     return Response.json({ admin: config.admin, users: store.allowedUsers() });
   }
   if (request.method === 'GET' && action === 'inventory') return Response.json({ ...store.dashboard(config.intervalHours), isAdmin });
+  if (request.method === 'GET' && action === 'activity') return Response.json(store.activity());
+  if (request.method === 'GET' && action === 'search') {
+    const query = url.searchParams.get('q')?.trim();
+    return Response.json(query ? store.searchFindings(query) : []);
+  }
   if (id !== 'host' && !/^image:sha256:[a-f0-9]{64}$/.test(id)) return new Response('Invalid target.', { status: 400 });
   if (request.method === 'GET' && action === 'report') {
     const report = store.report(id);
