@@ -115,11 +115,18 @@ test('finding search and scan activity follow the latest completed report', () =
   try {
     store.syncInventory([]);
     store.complete('host', report, '{}', null, [], '');
+    const newCves = () => store.dashboard(6).targets[0].summary?.newCves;
+    assert.equal(newCves(), undefined);
     assert.equal(store.searchFindings('LIBSSL')[0].matches, 2);
     assert.equal(store.searchFindings('cve-2025-0001')[0].id, 'host');
     store.complete('host', { ...report, findings: [] }, '{}', null, [], '');
     assert.equal(store.searchFindings('LIBSSL').length, 0);
     assert.equal(store.activity()[0].message, '0 new · 2 no longer detected');
+    assert.deepEqual(newCves(), []);
+    store.complete('host', { ...report, findings: [...report.findings, report.findings[0]] }, '{}', null, [], '');
+    assert.deepEqual(newCves(), ['CVE-2025-0001', 'CVE-2025-0002']);
+    store.complete('host', { ...report, coverage: 'release-source' }, '{}', null, [], '');
+    assert.equal(newCves(), undefined);
     store.fail('host', 'offline');
     assert.equal(store.activity()[0].message, 'Scan failed · offline');
   } finally { store.db.close(); }

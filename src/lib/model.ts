@@ -10,7 +10,7 @@ export const garageRelease = {
   binarySha256: '004b6081c6e3cccbb80317c69e3c5749fbb3fc889e217cc9b89c215bf0dd7ded',
 };
 export type Report = { coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
-export type Summary = { coverage?: Report['coverage']; counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
+export type Summary = { newCves?: string[]; coverage?: Report['coverage']; counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
 export type Suggestion = {
   tag: string; reference: string; digest: string; platform: string;
   removed: number; introduced: number; remaining: number; checkedAt: number;

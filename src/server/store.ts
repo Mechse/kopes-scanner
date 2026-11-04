@@ -91,11 +91,17 @@ export class Store {
     this.transaction(() => {
       const previous = this.report(id);
       const change = previous && previous.coverage === report.coverage && compareReports(previous, report);
+      const summary = summarize(report);
+      if (change && previous) {
+        const known = new Set(previous.findings.map(finding => finding.id));
+        summary.newCves = [...new Set(report.findings.map(finding => finding.id)
+          .filter(id => /^CVE-/i.test(id) && !known.has(id)))].sort();
+      }
       const message = change ? `${change.introduced} new · ${change.removed} no longer detected` : `First scan · ${report.findings.length} findings`;
       this.record(id, report.coverage ? `Release-source dependencies · ${message}` : message);
       this.db.prepare(`UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE 'ready' END,
         scanned_at=?, error=NULL, report_json=?, summary_json=?, sbom=?, platform=?, suggestions_json=?, recommendation_note=? WHERE id=?`)
-        .run(Date.now(), JSON.stringify(report), JSON.stringify(summarize(report)), sbom, platform, JSON.stringify(suggestions), note, id);
+        .run(Date.now(), JSON.stringify(report), JSON.stringify(summary), sbom, platform, JSON.stringify(suggestions), note, id);
     });
   }
   fail(id: string, message: string, status: 'error' | 'unassessed' = 'error') {

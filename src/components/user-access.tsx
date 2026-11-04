@@ -25,16 +25,17 @@ export function UserAccess() {
     } catch (e) { setError((e as Error).message || 'Unable to update user access.'); }
     finally { setBusy(false); }
   }
-  return <section className="user-access" aria-label="User access">
-    <p className="muted">Allowed users can view reports, download SBOMs and request scans. Only the administrator manages access.</p>
-    {error && <p className="error" role="alert">{error}</p>}
-    {access ? <><p>Administrator: <strong>@{access.admin}</strong> · configured in Coolify or your deployment environment.</p>
-      <form className="user-access-form" onSubmit={event => { event.preventDefault(); void update('add', login); }}>
-        <label className="search">GitHub username<input required maxLength={39} pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?" autoComplete="off" placeholder="octocat" value={login} onChange={event => setLogin(event.target.value)} /></label>
+  return <section className="mb-6 max-w-[740px] [&_li]:flex [&_li]:min-h-12 [&_li]:items-center [&_li]:justify-between [&_li]:gap-3 [&_li]:border-b [&_li]:border-border [&_li]:py-2" aria-label="User access">
+
+    {error && <p className="text-critical" role="alert">{error}</p>}
+    {access ? <><h2>Grant access</h2><p className="text-muted-foreground">Members can view reports, download SBOMs and request scans.</p>
+      <form className="flex flex-wrap items-end gap-3 border-b border-border pt-4 pb-6" onSubmit={event => { event.preventDefault(); void update('add', login); }}>
+        <label className="min-w-[180px] flex-1">GitHub username<input className="mt-1.5 w-full rounded-sm border border-border bg-background px-3 py-2.5 text-foreground" required maxLength={39} pattern="[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?" autoComplete="off" placeholder="octocat" value={login} onChange={event => setLogin(event.target.value)} /></label>
         <Button type="submit" disabled={busy}>Grant access</Button>
       </form>
-      <ul aria-label="Allowed GitHub users">{access.users.map(user => <li key={user}><span>@{user}</span><Button variant="ghost" size="sm" disabled={busy} aria-label={`Revoke access for ${user}`} onClick={() => { void update('remove', user); }}>Revoke access</Button></li>)}</ul>
-      {!access.users.length && <p className="muted" role="status">Only the administrator has access.</p>}
+      <h2>People <span className="rounded-[5px] bg-sunken px-[7px] py-px text-xs text-muted-foreground">{access.users.length + 1}</span></h2>
+      <ul aria-label="People with access"><li><strong>@{access.admin}</strong><span className="text-xs text-muted-foreground" title="Configured in your deployment environment">Administrator</span></li>{access.users.map(user => <li key={user}><span>@{user}</span><Button variant="ghost" size="sm" disabled={busy} aria-label={`Revoke access for ${user}`} onClick={() => { void update('remove', user); }}>Revoke access</Button></li>)}</ul>
+      {!access.users.length && <p className="text-muted-foreground" role="status">Only the administrator has access.</p>}
     </> : !error && <p role="status">Loading user access…</p>}
   </section>;
 }

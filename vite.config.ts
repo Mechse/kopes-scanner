@@ -5,7 +5,10 @@ import react from '@vitejs/plugin-react';
 import tailwind from '@tailwindcss/vite';
 import { nitro } from 'nitro/vite';
 
-export default defineConfig({
-  resolve: { dedupe: ['react', 'react-dom'], alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
-  plugins: [tailwind(), tanstackStart(), nitro({ preset: 'node-server' }), react()],
+export default defineConfig(({ command }) => {
+  if (command === 'serve') process.umask(0o077);
+  return {
+    resolve: { dedupe: ['react', 'react-dom'], alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+    plugins: [tailwind(), tanstackStart(), nitro({ preset: 'node-server' }), react()],
+  };
 });

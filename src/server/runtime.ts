@@ -1,3 +1,4 @@
+import { isMainThread } from 'node:worker_threads';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -9,7 +10,8 @@ import { NoPackageCoverage } from './trivy';
 import { scanTarget } from './scanner';
 
 async function initialize() {
-  process.umask(0o077);
+  // Vite sets the process-wide mask before starting its development worker.
+  if (isMainThread) process.umask(0o077);
   const config = readConfig();
   const store = new Store(config.dataDir);
   await mkdir(join(config.dataDir, 'tmp'), { recursive: true, mode: 0o700 });
