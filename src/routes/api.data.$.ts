@@ -24,6 +24,7 @@ async function handle({ request }: { request: Request }) {
     return Response.json({ admin: config.admin, users: store.allowedUsers() });
   }
   if (request.method === 'GET' && action === 'inventory') return Response.json({ ...store.dashboard(config.intervalHours), isAdmin });
+  if (request.method === 'GET' && action === 'timeline') return Response.json(store.timeline());
   if (request.method === 'GET' && action === 'activity') return Response.json(store.activity());
   if (request.method === 'GET' && action === 'search') {
     const query = url.searchParams.get('q')?.trim();

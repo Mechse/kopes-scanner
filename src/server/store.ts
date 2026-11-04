@@ -13,7 +13,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 2) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 3) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -33,8 +33,18 @@ export class Store {
       );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
-      PRAGMA user_version=2;
+      CREATE TABLE IF NOT EXISTS issue_events (
+        seq INTEGER PRIMARY KEY, app TEXT NOT NULL, name TEXT NOT NULL, issue TEXT NOT NULL,
+        package TEXT NOT NULL, ecosystem TEXT NOT NULL, kind TEXT NOT NULL, time INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS first_discovery ON issue_events(app, issue, package, ecosystem)
+        WHERE kind='discovered';
     `);
+    if (version.user_version < 3) this.transaction(() => {
+      const rows = this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL AND scanned_at IS NOT NULL').all();
+      for (const row of rows) this.recordDiscoveries(String(row.id), JSON.parse(String(row.report_json)), Number(row.scanned_at));
+      this.db.exec('PRAGMA user_version=3');
+    });
   }
   transaction(fn: () => void) {
     this.db.exec('BEGIN IMMEDIATE');
@@ -89,6 +99,8 @@ export class Store {
   }
   complete(id: string, report: Report, sbom: string, platform: string | null, suggestions: Suggestion[], note: string) {
     this.transaction(() => {
+      const scannedAt = Date.now();
+      this.recordDiscoveries(id, report, scannedAt);
       const previous = this.report(id);
       const change = previous && previous.coverage === report.coverage && compareReports(previous, report);
       const summary = summarize(report);
@@ -101,7 +113,7 @@ export class Store {
       this.record(id, report.coverage ? `Release-source dependencies · ${message}` : message);
       this.db.prepare(`UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE 'ready' END,
         scanned_at=?, error=NULL, report_json=?, summary_json=?, sbom=?, platform=?, suggestions_json=?, recommendation_note=? WHERE id=?`)
-        .run(Date.now(), JSON.stringify(report), JSON.stringify(summary), sbom, platform, JSON.stringify(suggestions), note, id);
+        .run(scannedAt, JSON.stringify(report), JSON.stringify(summary), sbom, platform, JSON.stringify(suggestions), note, id);
     });
   }
   fail(id: string, message: string, status: 'error' | 'unassessed' = 'error') {
@@ -113,6 +125,19 @@ export class Store {
   private record(id: string, message: string) {
     this.db.prepare('INSERT INTO scan_activity(target,name,time,message) SELECT id,name,?,? FROM targets WHERE id=?').run(Date.now(), message, id);
     this.db.exec('DELETE FROM scan_activity WHERE seq <= (SELECT max(seq)-200 FROM scan_activity)');
+  }
+  private recordDiscoveries(id: string, report: Report, time: number) {
+    const apps = this.db.prepare('SELECT project, name FROM containers WHERE target_id=?').all(id)
+      .map(c => ({ key: JSON.stringify([c.project, c.name]), name: c.name }));
+    if (id === 'host') apps.push({ key: 'host', name: 'Host OS' });
+    const insert = this.db.prepare(`INSERT INTO issue_events(app,name,issue,package,ecosystem,kind,time)
+      VALUES (?,?,?,?,?,'discovered',?) ON CONFLICT DO NOTHING`);
+    for (const app of apps) {
+      for (const finding of report.findings) insert.run(app.key, app.name, finding.id, finding.package, finding.type, time);
+    }
+  }
+  timeline() {
+    return this.db.prepare('SELECT * FROM issue_events ORDER BY name, app, time DESC, issue, package, ecosystem').all();
   }
   activity() {
     return this.db.prepare('SELECT * FROM scan_activity ORDER BY seq DESC').all();

@@ -22,6 +22,7 @@ import { FindingsSearch } from "../components/findings-search";
 import { FindingOverview } from "../components/finding-overview";
 import { FindingsTable } from "../components/findings-table";
 import { AppsInventory } from "../components/apps-inventory";
+import { IssueTimeline } from "../components/issue-timeline";
 import { Overview } from "../components/overview";
 import { useWorkspace, WorkspaceBar } from "../components/app-shell";
 import { api, useResource } from "../lib/use-resource";
@@ -39,6 +40,7 @@ import { ChevronsLeft, ChevronsRight } from "lucide-react";
 
 type Location = {
   view?: "apps" | "activity";
+  log?: boolean;
   target?: string;
   app?: string;
   match?: string;
@@ -59,6 +61,7 @@ export const Route = createFileRoute("/")({
       input.view === "apps" || input.view === "activity"
         ? input.view
         : undefined,
+    log: input.log === true || undefined,
     target: typeof input.target === "string" ? input.target : undefined,
     app: typeof input.app === "string" ? input.app : undefined,
     severity: severities.find((level) => level === input.severity),
@@ -101,7 +104,7 @@ const noticeClass =
   "mt-3 mb-5 rounded-sm border border-border bg-sunken px-4 py-3 text-[13px] wrap-anywhere";
 
 function Workspace() {
-  const { view, target: id, app } = Route.useSearch();
+  const { view, target: id, app, log } = Route.useSearch();
   const { inventory, revision, refresh } = useWorkspace();
   const data = inventory?.data;
   const target = data?.targets.find((t) => t.id === id);
@@ -113,7 +116,7 @@ function Workspace() {
       time: number;
       message: string;
     }[]
-  >(view === "activity" ? "activity" : "", revision, 2500);
+  >(view === "activity" && log ? "activity" : "", revision, 2500);
   const targetName = (t: Target) =>
     data?.containers
       .filter((c) => c.target_id === t.id)
@@ -191,6 +194,16 @@ function Workspace() {
         </>
       ) : view === "activity" ? (
         <>
+          <nav aria-label="Activity views" className="-mx-4 mb-5 flex gap-5 border-b border-border px-4">
+            {[{ label: "Timeline", log: undefined }, { label: "Scan log", log: true }].map(tab => (
+              <Link key={tab.label} to="/" search={{ view: "activity", log: tab.log }}
+                aria-current={log === tab.log ? "page" : undefined}
+                className={`border-b-2 py-2 text-sm ${log === tab.log ? "border-current font-medium" : "border-transparent text-muted-foreground"}`}>
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+          {!log ? <IssueTimeline revision={revision} /> : <>
           <h2>Scan status</h2>
           {outstanding.map((t) => (
             <Row key={t.id} target={t}>
@@ -241,6 +254,7 @@ function Workspace() {
           ) : (
             <p role="status">Loading activity…</p>
           )}
+          </>}
         </>
       ) : (
         <Overview data={data} priorities={priorities} targetName={targetName} />

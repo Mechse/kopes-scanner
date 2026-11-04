@@ -128,6 +128,9 @@ test('finding search and scan activity follow the latest completed report', () =
   try {
     store.syncInventory([]);
     store.complete('host', report, '{}', null, [], '');
+    const discoveries = store.timeline();
+    assert.equal(discoveries.length, 2);
+    assert.ok(discoveries.every(event => event.kind === 'discovered' && event.name === 'Host OS'));
     const newCves = () => store.dashboard(6).targets[0].summary?.newCves;
     assert.equal(newCves(), undefined);
     assert.equal(store.searchFindings('LIBSSL')[0].matches, 2);
@@ -142,7 +145,32 @@ test('finding search and scan activity follow the latest completed report', () =
     assert.equal(newCves(), undefined);
     store.fail('host', 'offline');
     assert.equal(store.activity()[0].message, 'Scan failed · offline');
+    assert.deepEqual(store.timeline(), discoveries);
   } finally { store.db.close(); }
+});
+
+test('timeline seeds existing reports once and retains each app’s discoveries after inventory changes', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'kopes-timeline-'));
+  let store = new Store(directory);
+  try {
+    const app = containerInfo(dockerContainer);
+    store.syncInventory([app, { ...app, id: 'another', name: 'worker' }]);
+    store.complete(app.target_id, report, '{}', null, [], '');
+    store.db.exec('DROP TABLE issue_events; PRAGMA user_version=2; UPDATE targets SET scanned_at=1234 WHERE report_json IS NOT NULL');
+    store.db.close();
+    store = new Store(directory);
+    const events = store.timeline();
+    assert.equal(events.length, 4);
+    assert.deepEqual(new Set(events.map(event => event.name)), new Set([app.name, 'worker']));
+    assert.ok(events.every(event => event.time === 1234));
+    store.syncInventory([]);
+    store.db.close();
+    store = new Store(directory);
+    assert.deepEqual(store.timeline(), events);
+  } finally {
+    store.db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('host snapshot follows host-root os-release links but excludes unrelated files', async () => {
