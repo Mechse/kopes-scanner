@@ -1,26 +1,24 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { createAuthClient } from "better-auth/react";
 import {
   createContext,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import {
-  IconSearch,
-  IconChevronRight,
-  IconActivity,
-  IconCube,
-  IconLayoutDashboard,
-  IconMenu2,
-  IconUsers,
-  IconBrandGithub,
-  IconLogout,
-  IconMoon,
-  IconSun,
-} from "@tabler/icons-react";
+  ChevronRight,
+  Activity,
+  Box,
+  LayoutDashboard,
+  Menu,
+  Users,
+  LogIn,
+  LogOut,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
 
@@ -33,8 +31,6 @@ const WorkspaceContext = createContext<{
   inventory: ReturnType<typeof useResource<Inventory>>;
   revision: number;
   refresh: () => void;
-  input: string;
-  setInput: (value: string) => void;
 } | null>(null);
 export function useWorkspace() {
   const state = useContext(WorkspaceContext);
@@ -43,67 +39,36 @@ export function useWorkspace() {
 }
 export function WorkspaceBar({
   section,
-  report = false,
+  report,
 }: {
   section: string;
-  report?: boolean;
+  report?: string;
 }) {
-  const { input, setInput } = useWorkspace();
-  const field = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const focusOnMount = useRef(Boolean(input));
-  useEffect(() => {
-    if (focusOnMount.current) field.current?.focus();
-    const focusSearch = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        field.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
   return (
-    <div className="-mx-4 flex min-h-[55px] items-center justify-between gap-4 border-b border-border px-4 py-2">
-      <div className="flex items-center gap-2 text-xs mobile:hidden [&_a]:text-muted-foreground [&_a:hover]:underline [&_svg]:text-muted-foreground">
-        <Link to="/" search={{}} onClick={() => setInput("")}>
-          Workspace
+    <nav
+      aria-label="Breadcrumb"
+      className={`${report ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&_svg]:text-muted-foreground`}
+    >
+      <Link to="/" search={{}}>
+        Workspace
+      </Link>
+      <ChevronRight size={13} />
+      {report ? (
+        <Link to="/" search={{ view: "apps" }}>
+          Apps &amp; host
         </Link>
-        <IconChevronRight size={13} />
-        {report ? (
-          <Link to="/" search={{ view: "apps" }}>
-            Apps &amp; host
-          </Link>
-        ) : (
-          <span>{section}</span>
-        )}
-        {report && (
-          <>
-            <IconChevronRight size={13} />
-            <span>Report</span>
-          </>
-        )}
-      </div>
-      <label className="flex w-[min(300px,50%)] items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand-ink mobile:w-full">
-        <IconSearch className="text-muted-foreground" size={16} />
-        <input
-          className="min-w-0 flex-1 focus:outline-none"
-          ref={field}
-          type="search"
-          aria-label="Search all containers and findings"
-          placeholder="Search containers, packages or CVEs…"
-          value={input}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setInput("");
-          }}
-          onChange={(event) => {
-            setInput(event.target.value);
-            if (pathname !== "/") void navigate({ to: "/", search: {} });
-          }}
-        />
-      </label>
-    </div>
+      ) : (
+        <span>{section}</span>
+      )}
+      {report && (
+        <>
+          <ChevronRight size={13} />
+          <span aria-current="page" className="truncate" title={report}>
+            {report}
+          </span>
+        </>
+      )}
+    </nav>
   );
 }
 const navLinkClass =
@@ -131,7 +96,7 @@ function ThemeButton() {
         }
       }}
     >
-      {dark ? <IconSun /> : <IconMoon />}
+      {dark ? <Sun /> : <Moon />}
     </Button>
   );
 }
@@ -140,7 +105,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: session, isPending, error: sessionError } = auth.useSession();
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const inventory = useResource<Inventory>(
     session ? "inventory" : "",
@@ -163,7 +127,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
           }}
         >
-          <IconLogout />
+          <LogOut />
           Sign out
         </Button>
       )}
@@ -171,7 +135,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const navigate = () => {
     setOpen(false);
-    setInput("");
   };
   const sidebar = (
     <div className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-3 pt-6 pb-3 desktop:top-2 desktop:h-[calc(100dvh-16px)] desktop:pt-4 desktop:pb-2">
@@ -188,9 +151,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="grid gap-[3px] desktop:gap-0.5" aria-label="Workspace">
         {(
           [
-            ["Overview", undefined, IconLayoutDashboard],
-            ["Apps & host", "apps", IconCube],
-            ["Activity", "activity", IconActivity],
+            ["Overview", undefined, LayoutDashboard],
+            ["Apps & host", "apps", Box],
+            ["Activity", "activity", Activity],
           ] as const
         ).map(([label, view, Icon]) => (
           <Link
@@ -213,7 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ))}
         {inventory?.data?.isAdmin && (
           <Link className={navLinkClass} to="/users" onClick={navigate}>
-            <IconUsers size={16} />
+            <Users size={16} />
             User access
           </Link>
         )}
@@ -259,8 +222,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             inventory,
             revision,
             refresh: () => setRevision((n) => n + 1),
-            input,
-            setInput,
           }}
         >
           <header className="flex items-center gap-2.5 border-b border-border px-3 py-1 desktop:hidden">
@@ -271,7 +232,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   size="icon"
                   aria-label="Open navigation"
                 >
-                  <IconMenu2 />
+                  <Menu />
                 </Button>
               </SheetTrigger>
               <SheetContent title="Workspace navigation">
@@ -310,7 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 try {
                   const result = await auth.signIn.social({
                     provider: "github",
-                    callbackURL: pathname,
+                    callbackURL: window.location.pathname + window.location.search,
                     errorCallbackURL: `${pathname}?authError=1`,
                   });
                   if (result.error)
@@ -322,7 +283,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 }
               }}
             >
-              <IconBrandGithub />
+              <LogIn />
               Sign in with GitHub
             </Button>
             <AuthError />

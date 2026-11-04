@@ -21,6 +21,20 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 function text(value: unknown) { return typeof value === 'string' ? value : ''; }
+function readCvss(vulnerability: Record<string, unknown>): Finding['cvss'] {
+  const ratings = vulnerability.CVSS;
+  if (!ratings || typeof ratings !== 'object' || Array.isArray(ratings)) return;
+  const entries = Object.entries(ratings);
+  const priority = (source: string) => source === vulnerability.SeveritySource ? 0 : source === 'nvd' ? 1 : 2;
+  entries.sort(([a], [b]) => priority(a) - priority(b) || a.localeCompare(b));
+  for (const [source, rating] of entries) {
+    if (!rating || typeof rating !== 'object') continue;
+    for (const version of [4, 3, 2]) {
+      const score = rating[`V${version}Score`];
+      if (typeof score === 'number' && score >= 0 && score <= 10) return { score, version, source };
+    }
+  }
+}
 export function parseReport(raw: string): Report {
   const input = record(JSON.parse(raw));
   if (input.SchemaVersion !== 2 || !Array.isArray(input.Results)) throw new Error('Unsupported or empty scan report; refusing to mark this target clean.');
@@ -41,14 +55,14 @@ export function parseReport(raw: string): Report {
       const v = record(value);
       if (!text(v.VulnerabilityID) || !text(v.PkgName)) throw new Error('Invalid vulnerability entry.');
       const finding: Finding = { id: text(v.VulnerabilityID), package: text(v.PkgName), installed: text(v.InstalledVersion), fixed: text(v.FixedVersion),
-        severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path };
+        cvss: readCvss(v), severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path };
       const key = JSON.stringify([finding.id, finding.package, finding.installed, type, path]);
       if (!seen.has(key)) { findings.push(finding); seen.add(key); }
     }
   }
   const meta = input.Metadata ? record(input.Metadata) : {};
   const os = meta.OS ? record(meta.OS) : {};
-  findings.sort((a, b) => severities.indexOf(a.severity) - severities.indexOf(b.severity) || a.package.localeCompare(b.package));
+  findings.sort((a, b) => severities.indexOf(a.severity) - severities.indexOf(b.severity) || (b.cvss?.score ?? -1) - (a.cvss?.score ?? -1) || a.package.localeCompare(b.package));
   return { findings, packages, os: [text(os.Family), text(os.Name)].filter(Boolean).join(' '), eol: os.EOSL === true };
 }
 export class NoPackageCoverage extends Error {

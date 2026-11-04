@@ -124,8 +124,8 @@ export class Store {
       GROUP BY t.id`).all(term, term);
   }
   sbom(id: string) { return (this.db.prepare('SELECT sbom FROM targets WHERE id=?').get(id) as { sbom: string | null } | undefined)?.sbom ?? null; }
-  report(id: string): Report | null {
-    const row = this.db.prepare('SELECT report_json FROM targets WHERE id=?').get(id) as { report_json: string | null } | undefined;
+  report(id: string, scan: number | null = null): Report | null {
+    const row = this.db.prepare('SELECT report_json FROM targets WHERE id=? AND (? IS NULL OR scanned_at=?)').get(id, scan, scan) as { report_json: string | null } | undefined;
     return row?.report_json ? JSON.parse(row.report_json) : null;
   }
   dashboard(intervalHours: number): Dashboard {

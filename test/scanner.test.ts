@@ -25,6 +25,19 @@ const raw = { SchemaVersion: 2, Metadata: { OS: { Family: 'debian', Name: '12', 
 ] }] };
 const report = parseReport(JSON.stringify(raw));
 
+test('findings in a severity group use the vendor score, highest first and unscored last', () => {
+  const base = { PkgName: 'example', Severity: 'CRITICAL', SeveritySource: 'redhat' };
+  const vulnerabilities = [
+    { ...base, VulnerabilityID: 'unscored' },
+    { ...base, VulnerabilityID: 'vendor', CVSS: { redhat: { V3Score: 9.1 }, nvd: { V3Score: 10 } } },
+    { ...base, VulnerabilityID: 'fallback', CVSS: { nvd: { V3Score: 9.8 } } },
+  ];
+  const { findings } = parseReport(JSON.stringify({ SchemaVersion: 2, Results: [{ Vulnerabilities: vulnerabilities }] }));
+  assert.deepEqual(findings.map(f => f.id), ['fallback', 'vendor', 'unscored']);
+  assert.deepEqual(findings[1].cvss, { score: 9.1, version: 3, source: 'redhat' });
+  assert.equal(findings[2].cvss, undefined);
+});
+
 test('configuration fails closed; username matching is exact and case-insensitive', () => {
   assert.equal(readConfig(env).intervalHours, 6);
   assert.equal(readConfig(env).admin, 'alice');

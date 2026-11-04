@@ -31,7 +31,7 @@ async function handle({ request }: { request: Request }) {
   }
   if (id !== 'host' && !/^image:sha256:[a-f0-9]{64}$/.test(id)) return new Response('Invalid target.', { status: 400 });
   if (request.method === 'GET' && action === 'report') {
-    const report = store.report(id);
+    const report = store.report(id, url.searchParams.has('scan') ? Number(url.searchParams.get('scan')) : null);
     return report ? Response.json(report) : new Response('No completed scan yet.', { status: 404 });
   }
   if (request.method === 'GET' && action === 'sbom') {
