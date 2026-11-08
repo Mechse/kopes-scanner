@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { BusyIndicator } from "./ui/loading";
+import { useState, type ReactNode } from 'react';
 import { Copy, ShieldAlert, ExternalLink } from 'lucide-react';
 import type { Container, Finding, Target } from '../lib/model';
 import { explainVector, isCve, safeUrl, type Advisory } from '../lib/advisory';
@@ -24,7 +25,7 @@ function displayDate(value?: string) {
   if (!value || !Number.isFinite(Date.parse(value))) return 'Not reported';
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
-export function FindingOverview({ finding, locked, target, container }: { finding: Finding; locked: boolean; target: Target; container?: Container }) {
+export function FindingOverview({ finding, locked, target, container, recordedAt, historical = false, resources }: { finding: Finding; locked: boolean; target: Target; container?: Container; recordedAt?: number; historical?: boolean; resources?: ReactNode }) {
   const [revision, setRevision] = useState(0);
   const resource = useResource<Advisory>(isCve(finding.id) ? `advisory?id=${encodeURIComponent(finding.id)}` : '', revision);
   const advisory = resource?.data;
@@ -59,21 +60,23 @@ export function FindingOverview({ finding, locked, target, container }: { findin
       {description ? <details className="mt-4" open><summary className="cursor-pointer font-medium">Advisory description</summary><p className="mt-2 whitespace-pre-line">{description}</p><p className="mt-2 text-xs text-muted-foreground">Source: {finding.description ? 'scanner advisory data' : `CVE record · ${external?.publisher || 'publishing authority'}`}</p></details> : <p className="mt-3 text-muted-foreground">No description is available in this scan{!resource && isCve(finding.id) ? '; checking the CVE record…' : '. Review the source links below.'}</p>}
     </section>
 
+    {resources}
+
     {advisory?.status === 'rejected' && <p role="status" className="mt-6 rounded border border-border bg-sunken p-4 text-sm">This CVE record has been rejected. Review the CVE record before acting on the scanner finding. {advisory.description}</p>}
-    {advisory?.status !== 'rejected' && <section className="my-8 border-l-[3px] border-brand-ink bg-brand-tint/30 px-5 py-5 text-sm" aria-label="How to fix it">
+    {!historical && advisory?.status !== 'rejected' && <section className="my-8 border-l-[3px] border-brand-ink bg-brand-tint/30 px-5 py-5 text-sm" aria-label="How to fix it">
       <h2 className="mb-2 text-xl">{finding.fixed ? 'How to fix it' : 'What to do while no fix is reported'}</h2>
       {finding.fixed && <p className="mb-5 leading-6">The scanner reports <code className="rounded bg-sunken px-1.5 py-0.5">{finding.fixed}</code> as fixed. Multiple versions can refer to different release branches; check the vendor advisory for yours.</p>}
       <ol className="list-decimal space-y-5 pl-5">{steps.map(step => <li key={step.title} className="pl-1"><h3 className="font-medium">{step.title}</h3><p className="mt-1 leading-6 text-muted-foreground">{step.detail}</p>{step.command && <Command key={step.command} command={step.command} />}</li>)}</ol>
       {(external?.solutions.length || external?.workarounds.length) ? <div className="mt-6 border-t border-border pt-4"><h3 className="font-medium">Published guidance</h3><p className="mt-1 text-xs text-muted-foreground">From <a className="underline" href={external.source} target="_blank" rel="noreferrer">{external.publisher || 'the CVE publisher'}</a>. Check product and version applicability before using it.</p>{external.solutions.map((text, i) => <p key={`s${i}`} className="mt-3 whitespace-pre-line leading-6"><strong>Solution: </strong>{text}</p>)}{external.workarounds.map((text, i) => <p key={`w${i}`} className="mt-3 whitespace-pre-line leading-6"><strong>Workaround: </strong>{text}</p>)}</div> : !finding.fixed && <p className="mt-5 text-xs text-muted-foreground">{external ? 'The CVE record does not list a workaround. Linked vendor advisories may contain further guidance.' : 'No published workaround has been retrieved. Check the source advisories; this does not mean none exists.'}</p>}
     </section>}
 
-    {target.kind === 'image' && target.suggestions.length > 0 && <section className="mb-8 text-sm"><h2 className="mb-3 text-lg">Image versions already compared</h2><p className="mb-3 text-muted-foreground">These are overall scan comparisons; they do not establish that this specific CVE is fixed.</p>{target.suggestions.map(s => <div key={s.digest} className="border-t border-border py-3"><code>{s.reference}</code><p className="mt-1 text-xs text-muted-foreground">{s.removed} advisory/package pairs removed · {s.introduced} introduced · {s.remaining} remaining · {s.platform} · checked {new Date(s.checkedAt).toLocaleString()}</p></div>)}</section>}
+    {!historical && target.kind === 'image' && target.suggestions.length > 0 && <section className="mb-8 text-sm"><h2 className="mb-3 text-lg">Image versions already compared</h2><p className="mb-3 text-muted-foreground">These are overall scan comparisons; they do not establish that this specific CVE is fixed.</p>{target.suggestions.map(s => <div key={s.digest} className="border-t border-border py-3"><code>{s.reference}</code><p className="mt-1 text-xs text-muted-foreground">{s.removed} advisory/package pairs removed · {s.introduced} introduced · {s.remaining} remaining · {s.platform} · checked {new Date(s.checkedAt).toLocaleString()}</p></div>)}</section>}
 
     <details className="border-y border-border py-4 text-sm"><summary className="cursor-pointer font-medium">Technical details</summary><dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)]">{properties.map(([label, value]) => <div key={label} className="contents"><dt className="text-muted-foreground">{label}</dt><dd className="font-mono text-xs leading-6">{value || 'Not reported'}</dd></div>)}</dl>{locked && <p className="mt-4 text-xs text-muted-foreground">Release source coverage: dependency versions come from release metadata rather than a complete binary inventory.</p>}</details>
     <section className="mt-8 text-sm" aria-label="Sources"><h2 className="mb-3 text-lg">Sources & freshness</h2>
-      <p className="text-xs leading-6 text-muted-foreground">Scan: {target.scanned_at ? new Date(target.scanned_at).toLocaleString() : 'unknown'}. External records add context; package fix status reflects this scan.</p>
+      <p className="text-xs leading-6 text-muted-foreground">{recordedAt !== undefined ? `Pulse update: ${new Date(recordedAt).toLocaleString()}` : `Scan: ${target.scanned_at ? new Date(target.scanned_at).toLocaleString() : 'unknown'}`}. External records add context; package fix status reflects {historical ? 'the recorded update' : 'this scan'}.</p>
       {isCve(finding.id) && <div className="my-3 text-xs text-muted-foreground" role="status">
-        {!resource ? 'Loading the CVE record…' : resource.error || advisory?.status === 'unavailable' ? 'The CVE source is unavailable. Scanner details and source links are still usable. Retry in one minute.' : advisory?.status === 'not-found' ? 'No public CVE record was found.' : `CVE record retrieved ${new Date(advisory!.fetchedAt).toLocaleString()}. Cached for up to one hour.`}
+        {!resource ? <><BusyIndicator className="mr-2" />Loading the CVE record…</> : resource.error || advisory?.status === 'unavailable' ? 'The CVE source is unavailable. Scanner details and source links are still usable. Retry in one minute.' : advisory?.status === 'not-found' ? 'No public CVE record was found.' : `CVE record retrieved ${new Date(advisory!.fetchedAt).toLocaleString()}. Cached for up to one hour.`}
         {(resource?.error || advisory?.status === 'unavailable') && <Button className="ml-2" size="sm" variant="outline" onClick={() => setRevision(r => r + 1)}>Retry source</Button>}
       </div>}
       <ul className="space-y-2">{sources.map(url => <li key={url}><a className="inline-flex items-start gap-2 underline underline-offset-4 hover:text-brand-ink" href={url} target="_blank" rel="noreferrer"><ExternalLink className="mt-1 shrink-0" size={13} aria-hidden="true" /><span>{url}</span></a></li>)}</ul>

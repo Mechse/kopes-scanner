@@ -79,6 +79,11 @@ function SeverityGroup({
                 state={{ fromFindings: true }}
                 className="finding-summary"
               >
+                <span className="finding-mobile-package">{f.package}</span>
+                <span className="finding-mobile-status">
+                  <span className={severityColors[severity]}>{label}</span>
+                  <span>{f.fixed ? "Fix available" : "No fix available"}</span>
+                </span>
                 <ScoreIndicator cvss={f.cvss} />
                 <span className="finding-id" title={f.id}>
                   {f.id}
@@ -100,7 +105,7 @@ function SeverityGroup({
         <tr>
           <td colSpan={2}>
             <button
-              className="cursor-pointer py-1.5 text-brand-ink"
+              className="cursor-pointer py-1.5 text-brand-ink mobile:min-h-11"
               type="button"
               onClick={() => setLimit(limit + 50)}
             >

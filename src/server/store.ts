@@ -100,15 +100,15 @@ export class Store {
       seq: Number(row.seq), target: String(row.target), name: String(row.name), time: Number(row.time), ...JSON.parse(String(row.payload)),
     })) as PulseEvent[];
     const states = Object.fromEntries(this.db.prepare('SELECT * FROM pulse_states WHERE user=?').all(user).map(row =>
-      [String(row.issue), { seen: Number(row.seen), dismissed: Number(row.dismissed), bookmarked: !!row.bookmarked }])) as Record<string, PulseState>;
+      [String(row.issue), { dismissed: Number(row.dismissed), bookmarked: !!row.bookmarked }])) as Record<string, PulseState>;
     return groupPulse(events, states);
   }
-  setPulseState(user: string, issue: string, seq: number, action: 'read' | 'unread' | 'dismiss' | 'restore' | 'bookmark' | 'unbookmark') {
+  setPulseState(user: string, issue: string, seq: number, action: 'dismiss' | 'restore' | 'bookmark' | 'unbookmark') {
     const event = this.pulseFeed(user).find(item => item.id === issue && item.seq === seq);
     if (!event) return false;
     this.db.prepare('INSERT OR IGNORE INTO pulse_states(user,issue) VALUES (?,?)').run(user, issue);
-    const column = action === 'read' || action === 'unread' ? 'seen' : action === 'dismiss' || action === 'restore' ? 'dismissed' : 'bookmarked';
-    const value = action === 'read' || action === 'dismiss' ? seq : action === 'bookmark' ? 1 : 0;
+    const column = action === 'dismiss' || action === 'restore' ? 'dismissed' : 'bookmarked';
+    const value = action === 'dismiss' ? seq : action === 'bookmark' ? 1 : 0;
     this.db.prepare(`UPDATE pulse_states SET ${column}=? WHERE user=? AND issue=?`).run(value, user, issue);
     return true;
   }

@@ -1,3 +1,5 @@
+import { ContentSkeleton } from "./ui/loading";
+import { SearchToolbar } from "./search-toolbar";
 import { useMemo, useState } from "react";
 import { FindingsSearch } from "./findings-search";
 import { Tooltip } from "radix-ui";
@@ -89,15 +91,15 @@ export function IssueTimeline({ revision }: { revision: number }) {
           Discovered
         </span>
       </header>
-      <div className="-mx-4 mb-4 flex items-center border-y border-border px-4 py-2 text-xs text-muted-foreground">
+      <SearchToolbar className="mb-0 border-t">
         <FindingsSearch
           label="Search timeline"
           value={query}
           onChange={setQuery}
         />
-      </div>
+      </SearchToolbar>
       {resource?.error && <p role="alert">{resource.error}</p>}
-      {!resource && <p role="status">Loading timeline…</p>}
+      {!resource && <ContentSkeleton label="Loading timeline…" layout="timeline" />}
       {resource?.data && !apps.size && (
         <p
           role="status"
@@ -110,7 +112,7 @@ export function IssueTimeline({ revision }: { revision: number }) {
       )}
       {!!apps.size && (
         <Tooltip.Provider delayDuration={100}>
-          <div className="overflow-x-auto rounded-md border border-border">
+          <div className="-mx-4 overflow-x-auto">
             <div className="min-w-[38rem]">
               <div
                 className={

@@ -1,3 +1,4 @@
+import { BusyIndicator } from './loading';
 import * as React from 'react';
 import { Slot } from 'radix-ui';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -6,7 +7,7 @@ const buttonVariants = cva('inline-flex items-center justify-center gap-2 whites
   variants: { variant: { default: 'bg-primary text-primary-foreground hover:bg-primary-hover', outline: 'border border-border bg-raised hover:bg-sunken', ghost: 'hover:bg-sunken' }, size: { default: 'h-10 px-4 py-2', sm: 'h-8 px-3 text-xs', icon: 'size-10' } },
   defaultVariants: { variant: 'default', size: 'default' },
 });
-export function Button({ className, variant, size, asChild = false, ...props }: React.ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
+export function Button({ className, variant, size, asChild = false, busy = false, children, disabled, ...props }: React.ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean; busy?: boolean }) {
   const Comp = asChild ? Slot.Root : 'button';
-  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} disabled={disabled || busy} aria-busy={busy || undefined}>{asChild ? children : <>{busy && <BusyIndicator />}{children}</>}</Comp>;
 }

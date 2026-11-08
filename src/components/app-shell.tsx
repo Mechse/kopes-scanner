@@ -1,3 +1,4 @@
+import { ContentSkeleton, LoadingStatus } from "./ui/loading";
 import { Link, useLocation } from "@tanstack/react-router";
 import { createAuthClient } from "better-auth/react";
 import {
@@ -48,7 +49,7 @@ export function WorkspaceBar({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`${report ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&_svg]:text-muted-foreground`}
+      className={`${report || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&_svg]:text-muted-foreground`}
     >
       <Link to="/" search={{}}>
         Workspace
@@ -77,7 +78,7 @@ export function WorkspaceBar({
   );
 }
 const navLinkClass =
-  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] text-muted-foreground hover:bg-sunken hover:text-foreground aria-[current=page]:bg-sunken aria-[current=page]:text-foreground desktop:gap-2 desktop:py-[5px] desktop:hover:bg-foreground/5 desktop:aria-[current=page]:bg-foreground/9 [&[aria-current=page]_svg]:text-brand-ink";
+  "flex items-center gap-2.5 rounded-md px-2.5 py-3 text-sm text-muted-foreground hover:bg-sunken hover:text-foreground aria-[current=page]:bg-sunken aria-[current=page]:text-foreground desktop:gap-2 desktop:text-[13px] desktop:py-[5px] desktop:hover:bg-foreground/5 desktop:aria-[current=page]:bg-foreground/9 [&[aria-current=page]_svg]:text-brand-ink";
 
 const auth = createAuthClient();
 function ThemeButton() {
@@ -111,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [open, setOpen] = useState(false);
+  const [authAction, setAuthAction] = useState<"in" | "out" | null>(null);
   const inventory = useResource<Inventory>(
     session ? "inventory" : "",
     revision,
@@ -123,17 +125,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Button
           variant="ghost"
           size="sm"
+          busy={authAction === "out"}
           onClick={async () => {
+            setAuthAction("out");
             try {
               const result = await auth.signOut();
               if (result.error) setError("Sign out failed. Please retry.");
             } catch {
               setError("Sign out failed. Please retry.");
-            }
+            } finally { setAuthAction(null); }
           }}
         >
-          <LogOut />
-          Sign out
+          {authAction !== "out" && <LogOut />}
+          {authAction === "out" ? "Signing out…" : "Sign out"}
         </Button>
       )}
     </div>
@@ -142,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOpen(false);
   };
   const sidebar = (
-    <div className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-3 pt-6 pb-3 desktop:top-2 desktop:h-[calc(100dvh-16px)] desktop:pt-4 desktop:pb-2">
+    <div className="flex flex-col gap-4 px-3 pt-3 pb-3 desktop:gap-0 desktop:sticky desktop:top-0 desktop:h-dvh desktop:overflow-y-auto desktop:top-2 desktop:h-[calc(100dvh-16px)] desktop:pt-4 desktop:pb-2">
       <Link
         to="/"
         search={{}}
@@ -152,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Logo width={88} />
       </Link>
-      <div className="mt-4"></div>
+      <div className="hidden desktop:block"></div>
       <nav className="grid gap-[3px] desktop:gap-0.5" aria-label="Workspace">
         {(
           [
@@ -202,7 +206,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <a className="flex" href="/" aria-label="kopes.dev host security">
             <Logo width={88} />
           </a>
-          <span>Host security</span>
           <ThemeButton />
         </header>
       )}
@@ -219,7 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           id="main"
           className="mx-auto flex min-h-[calc(100vh-145px)] max-w-[480px] flex-col justify-center px-6 py-12 [&_h1]:text-[28px]"
         >
-          <p role="status">Checking your session…</p>
+          <section className="rounded-[10px] border border-border bg-raised p-6"><LoadingStatus label="Checking your session…" /><ContentSkeleton label="Loading workspace…" layout="detail" /></section>
         </main>
       ) : session ? (
         <WorkspaceContext.Provider
@@ -235,17 +238,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="size-11"
                   aria-label="Open navigation"
                 >
                   <Menu />
                 </Button>
               </SheetTrigger>
-              <SheetContent title="Workspace navigation">
+              <SheetContent side="bottom" title="Workspace navigation">
                 {sidebar}
               </SheetContent>
             </Sheet>
             <Logo width={76} />
-            <span className="text-muted-foreground">Host security</span>
           </header>
           <div className="min-h-dvh desktop:grid desktop:grid-cols-[208px_minmax(0,1fr)] desktop:bg-[linear-gradient(145deg,var(--surface),color-mix(in_srgb,var(--surface)_60%,var(--surface-sunken)))] desktop:py-2 desktop:pr-2">
             <aside className="hidden desktop:block">{sidebar}</aside>
@@ -271,7 +274,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </p>
             )}
             <Button
+              busy={authAction === "in"}
               onClick={async () => {
+                setAuthAction("in");
                 setError("");
                 try {
                   const result = await auth.signIn.social({
@@ -279,17 +284,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                     callbackURL: window.location.pathname + window.location.search,
                     errorCallbackURL: `${pathname}?authError=1`,
                   });
-                  if (result.error)
+                  if (result.error) {
+                    setAuthAction(null);
                     setError(
                       "GitHub sign-in failed. Check OAuth configuration and the allowlist.",
                     );
+                  }
                 } catch {
+                  setAuthAction(null);
                   setError("Unable to contact GitHub sign-in. Please retry.");
                 }
               }}
             >
-              <LogIn />
-              Sign in with GitHub
+              {authAction !== "in" && <LogIn />}
+              {authAction === "in" ? "Connecting to GitHub…" : "Sign in with GitHub"}
             </Button>
             <AuthError />
             <div className="mt-6 border-t border-border pt-6 text-xs text-muted-foreground">

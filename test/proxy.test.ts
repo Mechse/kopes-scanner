@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
+import { connect } from 'node:net';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
@@ -12,7 +13,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 test('socket proxy permits only discovery/image reads and rejects writes, archives and traversal', { skip: !process.env.HAPROXY_TEST_BIN, timeout: 20_000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kopes-proxy-'));
   const socket = join(directory, 'docker.sock');
-  const engine = createServer((_req, res) => { res.end('engine'); });
+  const engine = createServer((req, res) => {
+    if (req.url === '/events?disconnect-test') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.flushHeaders(); // A quiet event stream stays open until its client leaves.
+    } else res.end('engine');
+  });
   engine.listen(socket); await once(engine, 'listening');
   const probe = createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
   const port = (probe.address() as { port: number }).port;
@@ -38,6 +44,19 @@ test('socket proxy permits only discovery/image reads and rejects writes, archiv
     assert.equal(await status('/_ping', 'HEAD'), 200);
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) assert.equal(await status('/containers/json', method), 403, method);
     for (const path of ['/containers/create', '/containers/abc/json', '/containers/abc/archive?path=/etc', '/containers/abc/logs', '/info', '/secrets', '/images/../../containers/abc/json', '/images/%2e%2e/%2e%2e/containers/abc/json']) assert.equal(await status(path), 403, path);
+    // More abandoned streams than maxconn must not lock out inventory requests.
+    // Send FIN (not RST) to reproduce clients disappearing during dev reloads.
+    for (let batch = 0; batch < 5; batch++) {
+      await Promise.all(Array.from({ length: 8 }, () => new Promise<void>((resolve, reject) => {
+        const client = connect({ host: '127.0.0.1', port });
+        const timeout = setTimeout(() => { client.destroy(); reject(new Error('Abandoned event stream was not reclaimed')); }, 2500);
+        client.on('error', reject);
+        client.on('close', () => { clearTimeout(timeout); resolve(); });
+        client.once('connect', () => client.write('GET /events?disconnect-test HTTP/1.1\r\nHost: localhost\r\n\r\n'));
+        client.once('data', () => client.end());
+      })));
+    }
+    assert.equal(await status('/containers/json'), 200);
   } finally {
     if (child && child.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited; }
     engine.closeAllConnections(); await new Promise<void>(done => engine.close(() => done()));

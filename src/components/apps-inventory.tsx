@@ -1,55 +1,117 @@
-import { Link } from '@tanstack/react-router';
-import { ArrowLeft, ArrowUpRight, Folder, LayoutGrid, List, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { severities, type Container, type Dashboard, type Target } from '../lib/model';
-import { resourceKey } from '../lib/settings';
-import { ResourceIcon } from './resource-icon';
-import { ScanSettingsButton } from './scan-settings';
-import { severityColors } from './severity-colors';
+import { BusyIndicator } from "./ui/loading";
+import { SearchToolbar } from "./search-toolbar";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpRight, Folder, LayoutGrid, List } from "lucide-react";
+import { useEffect, useState } from "react";
+import { type Container, type Dashboard, type Target } from "../lib/model";
+import { FindingsSearch } from "./findings-search";
+import { Select } from "./ui/filters";
+import { ResourceIcon } from "./resource-icon";
+import { ScanSettingsLink } from "./scan-settings";
+import { Assessment } from "./assessment";
+import { pillClass } from "./ui/pill";
 
-type View = 'grid' | 'line';
-const preferenceKey = 'kopes.projects-view';
+type View = "grid" | "line";
+const preferenceKey = "kopes.projects-view";
 
-function Assessment({ targets }: { targets: Target[] }) {
-  const highest = severities.find(level => targets.some(target => target.summary?.counts[level]));
-  const assessed = targets.filter(target => target.summary).length;
-  return <span className={`projects-assessment ${highest ? severityColors[highest] : 'text-muted-foreground'}`}>
-    <i aria-hidden="true" />{highest ? `${highest[0]}${highest.slice(1).toLowerCase()}` : assessed ? 'No findings' : 'Not assessed'}
-    {assessed > 0 && assessed < targets.length && <span className="sr-only">; some resources not assessed</span>}
-  </span>;
-}
 
-function Resource({ target, container }: { target: Target; container?: Container }) {
-  const name = container?.name ?? target.name;
-  return <article className="projects-item projects-resource">
-    <div className="projects-identity">
+const resourceRowClass = "mobile-resource-row group relative isolate grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50 @min-[720px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_148px_100px]";
+
+function ResourceLine({ target, container }: { target?: Target; container?: Container }) {
+  const name = container?.name ?? target?.name ?? "Resource";
+  const image = container?.image ?? target?.summary?.os ?? "Operating system packages";
+  const findings = target?.summary
+    ? Object.values(target.summary.counts).reduce((sum, count) => sum + count, 0)
+    : undefined;
+
+  return <article className={resourceRowClass}>
+    <div className="flex min-w-0 items-center gap-2">
       <ResourceIcon container={container} />
-      <div className="min-w-0">
-        <Link to="/" search={{ view: 'apps', target: target.id, app: container?.id, project: container?.project }} className="projects-name">{name}</Link>
-        <span className="projects-muted">{container ? container.manager : 'Host OS packages'}</span>
-      </div>
+      {target ? <Link
+        to="/"
+        search={{ view: "apps", target: target.id, app: container?.id, project: container?.project }}
+        title={name}
+        aria-label={`Open report for ${name}`}
+        className="min-w-0 truncate text-sm font-medium after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand-ink"
+      >{name}</Link> : <span title={name} className="truncate text-sm font-medium">{name}</span>}
     </div>
-    <div className="projects-detail"><span className="projects-mobile-label">{container ? 'Image' : 'Operating system'}</span><span className="wrap-anywhere">{container?.image ?? target.summary?.os ?? 'Operating system packages'}</span></div>
-    <div className="projects-health"><Assessment targets={[target]} /><span className="projects-muted">{target.summary ? `${Object.values(target.summary.counts).reduce((sum, count) => sum + count, 0)} findings` : 'No report yet'}</span></div>
-    <div className="projects-scan"><span className={target.status === 'error' ? 'text-critical' : 'text-muted-foreground'}>{target.status === 'ready' ? 'Assessed' : target.status === 'unassessed' ? 'Not assessed' : target.status === 'error' ? 'Scan failed' : target.status === 'scanning' ? 'Scanning' : 'Queued'}</span>
-      {target.scanned_at && <time className="projects-muted" dateTime={new Date(target.scanned_at).toISOString()}>{new Date(target.scanned_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>}
+    <span title={image} className="col-start-1 row-start-2 min-w-0 truncate pl-10 text-xs text-muted-foreground @min-[720px]:col-start-auto @min-[720px]:row-start-auto @min-[720px]:pl-0">{image}</span>
+    <div className="col-start-2 row-start-1 justify-self-end @min-[720px]:col-start-auto @min-[720px]:row-start-auto @min-[720px]:justify-self-start">
+      {target ? <Assessment targets={[target]} /> : <span className="text-xs text-muted-foreground">Awaiting scan target</span>}
     </div>
-    <div className="projects-actions"><ScanSettingsButton scope="resource" settingsKey={resourceKey(container)} name={name} /><Link to="/" search={{ view: 'apps', target: target.id, app: container?.id, project: container?.project }} aria-label={`Open report for ${name}`} className="projects-open"><ArrowUpRight size={16} /></Link></div>
+    <span className="col-start-2 row-start-2 text-right text-xs tabular-nums text-muted-foreground @min-[720px]:col-start-auto @min-[720px]:row-start-auto">
+      {findings !== undefined ? <>{findings} {findings === 1 ? "finding" : "findings"}</> : <span aria-label="Findings unavailable">—</span>}
+    </span>
   </article>;
 }
 
+function Resource({ target, container, view }: { target: Target; container?: Container; view: View }) {
+  if (view === "line") return <ResourceLine target={target} container={container} />;
+  const name = container?.name ?? target.name;
+  const image = container?.image ?? target.summary?.os ?? "Operating system packages";
+  const search = { view: "apps" as const, target: target.id, app: container?.id, project: container?.project };
+  const findings = target.summary
+    ? Object.values(target.summary.counts).reduce((sum, count) => sum + count, 0)
+    : undefined;
+
+  return (
+    <article className="group relative isolate flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-background">
+          <ResourceIcon container={container} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <Link
+            to="/"
+            search={search}
+            title={name}
+            aria-label={`Open report for ${name}`}
+            className="block truncate text-sm leading-5 font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand-ink"
+          >
+            {name}
+          </Link>
+          <span title={`${container?.manager ?? "Host"} · ${image}`} className="block truncate text-xs leading-5 text-muted-foreground">{image}</span>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Assessment targets={[target]} />
+        {findings !== undefined && <span className={pillClass}>
+          {findings} {findings === 1 ? "finding" : "findings"}
+        </span>}
+        {(target.status === "error" || target.status === "scanning" || target.status === "queued") && (
+          <span className={pillClass}>
+            {target.status === "error" && <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-critical" />}
+            {target.status === "scanning" && <BusyIndicator />}
+            {target.status === "error" ? "Scan failed" : target.status === "scanning" ? "Scanning" : "Queued"}
+          </span>
+        )}
+        <ArrowUpRight size={16} className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />
+      </div>
+    </article>
+  );
+}
+
 export function ProjectsInventory({ data, project }: { data: Dashboard; project?: string }) {
-  const [query, setQuery] = useState('');
-  const [view, setView] = useState<View>('grid');
-  const [sort, setSort] = useState('name');
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<View>("grid");
+  const [sort, setSort] = useState("name");
   useEffect(() => {
-    try { const saved = localStorage.getItem(preferenceKey); if (saved === 'grid' || saved === 'line') setView(saved); } catch { /* Use Grid when storage is unavailable. */ }
+    try {
+      const saved = localStorage.getItem(preferenceKey);
+      if (saved === "grid" || saved === "line") setView(saved);
+    } catch {
+      /* Use Grid when storage is unavailable. */
+    }
   }, []);
   function changeView(next: View) {
     setView(next);
-    try { localStorage.setItem(preferenceKey, next); } catch { /* The view still works without storage. */ }
+    try {
+      localStorage.setItem(preferenceKey, next);
+    } catch {
+      /* The view still works without storage. */
+    }
   }
-  const targets = new Map(data.targets.map(target => [target.id, target]));
+  const targets = new Map(data.targets.map((target) => [target.id, target]));
   const groups = new Map<string, Container[]>();
   for (const container of data.containers) {
     const group = groups.get(container.project) ?? [];
@@ -57,45 +119,90 @@ export function ProjectsInventory({ data, project }: { data: Dashboard; project?
     groups.set(container.project, group);
   }
   const needle = query.trim().toLowerCase();
-  const matches = (...values: string[]) => values.some(value => value.toLowerCase().includes(needle));
-  const compare = (a: string, b: string) => (sort === 'descending' ? -1 : 1) * a.localeCompare(b, undefined, { numeric: true });
-  const projects = [...groups].filter(([name, members]) => matches(name || 'Ungrouped', ...members.flatMap(member => [member.name, member.image]))).sort(([a], [b]) => compare(a, b));
-  const members = project !== undefined ? groups.get(project) ?? [] : [];
-  const resources = members.filter(member => matches(member.name, member.image, member.manager)).sort((a, b) => compare(a.name, b.name));
-  const hosts = data.targets.filter(target => target.kind === 'host' && matches(target.name, target.summary?.os ?? '', 'Host OS')).sort((a, b) => compare(a.name, b.name));
+  const matches = (...values: string[]) =>
+    values.some((value) => value.toLowerCase().includes(needle));
+  const compare = (a: string, b: string) =>
+    (sort === "descending" ? -1 : 1) *
+    a.localeCompare(b, undefined, { numeric: true });
+  const projects = [...groups]
+    .filter(([name, members]) =>
+      matches(
+        name || "Ungrouped",
+        ...members.flatMap((member) => [member.name, member.image]),
+      ),
+    )
+    .sort(([a], [b]) => compare(a, b));
+  const members = project !== undefined ? (groups.get(project) ?? []) : [];
+  const resources = members
+    .filter((member) => matches(member.name, member.image, member.manager))
+    .sort((a, b) => compare(a.name, b.name));
+  const hosts = data.targets
+    .filter(
+      (target) =>
+        target.kind === "host" &&
+        matches(target.name, target.summary?.os ?? "", "Host OS"),
+    )
+    .sort((a, b) => compare(a.name, b.name));
   const drilling = project !== undefined;
-  return <div className="projects-page" data-view={view}>
-    {drilling && <Link to="/" search={{ view: 'apps' }} className="projects-back"><ArrowLeft size={14} />All projects</Link>}
-    <header className="projects-heading"><div><h1>{drilling ? project || 'Ungrouped' : 'Projects'}</h1><p className="projects-muted">{drilling ? `${members.length} ${members.length === 1 ? 'resource' : 'resources'} in this project` : `${groups.size} ${groups.size === 1 ? 'project' : 'projects'} discovered from your running containers`}</p></div>
-      {drilling && groups.has(project) && <ScanSettingsButton scope="project" settingsKey={project} name={project || 'Ungrouped'} />}
-    </header>
-    <div className="projects-toolbar">
-      <label className="projects-search"><Search size={17} aria-hidden="true" /><input type="search" aria-label={drilling ? 'Search resources' : 'Search projects and hosts'} placeholder={drilling ? 'Search resources…' : 'Search projects and hosts…'} value={query} onChange={event => setQuery(event.target.value)} /></label>
-      <div className="projects-controls"><select aria-label="Sort by name" value={sort} onChange={event => setSort(event.target.value)}><option value="name">Name A–Z</option><option value="descending">Name Z–A</option></select>
-        <div className="projects-view" role="group" aria-label="View"><button type="button" aria-pressed={view === 'grid'} onClick={() => changeView('grid')}><LayoutGrid size={16} />Grid</button><button type="button" aria-pressed={view === 'line'} onClick={() => changeView('line')}><List size={16} />Line</button></div>
-      </div>
-    </div>
-    {drilling ? <section aria-label="Resources"><div className="projects-collection projects-resources">
-      {view === 'line' && resources.length > 0 && <div className="projects-columns projects-resource-columns" aria-hidden="true"><span>Resource</span><span>Image</span><span>Findings</span><span>Last scan</span><span>Actions</span></div>}
-      {resources.map(container => { const target = targets.get(container.target_id); return target ? <Resource key={container.id} container={container} target={target} /> : <article className="projects-item" key={container.id}><strong>{container.name}</strong><p className="projects-muted">Waiting for scan target.</p></article>; })}
-    </div>{!resources.length && <p role="status" className="projects-empty">{!groups.has(project) ? 'This project is no longer in the inventory.' : needle ? 'No resources match your search.' : 'No running resources discovered.'}</p>}</section>
-    : <>
-      <section aria-label="Projects"><div className="projects-collection projects-groups">
-        {view === 'line' && projects.length > 0 && <div className="projects-columns projects-group-columns" aria-hidden="true"><span>Project</span><span>Contents</span><span>Highest severity</span><span>Actions</span></div>}
-        {projects.map(([name, containers]) => {
-          const projectTargets = [...new Set(containers.map(container => container.target_id))].flatMap(id => targets.get(id) ? [targets.get(id)!] : []);
-          return <article key={name} className="projects-item projects-group">
-            <Link to="/" search={{ view: 'apps', project: name }} className="projects-identity projects-name"><span className="projects-folder"><Folder size={20} /></span><span className="wrap-anywhere">{name || 'Ungrouped'}</span></Link>
-            <span className="projects-count">{containers.length} {containers.length === 1 ? 'resource' : 'resources'}</span>
-            <Assessment targets={projectTargets} />
-            <div className="projects-actions"><ScanSettingsButton scope="project" settingsKey={name} name={name || 'Ungrouped'} /><Link to="/" search={{ view: 'apps', project: name }} className="projects-open" aria-label={`Open project ${name || 'Ungrouped'}`}><ArrowUpRight size={16} /></Link></div>
-          </article>;
+  const collectionClass = view === "grid" ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4" : "@container min-w-0";
+  return <div>
+    <SearchToolbar>
+      <FindingsSearch
+        label={drilling ? "Search resources" : "Search projects and hosts"}
+        value={query}
+        onChange={setQuery}
+      />
+        <Select label="Sort by name" value={sort} options={["name", "descending"]} display={value => value === "name" ? "Name A–Z" : "Name Z–A"} onValueChange={setSort} />
+        <div data-toolbar-control className="flex shrink-0 rounded border border-border p-0.5" role="group" aria-label="View">
+          {([['grid', LayoutGrid, 'Grid'], ['line', List, 'Line']] as const).map(([mode, Icon, label]) => <button key={mode} type="button" aria-pressed={view === mode} onClick={() => changeView(mode)} className="inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs text-muted-foreground aria-pressed:bg-brand-tint aria-pressed:text-brand-ink"><Icon size={14} />{label}</button>)}
+        </div>
+        {drilling && groups.has(project) && <ScanSettingsLink project={project} />}
+    </SearchToolbar>
+    {drilling ? <section aria-label="Resources">
+      <div className={resources.length ? collectionClass : undefined}>
+        {resources.map(container => {
+          const target = targets.get(container.target_id);
+          if (view === "line") return <ResourceLine key={container.id} container={container} target={target} />;
+          return target ? <Resource key={container.id} container={container} target={target} view={view} /> : (
+            <article key={container.id} className="flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-background"><ResourceIcon container={container} /></div>
+                <div className="min-w-0 flex-1">
+                  <strong title={container.name} className="block truncate text-sm leading-5 font-medium">{container.name}</strong>
+                  <span title={`${container.manager} · ${container.image}`} className="block truncate text-xs leading-5 text-muted-foreground">{container.image}</span>
+                </div>
+              </div>
+              <span className={`${pillClass} w-fit`}>Waiting for scan target</span>
+            </article>
+          );
         })}
-      </div>{!projects.length && <p role="status" className="projects-empty">{needle ? 'No projects match your search.' : 'No projects discovered. Projects appear when running containers are detected.'}</p>}</section>
-      <section aria-label="Hosts" className="projects-hosts"><h2>Hosts</h2><div className="projects-collection projects-resources">
-        {view === 'line' && hosts.length > 0 && <div className="projects-columns projects-resource-columns" aria-hidden="true"><span>Host</span><span>Operating system</span><span>Findings</span><span>Last scan</span><span>Actions</span></div>}
-        {hosts.map(target => <Resource key={target.id} target={target} />)}
-      </div>{!hosts.length && <p role="status" className="projects-empty">{needle ? 'No hosts match your search.' : 'No host discovered.'}</p>}</section>
+      </div>
+      {!resources.length && <p role="status" className="rounded-lg border border-dashed border-border px-4 py-7 text-sm text-muted-foreground">{!groups.has(project) ? "This project is no longer in the inventory." : needle ? "No resources match your search." : "No running resources discovered."}</p>}
+    </section> : <>
+      <section aria-label="Projects">
+        <div className={projects.length ? collectionClass : undefined}>
+          {projects.map(([name, containers]) => {
+            const projectTargets = [...new Set(containers.map(container => container.target_id))].flatMap(id => targets.get(id) ? [targets.get(id)!] : []);
+            return <Link key={name} to="/" search={{ view: "apps", project: name }} className={view === "grid" ? "group flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink focus-visible:outline-2 focus-visible:outline-brand-ink" : "mobile-project-row group flex min-w-0 items-center gap-4 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-ink"}>
+              <div className={view === "grid" ? "flex min-w-0 flex-1 items-start gap-3" : "flex min-w-0 flex-1 items-center gap-2"}>
+                <span className={view === "grid" ? "grid size-10 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground group-hover:text-brand-ink" : "grid size-8 shrink-0 place-items-center text-muted-foreground group-hover:text-brand-ink"}><Folder size={view === "grid" ? 20 : 17} aria-hidden="true" /></span>
+                <span title={name || "Ungrouped"} className={view === "grid" ? "line-clamp-2 min-h-10 min-w-0 text-sm leading-5 font-medium wrap-anywhere" : "min-w-0 truncate text-sm font-medium"}>{name || "Ungrouped"}</span>
+              </div>
+              <div className={view === "grid" ? "flex min-w-0 flex-wrap items-center gap-2" : "flex shrink-0 flex-col items-end gap-1 @min-[480px]:grid @min-[480px]:grid-cols-[100px_148px] @min-[480px]:items-center @min-[480px]:gap-4"}>
+                <span className={view === "grid" ? `${pillClass} w-fit` : "text-xs tabular-nums text-muted-foreground"}>{containers.length} {containers.length === 1 ? "resource" : "resources"}</span>
+                <Assessment targets={projectTargets} />
+                {view === "grid" && <ArrowUpRight size={16} className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" />}
+              </div>
+            </Link>;
+          })}
+        </div>
+        {!projects.length && <p role="status" className="rounded-lg border border-dashed border-border px-4 py-7 text-sm text-muted-foreground">{needle ? "No projects match your search." : "No projects discovered. Projects appear when running containers are detected."}</p>}
+      </section>
+      <section aria-label="Hosts" className="mt-9">
+        <h2 className="mb-4">Hosts</h2>
+        <div className={hosts.length ? collectionClass : undefined}>{hosts.map(target => <Resource key={target.id} target={target} view={view} />)}</div>
+        {!hosts.length && <p role="status" className="rounded-lg border border-dashed border-border px-4 py-7 text-sm text-muted-foreground">{needle ? "No hosts match your search." : "No host discovered."}</p>}
+      </section>
     </>}
   </div>;
 }

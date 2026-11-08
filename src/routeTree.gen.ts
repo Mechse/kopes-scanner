@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as IssuesIssueRouteImport } from './routes/issues.$issue'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
 
@@ -25,9 +27,19 @@ const HealthzRoute = HealthzRouteImport.update({
   path: '/healthz',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IssuesIssueRoute = IssuesIssueRouteImport.update({
+  id: '/issues/$issue',
+  path: '/issues/$issue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -44,14 +56,18 @@ const ApiDataSplatRoute = ApiDataSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
+  '/issues/$issue': typeof IssuesIssueRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
+  '/issues/$issue': typeof IssuesIssueRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
@@ -59,22 +75,48 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/settings': typeof SettingsRoute
   '/users': typeof UsersRoute
+  '/issues/$issue': typeof IssuesIssueRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/healthz' | '/users' | '/api/auth/$' | '/api/data/$'
+  fullPaths:
+    | '/'
+    | '/healthz'
+    | '/settings'
+    | '/users'
+    | '/issues/$issue'
+    | '/api/auth/$'
+    | '/api/data/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/healthz' | '/users' | '/api/auth/$' | '/api/data/$'
-  id: '__root__' | '/' | '/healthz' | '/users' | '/api/auth/$' | '/api/data/$'
+  to:
+    | '/'
+    | '/healthz'
+    | '/settings'
+    | '/users'
+    | '/issues/$issue'
+    | '/api/auth/$'
+    | '/api/data/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/healthz'
+    | '/settings'
+    | '/users'
+    | '/issues/$issue'
+    | '/api/auth/$'
+    | '/api/data/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
+  SettingsRoute: typeof SettingsRoute
   UsersRoute: typeof UsersRoute
+  IssuesIssueRoute: typeof IssuesIssueRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataSplatRoute: typeof ApiDataSplatRoute
 }
@@ -95,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthzRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/users': {
       id: '/users'
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/issues/$issue': {
+      id: '/issues/$issue'
+      path: '/issues/$issue'
+      fullPath: '/issues/$issue'
+      preLoaderRoute: typeof IssuesIssueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -122,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
+  SettingsRoute: SettingsRoute,
   UsersRoute: UsersRoute,
+  IssuesIssueRoute: IssuesIssueRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataSplatRoute: ApiDataSplatRoute,
 }

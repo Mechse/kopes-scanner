@@ -1,3 +1,5 @@
+import { ContentSkeleton, BusyIndicator, LoadingStatus } from "../components/ui/loading";
+import { SearchToolbar } from "../components/search-toolbar";
 import {
   createFileRoute,
   Link,
@@ -9,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Ellipsis,
+  SlidersHorizontal,
   Download,
   RefreshCw,
   Scan,
@@ -21,6 +24,8 @@ import {
 import { FindingsSearch } from "../components/findings-search";
 import { FindingOverview } from "../components/finding-overview";
 import { FindingsTable } from "../components/findings-table";
+import { ScanSettingsLink } from "../components/scan-settings";
+import { ResourceDetailsHeader } from "../components/resource-details-header";
 import { ProjectsInventory } from "../components/apps-inventory";
 import { IssueTimeline } from "../components/issue-timeline";
 import { Pulse } from "../components/pulse";
@@ -28,15 +33,16 @@ import { useWorkspace, WorkspaceBar } from "../components/app-shell";
 import { api, useResource } from "../lib/use-resource";
 import { Select, Checkbox } from "../components/ui/filters";
 import { Button } from "../components/ui/button";
+import { Tooltip } from "../components/ui/tooltip";
 import { DropdownMenu } from "radix-ui";
-import { Sheet, SheetContent } from "../components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import {
   garageRelease,
   severities,
   type Report,
   type Target,
 } from "../lib/model";
-import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 type Location = {
   view?: "apps" | "activity";
@@ -162,9 +168,9 @@ function Workspace() {
           {data.inventoryError}
         </p>
       )}
-      {!data ? (
-        <p role="status">Loading inventory…</p>
-      ) : view === "apps" ? (
+      {!data && view !== "activity" ? (
+        <>{!inventory?.error && <ContentSkeleton label={`Loading ${heading.toLowerCase()}…`} layout={isReport ? "detail" : view === "apps" ? "projects" : "feed"} />}</>
+      ) : view === "apps" && data ? (
         <>
           {!id && <ProjectsInventory key={project ?? "__overview"} data={data} project={project} />}
           {id && (
@@ -176,7 +182,10 @@ function Workspace() {
                   refresh={refresh}
                 />
               ) : (
-                <p>This target is no longer in the inventory.</p>
+                <div className="py-6">
+                  <Link to="/" search={{ view: "apps", project }} className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-brand-ink"><ArrowLeft size={16} />{project !== undefined ? "Back to project" : "Back to projects"}</Link>
+                  <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">This target is no longer in the inventory.</p>
+                </div>
               )}
             </section>
           )}
@@ -202,7 +211,7 @@ function Workspace() {
               </small>
             </Row>
           ))}
-          {!outstanding.length && <p>All targets have current assessments.</p>}
+          {!data ? !inventory?.error && <ContentSkeleton label="Loading scan status…" layout="scan-log" /> : !outstanding.length && <p>All targets have current assessments.</p>}
           <h2>Recent scans</h2>
           {activity?.error && <p role="alert">{activity.error}</p>}
           {activity?.data ? (
@@ -218,7 +227,7 @@ function Workspace() {
                     aria-hidden="true"
                   />
                   <strong className="col-start-2 font-[550] wrap-anywhere">
-                    {data.targets.some((t) => t.id === event.target) ? (
+                    {data?.targets.some((t) => t.id === event.target) ? (
                       <Link
                         to="/"
                         search={{ view: "apps", target: event.target }}
@@ -241,12 +250,12 @@ function Workspace() {
               <p>New scan completions will appear here.</p>
             )
           ) : (
-            <p role="status">Loading activity…</p>
+            <>{!activity?.error && <ContentSkeleton label="Loading activity…" layout="scan-log" />}</>
           )}
           </>}
         </>
       ) : (
-        <Pulse data={data} revision={revision} targetName={targetName} />
+        data && <Pulse data={data} revision={revision} targetName={targetName} />
       )}
     </main>
   );
@@ -263,6 +272,14 @@ function TargetDetail({
   const [error, setError] = useState("");
   const [action, setAction] = useState("");
   const search = Route.useSearch();
+  const selectedApp = inventory?.data?.containers.find(
+    container => container.id === search.app && container.target_id === target.id,
+  );
+  const settingsLink = (selectedApp || target.kind === "host") ? (
+    <ScanSettingsLink target={target.id} app={selectedApp?.id} project={selectedApp?.project} iconOnly />
+  ) : null;
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const activeFilterCount = Number(search.severity !== undefined) + Number(Boolean(search.fixable));
   const navigate = Route.useNavigate();
   const router = useRouter();
   const fromFindings = useLocation({
@@ -377,7 +394,7 @@ function TargetDetail({
         <section>
           <nav
             aria-label="Finding navigation"
-            className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2"
+            className="-mx-4 flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2"
           >
             <Button
               size="sm"
@@ -394,6 +411,8 @@ function TargetDetail({
               <ArrowLeft aria-hidden="true" />
               Back to findings
             </Button>
+            <div className="ml-auto flex items-center gap-3">
+            {settingsLink}
             {current && (
               <div className="flex items-center gap-1">
                 {position >= 0 && (
@@ -407,17 +426,13 @@ function TargetDetail({
                       ? undefined
                       : findings[position + (label === "Next" ? 1 : -1)];
                   const content = (
-                    <>
-                      {label === "Previous" && (
-                        <ChevronsLeft aria-hidden="true" />
-                      )}
-                      {label}
-                      {label === "Next" && <ChevronsRight aria-hidden="true" />}
-                    </>
+                    label === "Previous" ? <ChevronLeft aria-hidden="true" /> : <ChevronRight aria-hidden="true" />
                   );
                   return entry ? (
-                    <Button key={label} asChild size="sm" variant="ghost">
+                    <Tooltip key={label} label={`${label} finding`}>
+                    <Button asChild size="sm" variant="ghost" className="size-8 p-0">
                       <Link
+                        aria-label={`${label} finding`}
                         to="/"
                         search={findingSearch(entry.index)}
                         replace
@@ -426,66 +441,91 @@ function TargetDetail({
                         {content}
                       </Link>
                     </Button>
+                    </Tooltip>
                   ) : (
-                    <Button key={label} size="sm" variant="ghost" disabled>
+                    <Tooltip key={label} label={`${label} finding`}>
+                    <span className="inline-flex">
+                    <Button size="sm" variant="ghost" className="size-8 p-0" aria-label={`${label} finding`} disabled>
                       {content}
                     </Button>
+                    </span>
+                    </Tooltip>
                   );
                 })}
               </div>
             )}
+            </div>
           </nav>
           {current ? (
             <FindingOverview
               key={`${current.id}:${current.package}:${current.path}`}
               finding={current}
               target={target}
-              container={inventory?.data?.containers.find(c => c.id === search.app && c.target_id === target.id)}
+              container={selectedApp}
               locked={Boolean(report?.coverage)}
             />
           ) : (
-            <p role="status" className="my-8 text-muted-foreground">
-              {error ||
-                (search.scan === target.scanned_at &&
-                !report &&
-                target.scanned_at
-                  ? "Loading finding…"
-                  : "This finding is unavailable for this scan.")}
-            </p>
+            !error && search.scan === target.scanned_at && !report && target.scanned_at
+              ? <ContentSkeleton label="Loading finding…" layout="detail" />
+              : <p role="status" className="my-8 text-muted-foreground">{error || "This finding is unavailable for this scan."}</p>
           )}
         </section>
       )}
       <div hidden={showingFinding}>
-        <div className="-mx-4 flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-xs text-muted-foreground">
+        <SearchToolbar className="mb-0">
+          <h2 className="sr-only">Findings</h2>
           <FindingsSearch
             value={query}
             onChange={(match) => updateFilters({ match: match || undefined })}
           />
-          <Select
-            label="Severity"
-            value={severity}
-            options={["ALL", ...severities]}
-            display={(value) =>
-              value === "ALL" ? "All severities" : value.toLowerCase()
-            }
-            onValueChange={(value) =>
-              updateFilters({ severity: value === "ALL" ? undefined : value })
-            }
-          />
-          <label className="flex items-center gap-2">
-            <Checkbox
-              checked={fixable}
-              onCheckedChange={(value) =>
-                updateFilters({ fixable: value === true || undefined })
-              }
-            />
-            Fix available
-          </label>
-
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <SlidersHorizontal aria-hidden="true" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-brand-tint px-1.5 text-xs text-brand-ink" aria-label={`${activeFilterCount} active filters`}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" title="Filters">
+              <div className="space-y-6 p-5 pt-12">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-medium">Filters</h2>
+                  <Button variant="ghost" size="sm" disabled={activeFilterCount === 0}
+                    onClick={() => updateFilters({ severity: undefined, fixable: undefined })}>
+                    Reset filters
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Severity</p>
+                  <Select
+                    label="Severity"
+                    value={severity}
+                    options={["ALL", ...severities]}
+                    display={(value) => value === "ALL" ? "All severities" : value.toLowerCase()}
+                    onValueChange={(value) => updateFilters({ severity: value === "ALL" ? undefined : value })}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={fixable}
+                    onCheckedChange={(value) => updateFilters({ fixable: value === true || undefined })} />
+                  Fix available
+                </label>
+                <p className="text-xs text-muted-foreground">Filters apply immediately.</p>
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Button variant="ghost" size="sm" disabled={scanBusy} aria-busy={scanBusy || undefined} onClick={requestScan}>
+            <RefreshCw aria-hidden="true" className={scanBusy ? "scan-action-icon" : ""} />
+            {scanProgress || "Rescan"}
+          </Button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Report options">
-                <Ellipsis />
+              <Button variant="ghost" size="sm" aria-label="More resource options">
+                <Ellipsis aria-hidden="true" />More
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
@@ -494,6 +534,17 @@ function TargetDetail({
                 sideOffset={4}
                 className="z-30 rounded-md border border-border bg-raised p-1 text-sm shadow-md [&>[data-highlighted]]:bg-sunken [&>[data-highlighted]]:outline-none [&>[role=menuitem]]:rounded [&>[role=menuitem]]:px-3 [&>[role=menuitem]]:py-2"
               >
+                <DropdownMenu.Item onSelect={() => setDetailsOpen(true)}>
+                  Resource details
+                </DropdownMenu.Item>
+                {(selectedApp || target.kind === "host") && (
+                  <DropdownMenu.Item asChild>
+                    <Link to="/settings" search={{ target: target.id, app: selectedApp?.id, project: selectedApp?.project }}>
+                      Scan settings
+                    </Link>
+                  </DropdownMenu.Item>
+                )}
+                <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item onSelect={() => setPanel("scan")}>
                   Scan details and actions
                 </DropdownMenu.Item>
@@ -503,7 +554,9 @@ function TargetDetail({
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
-        </div>
+        </SearchToolbar>
+        <ResourceDetailsHeader target={target} container={selectedApp} project={search.project}
+          open={detailsOpen} onOpenChange={setDetailsOpen} />
         <Sheet
           open={panel !== null}
           onOpenChange={(open) => {
@@ -547,12 +600,12 @@ function TargetDetail({
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={scanBusy}
+                        disabled={scanBusy} aria-busy={scanBusy || undefined}
                         onClick={requestScan}
                       >
                         <RefreshCw
                           className={
-                            target.status === "scanning" ? "animate-spin" : ""
+                            scanBusy ? "scan-action-icon" : ""
                           }
                         />
                         {scanProgress || "Scan now"}
@@ -750,6 +803,7 @@ function TargetDetail({
             )}
           </section>
         )}
+        {report && target.scanned_at !== loadedAt && !error && <LoadingStatus label="Updating report…" className="my-3" />}
         {target.status === "error" && !waiting && target.error && (
           <p className={`${noticeClass} text-critical`} role="alert">
             Scan failed: {target.error}{" "}
@@ -765,12 +819,12 @@ function TargetDetail({
         )}
         {(target.status === "queued" || waiting) && (
           <p className={noticeClass} role="status">
-            Queued. The scanner will start when the current job finishes.
+            <BusyIndicator className="mr-2" />Queued. The scanner will start when the current job finishes.
           </p>
         )}
         {target.status === "scanning" && (
           <p className={noticeClass} role="status">
-            Scanning locally. Image downloads and upgrade checks can take
+            <BusyIndicator className="mr-2" />Scanning locally. Image downloads and upgrade checks can take
             several minutes.
           </p>
         )}
@@ -829,13 +883,13 @@ function TargetDetail({
                 </p>
                 <Button
                   className="mt-5"
-                  disabled={scanBusy}
+                  disabled={scanBusy} aria-busy={scanBusy || undefined}
                   onClick={requestScan}
                 >
                   <RefreshCw
                     aria-hidden="true"
                     className={
-                      target.status === "scanning" ? "animate-spin" : ""
+                      scanBusy ? "scan-action-icon" : ""
                     }
                   />
                   {scanProgress ||
@@ -844,6 +898,8 @@ function TargetDetail({
                       : "Start first scan")}
                 </Button>
               </div>
+            ) : !error ? (
+              <ContentSkeleton label="Loading report…" className="px-4" />
             ) : (
               <div className="max-w-[580px] px-4 py-12 text-left text-muted-foreground [&_h3]:mt-4 [&_h3]:mb-3 [&_h3]:text-foreground">
                 <h3 role="status">

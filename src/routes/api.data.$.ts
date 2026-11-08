@@ -35,7 +35,7 @@ async function handle({ request }: { request: Request }) {
     if (request.method === 'POST') {
       requireSameOrigin(request, config.origin);
       const body = await request.json().catch(() => null);
-      if (typeof body?.issue !== 'string' || !Number.isSafeInteger(body?.seq) || !['read', 'unread', 'dismiss', 'restore', 'bookmark', 'unbookmark'].includes(body?.action)) return new Response('Invalid Pulse action.', { status: 400 });
+      if (typeof body?.issue !== 'string' || !Number.isSafeInteger(body?.seq) || !['dismiss', 'restore', 'bookmark', 'unbookmark'].includes(body?.action)) return new Response('Invalid Pulse action.', { status: 400 });
       if (!store.setPulseState(session.user.id, body.issue, body.seq, body.action)) return new Response('Update no longer available.', { status: 404 });
     }
     return Response.json(store.pulseFeed(session.user.id), { headers: { 'Cache-Control': 'private, no-store' } });

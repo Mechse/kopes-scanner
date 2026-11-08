@@ -28,7 +28,7 @@ export function FindingsSearch({
   const placeholder = `${label}…`;
   const text = value || placeholder;
   return (
-    <label className="flex min-w-32 flex-1 items-center gap-2">
+    <label data-toolbar-search className="flex min-w-32 flex-1 items-center gap-2">
       <Search size={15} aria-hidden="true" />
       <span className="relative min-w-0 flex-1">
         <input

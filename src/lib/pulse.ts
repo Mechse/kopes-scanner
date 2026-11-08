@@ -3,8 +3,26 @@ import { severities, type Finding, type Report } from './model';
 export type PulseKind = 'discovered' | 'fix' | 'resolved' | 'changed' | 'failure' | 'recovered' | 'coverage';
 export type PulseChange = { project?: string | null; resource?: string; resourceName?: string; issue: string; kind: PulseKind; finding?: Finding; detail?: string };
 export type PulseEvent = PulseChange & { seq: number; target: string; name: string; time: number };
-export type PulseItem = { id: string; seq: number; time: number; events: PulseEvent[]; read: boolean; dismissed: boolean; bookmarked: boolean };
-export type PulseState = { seen: number; dismissed: number; bookmarked: boolean };
+export type PulseItem = { id: string; seq: number; time: number; events: PulseEvent[]; dismissed: boolean; bookmarked: boolean };
+export type PulseState = { dismissed: number; bookmarked: boolean };
+
+export type CurrentPulseItem = PulseItem & { removedEvents: PulseEvent[] };
+// Keep historical details and the original sequence for actions, but exclude
+// removed targets from the visible summary, filters, and ranking.
+export function currentPulseItem(item: PulseItem, targetIds: ReadonlySet<string>): CurrentPulseItem | null {
+  const events = item.events.filter(event => targetIds.has(event.target));
+  if (!events.length) return null;
+  return { ...item, events, removedEvents: item.events.filter(event => !targetIds.has(event.target)) };
+}
+
+// Choose the same representative finding for the message and its details page.
+// Active findings take precedence over resolved findings, then severity.
+export function pulseFindingEvent(item: PulseItem): PulseEvent | undefined {
+  return item.events.filter(event => event.finding).sort((a, b) =>
+    Number(a.kind === 'resolved') - Number(b.kind === 'resolved') ||
+    severities.indexOf(a.finding!.severity) - severities.indexOf(b.finding!.severity),
+  )[0];
+}
 
 // Compare advisory groups, rather than individual paths or duplicate package rows.
 export function pulseChanges(previous: Report | null, current: Report): PulseChange[] {
@@ -45,13 +63,13 @@ export function groupPulse(events: PulseEvent[], states: Record<string, PulseSta
     const seq = Math.max(...events.map(e => e.seq));
     const state = states[id];
     return { id, seq, time: Math.max(...events.map(e => e.time)), events,
-      read: (state?.seen ?? 0) >= seq, dismissed: (state?.dismissed ?? 0) >= seq, bookmarked: !!state?.bookmarked };
+      dismissed: (state?.dismissed ?? 0) >= seq, bookmarked: !!state?.bookmarked };
   });
 }
 export const hasPulseFix = (item: PulseItem) => item.events.some(e => e.kind !== 'resolved' && !!e.finding?.fixed);
 export function pulseRank(item: PulseItem) {
   const severity = Math.min(...item.events.filter(e => e.kind !== 'resolved').map(e => e.finding ? severities.indexOf(e.finding.severity) : 5), 5);
-  return (item.read ? 100 : 0) + severity * 10 - (hasPulseFix(item) ? 5 : 0);
+  return severity * 10 - (hasPulseFix(item) ? 5 : 0);
 }
 
 export type PulseBatch = { key: string; time: number; items: PulseItem[]; resource: string };

@@ -13,10 +13,10 @@ export function Select({ label, value, options, display, onValueChange }: {
   onValueChange: (value: string) => void;
 }) {
   return <Menu.Root value={value} onValueChange={onValueChange}>
-    <Menu.Trigger className="flex items-center justify-between gap-3 rounded border border-border bg-raised px-2 py-[5px] text-foreground" aria-label={label}>
+    <Menu.Trigger data-toolbar-control className="flex items-center justify-between gap-3 rounded border border-border bg-raised px-2 py-[5px] text-foreground" aria-label={label}>
       <Menu.Value /><Menu.Icon><ChevronDown size={14} /></Menu.Icon>
     </Menu.Trigger>
-    <Menu.Portal><Menu.Content position="popper" sideOffset={4} className="z-30 min-w-(--radix-select-trigger-width) rounded border border-border bg-raised p-[3px] text-foreground">
+    <Menu.Portal><Menu.Content position="popper" sideOffset={4} className="z-50 min-w-(--radix-select-trigger-width) rounded border border-border bg-raised p-[3px] text-foreground">
       <Menu.Viewport>{options.map(option => <Menu.Item key={option} value={option} className="flex items-center justify-between gap-3 px-2 py-[5px] data-highlighted:bg-brand-tint data-highlighted:outline-none">
         <Menu.ItemText>{display(option)}</Menu.ItemText>
         <Menu.ItemIndicator><Check size={14} /></Menu.ItemIndicator>
