@@ -1,8 +1,11 @@
+import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
+import { defaultSettings, resourceKey, type ScanSettings, type SettingsData } from '../lib/settings';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Container, Dashboard, Report, Suggestion, Target } from '../lib/model';
 import { compareReports } from './trivy';
+import type { AccessData, AccessPerson } from '../lib/user-access';
 import { summarize } from '../lib/model';
 
 type TargetRow = Omit<Target, 'summary' | 'suggestions'> & { summary_json: string | null; suggestions_json: string; requested: number };
@@ -13,7 +16,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 3) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 5) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -31,8 +34,24 @@ export class Store {
         seq INTEGER PRIMARY KEY, target TEXT NOT NULL, name TEXT NOT NULL, time INTEGER NOT NULL,
         message TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS scan_settings (
+        scope TEXT NOT NULL, key TEXT NOT NULL, settings_json TEXT NOT NULL, PRIMARY KEY(scope,key)
+      );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS access_profiles (
+        github_id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, name TEXT, email TEXT, image TEXT, last_sign_in INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS access_history (
+        seq INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, identifier TEXT NOT NULL, time INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pulse_events (
+        seq INTEGER PRIMARY KEY, target TEXT NOT NULL, name TEXT NOT NULL, time INTEGER NOT NULL, payload TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pulse_states (
+        user TEXT NOT NULL, issue TEXT NOT NULL, seen INTEGER NOT NULL DEFAULT 0,
+        dismissed INTEGER NOT NULL DEFAULT 0, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user,issue)
+      );
       CREATE TABLE IF NOT EXISTS issue_events (
         seq INTEGER PRIMARY KEY, app TEXT NOT NULL, name TEXT NOT NULL, issue TEXT NOT NULL,
         package TEXT NOT NULL, ecosystem TEXT NOT NULL, kind TEXT NOT NULL, time INTEGER NOT NULL
@@ -45,7 +64,55 @@ export class Store {
       for (const row of rows) this.recordDiscoveries(String(row.id), JSON.parse(String(row.report_json)), Number(row.scanned_at));
       this.db.exec('PRAGMA user_version=3');
     });
+    if (version.user_version < 4) this.transaction(() => {
+      const columns = this.db.prepare('PRAGMA table_info(allowed_users)').all();
+      if (!columns.some(column => column.name === 'github_id')) this.db.exec('ALTER TABLE allowed_users ADD COLUMN github_id TEXT');
+      this.db.exec('PRAGMA user_version=4');
+    });
+    if (version.user_version < 5) this.db.exec('PRAGMA user_version=5');
+    if (!this.getMeta('pulseInitialized')) this.transaction(() => {
+      for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
+        this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));
+      }
+      this.setMeta('pulseInitialized', 'true');
+    });
   }
+  private recordPulse(id: string, previous: Report | null, report: Report, time: number) {
+    for (const resource of this.resources(id)) {
+      const settings = this.settings('resource', resource.key)!.effective;
+      for (const change of pulseChanges(previous, report)) {
+        if (change.kind === 'discovered' && !settings.notifyNewCve) continue;
+        if (change.kind === 'fix' && !settings.notifyFix) continue;
+        this.insertPulse(id, { ...change, project: resource.project, resource: resource.key, resourceName: resource.name }, time);
+      }
+    }
+  }
+  private insertPulse(id: string, change: import('../lib/pulse').PulseChange, time = Date.now()) {
+    if (change.resource === undefined) {
+      for (const resource of this.resources(id)) this.insertPulse(id, { ...change, project: resource.project, resource: resource.key, resourceName: resource.name }, time);
+      return;
+    }
+    this.db.prepare('INSERT INTO pulse_events(target,name,time,payload) SELECT id,name,?,? FROM targets WHERE id=?')
+      .run(time, JSON.stringify(change), id);
+  }
+  pulseFeed(user: string) {
+    const events = this.db.prepare('SELECT * FROM pulse_events ORDER BY seq DESC').all().map(row => ({
+      seq: Number(row.seq), target: String(row.target), name: String(row.name), time: Number(row.time), ...JSON.parse(String(row.payload)),
+    })) as PulseEvent[];
+    const states = Object.fromEntries(this.db.prepare('SELECT * FROM pulse_states WHERE user=?').all(user).map(row =>
+      [String(row.issue), { seen: Number(row.seen), dismissed: Number(row.dismissed), bookmarked: !!row.bookmarked }])) as Record<string, PulseState>;
+    return groupPulse(events, states);
+  }
+  setPulseState(user: string, issue: string, seq: number, action: 'read' | 'unread' | 'dismiss' | 'restore' | 'bookmark' | 'unbookmark') {
+    const event = this.pulseFeed(user).find(item => item.id === issue && item.seq === seq);
+    if (!event) return false;
+    this.db.prepare('INSERT OR IGNORE INTO pulse_states(user,issue) VALUES (?,?)').run(user, issue);
+    const column = action === 'read' || action === 'unread' ? 'seen' : action === 'dismiss' || action === 'restore' ? 'dismissed' : 'bookmarked';
+    const value = action === 'read' || action === 'dismiss' ? seq : action === 'bookmark' ? 1 : 0;
+    this.db.prepare(`UPDATE pulse_states SET ${column}=? WHERE user=? AND issue=?`).run(value, user, issue);
+    return true;
+  }
+
   transaction(fn: () => void) {
     this.db.exec('BEGIN IMMEDIATE');
     try { fn(); this.db.exec('COMMIT'); } catch (error) { this.db.exec('ROLLBACK'); throw error; }
@@ -55,13 +122,67 @@ export class Store {
   }
   getMeta(key: string) { return (this.db.prepare('SELECT value FROM metadata WHERE key=?').get(key) as { value: string } | undefined)?.value; }
   allowedUsers() { return (this.db.prepare('SELECT login FROM allowed_users ORDER BY login').all() as { login: string }[]).map(row => row.login); }
-  hasUser(login: string) { return Boolean(this.db.prepare('SELECT 1 FROM allowed_users WHERE login=?').get(login)); }
-  addUser(login: string) { this.db.prepare('INSERT OR IGNORE INTO allowed_users (login) VALUES (?)').run(login); }
-  removeUser(login: string) {
+  hasUser(login: string, githubId?: string) {
+    return Boolean(this.db.prepare('SELECT 1 FROM allowed_users WHERE (login=? AND (github_id IS NULL OR github_id=?)) OR (github_id IS NOT NULL AND github_id=?)').get(login, githubId ?? '', githubId ?? ''));
+  }
+  private accessEvent(actor: string, action: string, identifier: string) {
+    this.db.prepare('INSERT INTO access_history(actor,action,identifier,time) VALUES (?,?,?,?)').run(actor, action, identifier, Date.now());
+  }
+  addUser(identifier: string, actor = 'Administrator') {
+    let added = false;
     this.transaction(() => {
-      this.db.prepare('DELETE FROM allowed_users WHERE login=?').run(login);
-      this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=?)').run(login);
+      const profile = this.db.prepare('SELECT github_id FROM access_profiles WHERE login=? OR lower(email)=?').get(identifier, identifier);
+      if (profile && this.db.prepare('SELECT 1 FROM allowed_users WHERE github_id=?').get(profile.github_id)) return;
+      added = this.db.prepare('INSERT OR IGNORE INTO allowed_users(login) VALUES (?)').run(identifier).changes > 0;
+      if (added) this.accessEvent(actor, 'granted', identifier);
     });
+    return added;
+  }
+  removeUser(identifier: string, actor = 'Administrator') {
+    this.transaction(() => {
+      const grant = this.db.prepare('SELECT github_id FROM allowed_users WHERE login=?').get(identifier);
+      if (!grant) return;
+      const profile = grant.github_id
+        ? this.db.prepare('SELECT login, github_id FROM access_profiles WHERE github_id=?').get(grant.github_id)
+        : this.db.prepare('SELECT login, github_id FROM access_profiles WHERE login=?').get(identifier);
+      // Remove all known grants for this account so another entry cannot silently retain access.
+      const login = String(profile?.login ?? identifier);
+      const grants = this.db.prepare('SELECT login FROM allowed_users WHERE login=? OR login=? OR (github_id IS NOT NULL AND github_id=?)').all(identifier, login, profile?.github_id ?? grant.github_id);
+      for (const row of grants) {
+        this.db.prepare('DELETE FROM allowed_users WHERE login=?').run(row.login);
+        this.accessEvent(actor, 'revoked', String(row.login));
+      }
+      if (login !== actor) this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=? OR githubId=?)').run(login, profile?.github_id ?? grant.github_id);
+    });
+  }
+  matchGithubProfile(profile: { id: string; login: string; name: string | null; email: string | null; image: string | null }, verifiedEmails: string[], admin: string) {
+    let allowed = false;
+    this.transaction(() => {
+      const matches = this.db.prepare('SELECT login, github_id FROM allowed_users').all().filter(row =>
+        (row.login === profile.login && (row.github_id === null || row.github_id === profile.id)) || row.github_id === profile.id ||
+        (row.github_id === null && verifiedEmails.includes(String(row.login))));
+      allowed = profile.login === admin || matches.length > 0;
+      if (!allowed) return;
+      for (const row of matches) {
+        if (row.github_id === null) {
+          this.db.prepare('UPDATE allowed_users SET github_id=? WHERE login=?').run(profile.id, row.login);
+          if (String(row.login).includes('@')) this.accessEvent(profile.login, 'matched', String(row.login));
+        }
+      }
+      this.db.prepare(`INSERT INTO access_profiles VALUES (?,?,?,?,?,?) ON CONFLICT(github_id) DO UPDATE SET
+        login=excluded.login,name=excluded.name,email=excluded.email,image=excluded.image`)
+        .run(profile.id, profile.login, profile.name, profile.email, profile.image, null);
+    });
+    return allowed;
+  }
+  userAccess(admin: string): AccessData {
+    const rows = this.db.prepare(`SELECT a.login AS identifier, p.login, p.name, p.email, p.image, p.last_sign_in AS lastSignIn
+      FROM allowed_users a LEFT JOIN access_profiles p ON p.github_id=a.github_id OR (a.github_id IS NULL AND p.login=a.login)
+      WHERE a.login<>? ORDER BY a.login`).all(admin);
+    const profile = this.db.prepare('SELECT login,name,email,image,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(admin);
+    const administrator = { identifier: admin, login: admin, name: null, email: null, image: null, lastSignIn: null, ...profile, role: 'Administrator' } as AccessPerson;
+    return { people: [administrator, ...rows.map(row => ({ ...row, role: 'Member' } as AccessPerson))],
+      history: this.db.prepare('SELECT * FROM access_history ORDER BY seq DESC LIMIT 100').all() as AccessData['history'] };
   }
   recover() { this.db.exec("UPDATE targets SET status='queued', requested=1 WHERE status='scanning'"); }
   syncInventory(containers: Container[]) {
@@ -83,13 +204,49 @@ export class Store {
   request(id: string) {
     return this.db.prepare("UPDATE targets SET requested=1, status=CASE WHEN status='scanning' THEN status ELSE 'queued' END WHERE id=?").run(id).changes > 0;
   }
-  next(intervalMs: number): Target | null {
-    const row = this.db.prepare(`SELECT * FROM targets WHERE status!='scanning' AND
-      (requested=1 OR (scanned_at IS NULL AND attempted_at IS NULL) OR COALESCE(attempted_at,0) < ?)
-      ORDER BY requested DESC, COALESCE(attempted_at,0), id LIMIT 1`).get(Date.now() - intervalMs) as TargetRow | undefined;
+  next(_legacyIntervalMs?: number): Target | null {
+    const now = Date.now();
+    const rows = this.db.prepare(`SELECT * FROM targets WHERE status!='scanning'
+      ORDER BY requested DESC, COALESCE(attempted_at,0), id`).all() as TargetRow[];
+    const row = rows.find(row => {
+      if (row.requested || (row.scanned_at === null && row.attempted_at === null)) return true;
+      const intervals = this.resources(row.id).map(resource => this.settings('resource', resource.key)!.effective.rescanHours).filter(hours => hours > 0);
+      return intervals.length > 0 && (row.attempted_at ?? 0) <= now - Math.min(...intervals) * 3_600_000;
+    });
     if (!row) return null;
-    this.db.prepare("UPDATE targets SET status='scanning', requested=0, attempted_at=?, error=NULL WHERE id=?").run(Date.now(), row.id);
+    this.db.prepare("UPDATE targets SET status='scanning', requested=0, attempted_at=?, error=NULL WHERE id=?").run(now, row.id);
     return this.decode(row);
+  }
+  private resources(target: string) {
+    if (target === 'host') return [{ key: 'host', project: null, name: 'Host OS' }];
+    return (this.db.prepare('SELECT DISTINCT project,name FROM containers WHERE target_id=?').all(target) as { project: string; name: string }[])
+      .map(container => ({ ...container, key: resourceKey(container) }));
+  }
+  settings(scope: 'project' | 'resource', key: string): SettingsData | null {
+    let project: string | null = key;
+    if (scope === 'project') {
+      if (!this.db.prepare('SELECT 1 FROM containers WHERE project=?').get(key)) return null;
+    } else if (key === 'host') {
+      if (!this.db.prepare("SELECT 1 FROM targets WHERE id='host'").get()) return null;
+      project = null;
+    } else {
+      const container = (this.db.prepare('SELECT project,name FROM containers').all() as { project: string; name: string }[]).find(c => resourceKey(c) === key);
+      if (!container) return null;
+      project = container.project;
+    }
+    const read = (scope: string, key: string): Partial<ScanSettings> => {
+      const row = this.db.prepare('SELECT settings_json FROM scan_settings WHERE scope=? AND key=?').get(scope, key);
+      return row ? JSON.parse(String(row.settings_json)) : {};
+    };
+    const defaults = { ...defaultSettings, ...(project !== null ? read('project', project) : {}) };
+    const overrides = scope === 'resource' ? read(scope, key) : {};
+    return { project, defaults, overrides, effective: { ...defaults, ...overrides } };
+  }
+  saveSettings(scope: 'project' | 'resource', key: string, settings: Partial<ScanSettings>) {
+    if (!this.settings(scope, key)) return null;
+    this.db.prepare(`INSERT INTO scan_settings VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET settings_json=excluded.settings_json`)
+      .run(scope, key, JSON.stringify(settings));
+    return this.settings(scope, key);
   }
   decode(row: TargetRow): Target {
     return { id: row.id, kind: row.kind, name: row.name, image_id: row.image_id, platform: row.platform,
@@ -102,6 +259,18 @@ export class Store {
       const scannedAt = Date.now();
       this.recordDiscoveries(id, report, scannedAt);
       const previous = this.report(id);
+      if (previous && previous.coverage !== report.coverage) {
+        this.insertPulse(id, { issue: `coverage:${id}`, kind: 'coverage', detail: 'Scan coverage changed. Findings from different coverage cannot be compared.' }, scannedAt);
+      }
+      if (previous && previous.coverage !== report.coverage) {
+        const currentIds = new Set(report.findings.map(f => f.id));
+        for (const issue of new Set(previous.findings.map(f => f.id))) if (!currentIds.has(issue)) {
+          this.insertPulse(id, { issue, kind: 'coverage', detail: 'Coverage changed; this previously detected advisory is no longer assessed by the same scan coverage.' }, scannedAt);
+        }
+        this.recordPulse(id, null, report, scannedAt);
+      } else this.recordPulse(id, previous, report, scannedAt);
+      const failed = this.db.prepare("SELECT payload FROM pulse_events WHERE target=? AND json_extract(payload,'$.issue')=? ORDER BY seq DESC LIMIT 1").get(id, `scan:${id}`);
+      if (failed && JSON.parse(String(failed.payload)).kind === 'failure') this.insertPulse(id, { issue: `scan:${id}`, kind: 'recovered', detail: 'Scanning resumed successfully.' }, scannedAt);
       const change = previous && previous.coverage === report.coverage && compareReports(previous, report);
       const summary = summarize(report);
       if (change && previous) {
@@ -118,6 +287,7 @@ export class Store {
   }
   fail(id: string, message: string, status: 'error' | 'unassessed' = 'error') {
     this.transaction(() => {
+      this.insertPulse(id, { issue: `scan:${id}`, kind: 'failure', detail: status === 'unassessed' ? 'No identifiable packages. This target could not be assessed.' : message });
       this.record(id, status === 'unassessed' ? 'Inspection complete · No identifiable packages' : `Scan failed · ${message}`);
       this.db.prepare("UPDATE targets SET status=CASE WHEN requested=1 THEN 'queued' ELSE ? END, error=? WHERE id=?").run(status, message, id);
     });
@@ -153,7 +323,7 @@ export class Store {
     const row = this.db.prepare('SELECT report_json FROM targets WHERE id=? AND (? IS NULL OR scanned_at=?)').get(id, scan, scan) as { report_json: string | null } | undefined;
     return row?.report_json ? JSON.parse(row.report_json) : null;
   }
-  dashboard(intervalHours: number): Dashboard {
+  dashboard(intervalHours = 168): Dashboard {
     return { targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
       containers: this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[],
       inventoryAt: Number(this.getMeta('inventoryAt')) || null, inventoryError: this.getMeta('inventoryError') || null, intervalHours };

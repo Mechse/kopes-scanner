@@ -50,20 +50,19 @@ test('standalone production output: SSR, assets, auth, access control and data',
     store.db.close();
     child = spawn(process.execPath, ['.output/server/index.mjs'], { cwd: directory, env, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout!.on('data', chunk => { output += chunk; }); child.stderr!.on('data', chunk => { output += chunk; });
-    let healthy = false;
+    let healthy = false, healthFailure = '';
     for (let attempt = 0; attempt < 80; attempt++) {
       if (child.exitCode !== null) throw new Error(`Server exited: ${output}`);
-      try { if ((await fetch(`${origin}/healthz`)).ok) { healthy = true; break; } } catch { /* Startup. */ }
+      try { const health = await fetch(`${origin}/healthz`); if (health.ok) { healthy = true; break; } healthFailure = `${health.status}: ${await health.text()}`; } catch (error) { healthFailure = String(error); }
       await delay(100);
     }
-    assert.ok(healthy, output);
+    assert.ok(healthy, `${output}\n${healthFailure}`);
     const page = await fetch(origin);
     assert.equal(page.status, 200, output);
     const html = await page.text();
     assert.match(html, /<title>Host security · kopes\.dev<\/title>/);
     assert.match(html, /aria-label="kopes\.dev host security"/);
     assert.match(html, /aria-label="kopes\.dev"/);
-    assert.match(html, /kopes\.dev · Local vulnerability scanning/);
     assert.doesNotMatch(html, /trivy/i);
     assert.doesNotMatch(html, /kopes\.ai/i);
     const usersPage = await fetch(`${origin}/users`);
@@ -71,7 +70,6 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const usersHtml = await usersPage.text();
     assert.match(usersHtml, /<title>User management · kopes\.dev<\/title>/);
     assert.match(usersHtml, /aria-label="kopes\.dev host security"/);
-    assert.match(usersHtml, /kopes\.dev · Local vulnerability scanning/);
     assert.doesNotMatch(usersHtml, /Grant access|Revoke access/);
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);
     assert.ok(asset, 'SSR should link a compiled CSS/JS asset');
@@ -83,6 +81,23 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const dashboard = await data.json();
     assert.equal(dashboard.targets[0].summary.os, 'debian 12');
     assert.equal(dashboard.isAdmin, true);
+    const settingsPath = `${origin}/api/data/settings?scope=resource&key=host`;
+    assert.equal((await fetch(settingsPath)).status, 401);
+    const currentSettings = await fetch(settingsPath, { headers: { cookie } });
+    assert.equal(currentSettings.status, 200);
+    assert.deepEqual((await currentSettings.json()).effective, { rescanHours: 168, notifyNewCve: true, notifyFix: true });
+    const changeSettings = (body: unknown, requestOrigin = origin) => fetch(settingsPath, { method: 'POST', headers: { cookie, origin: requestOrigin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await changeSettings({ notifyFix: false }, 'https://attacker.example')).status, 403);
+    assert.equal((await changeSettings({ rescanHours: -1 })).status, 400);
+    assert.equal((await changeSettings({ notifyFix: 'false' })).status, 400);
+    const savedSettings = await changeSettings({ notifyFix: false, rescanHours: 24 });
+    assert.equal(savedSettings.status, 200);
+    assert.deepEqual((await savedSettings.json()).effective, { rescanHours: 24, notifyNewCve: true, notifyFix: false });
+    const settingsStore = new Store(config.dataDir);
+    try { assert.equal(settingsStore.settings('resource', 'host')?.effective.notifyFix, false); } finally { settingsStore.db.close(); }
+    const resetSettings = await changeSettings({});
+    assert.equal((await resetSettings.json()).effective.rescanHours, 168);
+    assert.equal((await fetch(`${origin}/api/data/settings?scope=project&key=missing`, { headers: { cookie } })).status, 404);
     const memberData = await fetch(`${origin}/api/data/inventory`, { headers: { cookie: memberCookie } });
     assert.equal(memberData.status, 200);
     assert.equal((await memberData.json()).isAdmin, false);
@@ -90,11 +105,18 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const changeAccess = (body: unknown, sessionCookie = cookie, requestOrigin = origin) => fetch(`${origin}/api/data/users`, { method: 'POST', headers: { cookie: sessionCookie, origin: requestOrigin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal((await changeAccess({ action: 'add', login: 'mallory' }, memberCookie)).status, 403);
     assert.equal((await changeAccess({ action: 'add', login: 'mallory' }, cookie, 'https://attacker.example')).status, 403);
-    for (const body of [null, { action: 'add', login: 'alice' }, { action: 'remove', login: 'ALICE' }, { action: 'add', login: 'user@example.com' }, { action: 'oops', login: 'bob' }]) assert.equal((await changeAccess(body)).status, 400);
+    for (const body of [null, { action: 'add', login: 'alice' }, { action: 'remove', login: 'ALICE' }, { action: 'add', login: 'user@' }, { action: 'oops', login: 'bob' }]) assert.equal((await changeAccess(body)).status, 400);
     assert.equal((await fetch(`${origin}/api/data/users`, { method: 'POST', headers: { cookie, origin }, body: '{' })).status, 400);
     const added = await changeAccess({ action: 'add', login: ' CAROL ' });
     assert.equal(added.status, 200);
-    assert.deepEqual(await added.json(), { admin: 'alice', users: ['bob', 'carol'] });
+    assert.deepEqual((await added.json()).people.map((person: { identifier: string }) => person.identifier), ['alice', 'bob', 'carol']);
+    assert.equal((await changeAccess({ action: 'add', login: '@CAROL' })).status, 409);
+    const emailAdded = await changeAccess({ action: 'add', login: ' Private@Example.com ' });
+    assert.equal(emailAdded.status, 200);
+    const emailAccess = await emailAdded.json();
+    assert.ok(emailAccess.people.some((person: { identifier: string; lastSignIn: number | null }) => person.identifier === 'private@example.com' && person.lastSignIn === null));
+    assert.equal(emailAccess.history[0].actor, 'alice');
+    assert.equal((await changeAccess({ action: 'remove', login: 'private@example.com' })).status, 200);
     assert.equal((await changeAccess({ action: 'remove', login: 'bob' })).status, 200);
     assert.equal((await fetch(`${origin}/api/data/inventory`, { headers: { cookie: memberCookie } })).status, 401);
     assert.equal((await changeAccess({ action: 'add', login: 'bob' })).status, 200);

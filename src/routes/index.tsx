@@ -21,9 +21,9 @@ import {
 import { FindingsSearch } from "../components/findings-search";
 import { FindingOverview } from "../components/finding-overview";
 import { FindingsTable } from "../components/findings-table";
-import { AppsInventory } from "../components/apps-inventory";
+import { ProjectsInventory } from "../components/apps-inventory";
 import { IssueTimeline } from "../components/issue-timeline";
-import { Overview } from "../components/overview";
+import { Pulse } from "../components/pulse";
 import { useWorkspace, WorkspaceBar } from "../components/app-shell";
 import { api, useResource } from "../lib/use-resource";
 import { Select, Checkbox } from "../components/ui/filters";
@@ -43,6 +43,7 @@ type Location = {
   log?: boolean;
   target?: string;
   app?: string;
+  project?: string;
   match?: string;
   severity?: string;
   fixable?: boolean;
@@ -61,6 +62,7 @@ export const Route = createFileRoute("/")({
       input.view === "apps" || input.view === "activity"
         ? input.view
         : undefined,
+    project: typeof input.project === "string" ? input.project : undefined,
     log: input.log === true || undefined,
     target: typeof input.target === "string" ? input.target : undefined,
     app: typeof input.app === "string" ? input.app : undefined,
@@ -104,7 +106,7 @@ const noticeClass =
   "mt-3 mb-5 rounded-sm border border-border bg-sunken px-4 py-3 text-[13px] wrap-anywhere";
 
 function Workspace() {
-  const { view, target: id, app, log } = Route.useSearch();
+  const { view, target: id, app, log, project } = Route.useSearch();
   const { inventory, revision, refresh } = useWorkspace();
   const data = inventory?.data;
   const target = data?.targets.find((t) => t.id === id);
@@ -122,20 +124,6 @@ function Workspace() {
       .filter((c) => c.target_id === t.id)
       .map((c) => c.name)
       .join(", ") || t.name;
-  const priorities =
-    data?.targets
-      .filter((t) => t.summary && severities.some((s) => t.summary!.counts[s]))
-      .sort((a, b) => {
-        const hasFix =
-          Number(b.summary!.fixable > 0) - Number(a.summary!.fixable > 0);
-        if (hasFix) return hasFix;
-        for (const severity of severities) {
-          const delta =
-            b.summary!.counts[severity] - a.summary!.counts[severity];
-          if (delta) return delta;
-        }
-        return 0;
-      }) ?? [];
   const outstanding = data?.targets.filter((t) => t.status !== "ready") ?? [];
   const isReport = view === "apps" && !!id;
   const selectedApp = data?.containers.find(
@@ -147,8 +135,8 @@ function Workspace() {
       : view === "apps"
         ? id
           ? "Scan report"
-          : "Apps & host"
-        : "Overview";
+          : "Projects"
+        : "Pulse";
   return (
     <main
       id="main"
@@ -156,6 +144,7 @@ function Workspace() {
     >
       <WorkspaceBar
         section={heading}
+        project={view === "apps" ? selectedApp?.project ?? project : undefined}
         report={
           isReport
             ? (selectedApp?.name ??
@@ -177,7 +166,7 @@ function Workspace() {
         <p role="status">Loading inventory…</p>
       ) : view === "apps" ? (
         <>
-          {!id && <AppsInventory data={data} />}
+          {!id && <ProjectsInventory key={project ?? "__overview"} data={data} project={project} />}
           {id && (
             <section className="min-w-0 bg-raised">
               {target ? (
@@ -257,7 +246,7 @@ function Workspace() {
           </>}
         </>
       ) : (
-        <Overview data={data} priorities={priorities} targetName={targetName} />
+        <Pulse data={data} revision={revision} targetName={targetName} />
       )}
     </main>
   );
@@ -269,6 +258,7 @@ function TargetDetail({
   target: Target;
   refresh: () => void;
 }) {
+  const { inventory } = useWorkspace();
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
   const [action, setAction] = useState("");
@@ -447,7 +437,10 @@ function TargetDetail({
           </nav>
           {current ? (
             <FindingOverview
+              key={`${current.id}:${current.package}:${current.path}`}
               finding={current}
+              target={target}
+              container={inventory?.data?.containers.find(c => c.id === search.app && c.target_id === target.id)}
               locked={Boolean(report?.coverage)}
             />
           ) : (

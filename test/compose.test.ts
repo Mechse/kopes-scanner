@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 test('Compose supports a public checkout, Coolify values, local ports and Desktop without weakening isolation', { skip: !process.env.DOCKER_TEST }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kopes-compose-test-'));
   try {
-    for (const file of ['compose.yaml', 'compose.local.yaml', 'compose.desktop.yaml', 'compose.https.yaml', 'Caddyfile']) await cp(file, join(directory, file));
+    for (const file of ['compose.yaml', 'compose.local.yaml', 'compose.desktop.yaml', 'compose.dev.yaml', 'compose.https.yaml', 'Caddyfile']) await cp(file, join(directory, file));
     // No .env: simulate the variables Coolify generates and the three user inputs.
     const env = { ...process.env, BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '', SERVICE_URL_SCANNER_3100: 'https://scanner.example.test', SERVICE_PASSWORD_64_AUTH: 'a'.repeat(64), GITHUB_CLIENT_ID: 'test-id', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'alice' };
     const config = (files: string[], environment: NodeJS.ProcessEnv = env) => JSON.parse(execFileSync('docker', [
@@ -59,5 +59,15 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
     assert.equal(desktop.services.scanner.read_only, true);
     assert.deepEqual(desktop.services['socket-proxy'], linux.services['socket-proxy']);
     assert.equal(desktop.networks.proxy.internal, true);
+    const dev = config(['compose.local.yaml', 'compose.desktop.yaml', 'compose.dev.yaml']);
+    assert.equal(dev.services.scanner.build.dockerfile, 'Dockerfile.dev');
+    assert.equal(Boolean(dev.services.scanner.read_only), false);
+    assert.equal(dev.services.scanner.environment.DOCKER_HOST, 'http://socket-proxy:2375');
+    assert.equal(dev.services.scanner.environment.VITE_USE_POLLING, 'true');
+    assert.equal(dev.services.scanner.ports[0].host_ip, '127.0.0.1');
+    assert.ok(dev.services.scanner.volumes.some((v: { target: string; source: string }) => v.target === '/data' && v.source === 'scanner-data'));
+    assert.ok(dev.services.scanner.volumes.some((v: { target: string; type: string }) => v.target === '/repo/src' && v.type === 'bind'));
+    assert.ok(!dev.services.scanner.volumes.some((v: { target: string }) => v.target === '/host'));
+    assert.deepEqual(dev.services['socket-proxy'], desktop.services['socket-proxy']);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

@@ -52,7 +52,7 @@ async function initialize() {
   }
   async function worker() {
     while (!signal.aborted) {
-      const target = store.next(config.intervalHours * 3_600_000);
+      const target = store.next();
       if (target) {
         try { await scanTarget(config, store, target, signal); }
         catch (error) {

@@ -13,7 +13,6 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?Set the GitHub OAuth client ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?Set the GitHub OAuth client secret}
       GITHUB_ADMIN_USER: ${GITHUB_ADMIN_USER:?Set the administrator GitHub username}
-      SCAN_INTERVAL_HOURS: ${SCAN_INTERVAL_HOURS:-6}
       DOCKER_HOST: http://socket-proxy:2375
       DATA_DIR: /data
       HOST_ROOT: /host

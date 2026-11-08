@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { safeUrl } from '../lib/advisory';
 import { severities, type Finding, type Package, type Report } from '../lib/model';
 import type { Config } from './config';
 
@@ -31,7 +32,7 @@ function readCvss(vulnerability: Record<string, unknown>): Finding['cvss'] {
     if (!rating || typeof rating !== 'object') continue;
     for (const version of [4, 3, 2]) {
       const score = rating[`V${version}Score`];
-      if (typeof score === 'number' && score >= 0 && score <= 10) return { score, version, source };
+      if (typeof score === 'number' && score >= 0 && score <= 10) return { score, version, source, ...(text(rating[`V${version}Vector`]) && { vector: text(rating[`V${version}Vector`]) }) };
     }
   }
 }
@@ -54,8 +55,11 @@ export function parseReport(raw: string): Report {
     for (const value of (result.Vulnerabilities ?? []) as unknown[]) {
       const v = record(value);
       if (!text(v.VulnerabilityID) || !text(v.PkgName)) throw new Error('Invalid vulnerability entry.');
+      const cvss = readCvss(v);
       const finding: Finding = { id: text(v.VulnerabilityID), package: text(v.PkgName), installed: text(v.InstalledVersion), fixed: text(v.FixedVersion),
-        cvss: readCvss(v), severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path };
+        description: text(v.Description), references: [text(v.PrimaryURL), ...(Array.isArray(v.References) ? v.References : [])].filter(safeUrl),
+        published: text(v.PublishedDate), modified: text(v.LastModifiedDate), cwes: Array.isArray(v.CweIDs) ? v.CweIDs.filter((id): id is string => typeof id === 'string') : [],
+        ...(cvss && { cvss }), severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path };
       const key = JSON.stringify([finding.id, finding.package, finding.installed, type, path]);
       if (!seen.has(key)) { findings.push(finding); seen.add(key); }
     }

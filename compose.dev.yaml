@@ -1,0 +1,13 @@
+# Apply LAST, after compose.local.yaml and (on Docker Desktop) compose.desktop.yaml.
+services:
+  scanner:
+    build:
+      dockerfile: Dockerfile.dev
+    # Vite/Nitro write generated files and caches inside /repo.
+    read_only: false
+    environment:
+      VITE_USE_POLLING: 'true'
+    volumes:
+      - ./src:/repo/src
+      - ./vite.config.ts:/repo/vite.config.ts:ro
+      - ./tsconfig.json:/repo/tsconfig.json:ro

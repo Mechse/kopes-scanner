@@ -2,7 +2,8 @@ export const severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as co
 export type Severity = typeof severities[number];
 export type Finding = {
   id: string; package: string; installed: string; fixed: string;
-  cvss?: { score: number; version: number; source: string };
+  cvss?: { score: number; version: number; source: string; vector?: string };
+  description?: string; references?: string[]; published?: string; modified?: string; cwes?: string[];
   severity: Severity; title: string; type: string; path: string;
 };
 export type Package = { name: string; version: string; type: string; path: string };

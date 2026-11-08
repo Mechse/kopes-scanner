@@ -44,15 +44,25 @@ needed. Both images build directly from this repository.
    URL as expected, set `BETTER_AUTH_URL` explicitly. Keep the generated secret;
    do not regenerate it on redeploy.
 6. Deploy, wait for `scanner` to become healthy, then sign in with GitHub. Expand
-   **User access** to grant/revoke access by GitHub username. Other users can view
+   **User access** to grant/revoke access by GitHub handle or verified GitHub email. Other users can view
    scans, download SBOMs and request scans; only the configured admin manages users.
 
 GitHub OAuth app registration is the only external setup. There are no shared
 admin passwords or public signups. The admin is always authorized through
 `GITHUB_ADMIN_USER` and cannot be removed in the UI. Access changes persist in
 SQLite and revocation blocks existing sessions immediately; re-granting access
-requires signing in again. If you change or relinquish a GitHub username, update
-its access entry (or the admin variable) promptly: authorization is username-based.
+requires signing in again. Email entries are matched against verified GitHub emails
+(including private and secondary addresses) on first sign-in, then bound to the
+GitHub account ID. No invitation is sent. Handle entries are also bound on their
+next sign-in. Until then, keep handle entries current if someone renames or
+relinquishes their username. The administrator remains username-based; update
+`GITHUB_ADMIN_USER` promptly if that username changes.
+
+User access includes profile details after sign-in, last GitHub sign-in time,
+search, role/status filters, revoke confirmation, and the latest 100 access-history
+events. Existing grants are retained; historical sign-ins and access changes from
+before this update are not backfilled. Revoking a person removes all grants already
+linked to that account. Email grants not yet matched cannot be linked in advance.
 
 Redeploy from Coolify to update; keep the `scanner-data` volume and auth secret.
 Do not enable replicas or pull-request previews against this host's Docker socket.
@@ -238,8 +248,8 @@ privileged mode or making the bind writable.
   image ID. Platform labels vary; generic Compose grouping is the fallback.
 - Watches Docker start/lifecycle events; reconciles inventory every 30 seconds to
   recover missed events. An existing container's restart also queues a re-match.
-- Generates a CycloneDX SBOM for each new image. Every six hours (configurable via
-  `SCAN_INTERVAL_HOURS`, 1–168), re-matches saved image SBOMs against Trivy's
+- Generates a CycloneDX SBOM for each new image. Weekly by default,
+  re-matches saved image SBOMs against Trivy's
   database. Trivy manages database freshness/downloads; it is not a real-time feed.
 - Copies only known OS/package-database paths from `/host` into a scratch
   directory, then scans that snapshot. Refreshes host inventory every scan.
@@ -301,6 +311,43 @@ packages or different scanner coverage, not necessarily a package fix.
 
 ## Operate / develop
 
+### Docker Desktop development with hot refresh
+
+Run Vite inside Docker with Trivy, the private socket proxy, and the existing
+`scanner-data` volume:
+
+```sh
+# Stop any host pnpm dev process first so port 3100 is free.
+pnpm dev:docker
+docker compose -f compose.yaml -f compose.local.yaml -f compose.desktop.yaml -f compose.dev.yaml logs -f scanner
+```
+
+`pnpm dev:docker` builds and starts the services in the background using
+`compose.yaml`, `compose.local.yaml`, `compose.desktop.yaml`, and
+`compose.dev.yaml`, in that order.
+
+Open `http://localhost:3100` (matching `BETTER_AUTH_URL` and your OAuth callback).
+Edits under `src/` are mounted into the container and picked up automatically;
+polling handles Docker Desktop file notifications. Vite and TypeScript config
+files are also mounted. Rebuild after changing dependencies, the Dockerfile, or
+other files outside these mounts by running `pnpm dev:docker` again. For Linux
+host scanning, run Compose directly with the same flags except
+`-f compose.desktop.yaml`, keeping `compose.dev.yaml` last.
+The development container has a writable filesystem for build caches; use this
+override only locally. The socket proxy stays private and restricted.
+
+The regular three-file Desktop command runs a **production build**, so source
+changes require rebuilding. `pnpm dev` instead runs on your host: it cannot
+resolve the Compose-only `socket-proxy` hostname and does not include Trivy or
+share the Docker data volume. Prefer the development override for real inventory.
+Docker Desktop supports container resources only, not macOS host-package scans.
+Do not run a second scanner against the same data directory.
+
+To return to the production preview, run the three-file Desktop command with
+`up -d --build --force-recreate scanner` (omit `compose.dev.yaml`). Data persists.
+
+### Other development and maintenance commands
+
 ```sh
 # Manual/local installs: after editing .env (e.g. the admin or OAuth settings)
 # VPS wizard installs: omit the -f flags below; .env selects the override.
@@ -358,3 +405,31 @@ Trivy SBOM/CVE matching of a Debian package fixture and a public Alpine image.
 A live GitHub callback and a real Linux Docker/socket-proxy installation still
 need release testing.
 See `THIRD_PARTY_NOTICES.md` before distributing a commercial image.
+
+### Vulnerability details
+
+Open a finding to see its description, attack conditions when a CVSS v3 vector is available, technical metadata, source links and resource-specific remediation steps. Copy buttons copy commands for manual review and execution; the application does not run them. Container guidance updates the image or build and redeploys it; host guidance uses the detected operating system’s package manager. Dependency commands inspect the dependency tree before a source change. Fixed versions are reported by the scanner and may belong to different release branches.
+
+The authenticated details page also retrieves the public CVE record from `https://cveawg.mitre.org`. Only the CVE identifier is sent; package names, inventory and deployment details are not sent. Records are fetched on demand, cached in server memory for one hour, and limited by timeout, response size and concurrency. Failed lookups are cached for one minute. If the service is unavailable, local scan details remain usable. Non-CVE advisories use scanner data and reference links.
+
+Published solutions and workarounds are attributed to the CVE record’s publishing authority and must be checked against the affected product and configuration. External records do not override package-specific fixed versions. Rejected CVE records are flagged and suppress generated fix instructions. Older stored reports remain readable; rescan to populate descriptions, references, dates and CVSS vectors that were not previously saved.
+
+### Project and resource settings
+
+Open **Settings** beside a project or resource in **Apps & host**. Projects default
+to weekly rescans and both Pulse notifications enabled for all severities. Each
+resource can override individual settings or return to **Use project setting**.
+The host inherits the same built-in defaults. Choices are daily, weekly, every
+30 days, or manual only. New resources and container starts still trigger scans;
+manual requests remain available. Containers sharing an image use the shortest
+active interval, but their notification preferences remain independent.
+
+Pulse groups notifications by project. Newly detected CVEs include older CVEs
+first found in a scan. Fix notifications fire when a fixed package version is
+first detected, including on the initial scan, without upgrade restrictions.
+Unchanged scans do not repeat messages. Settings changes apply to future scans
+and do not remove existing Pulse entries. Resource overrides survive container
+recreation and image upgrades as long as the project and container name remain
+the same. Notification channels and responsibility settings are deferred.
+
+`SCAN_INTERVAL_HOURS` is no longer used; configure schedules in the application.

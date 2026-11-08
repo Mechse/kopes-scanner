@@ -48,7 +48,6 @@ try {
       GITHUB_CLIENT_ID: await ask('GitHub OAuth client ID: '),
       GITHUB_CLIENT_SECRET: await ask('GitHub OAuth client secret (hidden): ', true),
       GITHUB_ADMIN_USER: await ask('Administrator GitHub username: '),
-      SCAN_INTERVAL_HOURS: '6',
     };
     readConfig(env);
     if (vps) {

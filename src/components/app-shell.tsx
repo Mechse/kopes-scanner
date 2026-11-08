@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Activity,
   Box,
-  LayoutDashboard,
   Menu,
   Users,
   LogIn,
@@ -40,9 +39,11 @@ export function useWorkspace() {
 export function WorkspaceBar({
   section,
   report,
+  project,
 }: {
   section: string;
   report?: string;
+  project?: string;
 }) {
   return (
     <nav
@@ -53,13 +54,17 @@ export function WorkspaceBar({
         Workspace
       </Link>
       <ChevronRight size={13} />
-      {report ? (
+      {report || project !== undefined ? (
         <Link to="/" search={{ view: "apps" }}>
-          Apps &amp; host
+          Projects
         </Link>
       ) : (
         <span>{section}</span>
       )}
+      {project !== undefined && <>
+        <ChevronRight size={13} />
+        <Link to="/" search={{ view: "apps", project }} className="truncate">{project || "Ungrouped"}</Link>
+      </>}
       {report && (
         <>
           <ChevronRight size={13} />
@@ -151,8 +156,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="grid gap-[3px] desktop:gap-0.5" aria-label="Workspace">
         {(
           [
-            ["Overview", undefined, LayoutDashboard],
-            ["Apps & host", "apps", Box],
+            ["Pulse", undefined, Activity],
+            ["Projects", "apps", Box],
             ["Activity", "activity", Activity],
           ] as const
         ).map(([label, view, Icon]) => (

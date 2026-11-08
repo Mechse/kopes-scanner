@@ -39,11 +39,10 @@ test('findings in a severity group use the vendor score, highest first and unsco
 });
 
 test('configuration fails closed; username matching is exact and case-insensitive', () => {
-  assert.equal(readConfig(env).intervalHours, 6);
   assert.equal(readConfig(env).admin, 'alice');
   assert.ok(isGithubUsername('octocat'));
   for (const invalid of ['', '-alice', 'alice-', 'alice@example.com', 'alice,bob', 'a'.repeat(40), undefined]) assert.ok(!isGithubUsername(invalid));
-  for (const patch of [{ GITHUB_ADMIN_USER: '' }, { GITHUB_ADMIN_USER: 'alice@example.com' }, { GITHUB_ADMIN_USER: 'alice,bob' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { SCAN_INTERVAL_HOURS: 'NaN' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
+  for (const patch of [{ GITHUB_ADMIN_USER: '' }, { GITHUB_ADMIN_USER: 'alice@example.com' }, { GITHUB_ADMIN_USER: 'alice,bob' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
   assert.throws(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { method: 'POST', headers: { origin: 'https://attacker.test' } }), env.BETTER_AUTH_URL), (e: unknown) => e instanceof Response && e.status === 403);
   assert.doesNotThrow(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { headers: { origin: env.BETTER_AUTH_URL } }), env.BETTER_AUTH_URL));
 });
