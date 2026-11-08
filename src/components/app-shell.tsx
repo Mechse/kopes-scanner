@@ -151,13 +151,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         to="/"
         search={{}}
         onClick={navigate}
-        className="ml-2.5"
+        className="ml-2.5 desktop:mb-6 desktop:ml-3.5"
         aria-label="kopes.dev host security"
       >
         <Logo width={88} />
       </Link>
-      <div className="hidden desktop:block"></div>
-      <nav className="grid gap-[3px] desktop:gap-0.5" aria-label="Workspace">
+      <nav className="grid gap-[3px] desktop:mx-1 desktop:gap-0.5" aria-label="Workspace">
         {(
           [
             ["Pulse", undefined, Activity],
