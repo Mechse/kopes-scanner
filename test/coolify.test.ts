@@ -9,11 +9,20 @@ const env = { BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'a'.
 
 test('Coolify connection is optional and requires a complete, safe origin and token', () => {
   assert.equal(readConfig(env).coolifyOrigin, '');
-  const configured = { ...env, COOLIFY_URL: 'https://coolify.example/', COOLIFY_API_TOKEN: 'token' };
+  const configured = { ...env, KOPES_COOLIFY_URL: 'https://coolify.example/', COOLIFY_API_TOKEN: 'token' };
   assert.equal(readConfig(configured).coolifyOrigin, 'https://coolify.example');
-  for (const patch of [{ COOLIFY_URL: '' }, { COOLIFY_API_TOKEN: '' }, { COOLIFY_URL: 'https://coolify.example/api/v1' }, { COOLIFY_URL: 'https://user:pass@coolify.example' }, { COOLIFY_URL: 'http://public.example' }]) {
+  for (const patch of [{ KOPES_COOLIFY_URL: '' }, { COOLIFY_API_TOKEN: '' }, { KOPES_COOLIFY_URL: 'https://coolify.example/api/v1' }, { KOPES_COOLIFY_URL: 'https://user:pass@coolify.example' }, { KOPES_COOLIFY_URL: 'http://public.example' }]) {
     assert.throws(() => readConfig({ ...configured, ...patch }));
   }
+});
+
+test('Coolify predefined application URLs do not enable the optional API connection', () => {
+  const deployed = { ...env, COOLIFY_URL: 'https://scanner.example.test', COOLIFY_API_TOKEN: '' };
+  assert.equal(readConfig(deployed).coolifyOrigin, '');
+  assert.equal(readConfig({ ...deployed, KOPES_COOLIFY_URL: '' }).coolifyOrigin, '');
+  assert.equal(readConfig({ ...deployed, KOPES_COOLIFY_URL: 'https://coolify.example', COOLIFY_API_TOKEN: 'token' }).coolifyOrigin, 'https://coolify.example');
+  // Never send an API token to the automatically injected application URL.
+  assert.throws(() => readConfig({ ...deployed, COOLIFY_API_TOKEN: 'token' }), /KOPES_COOLIFY_URL/);
 });
 
 test('Coolify resolves exact UUIDs and typed legacy IDs, caches and refreshes names', async () => {

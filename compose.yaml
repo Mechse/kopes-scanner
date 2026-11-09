@@ -21,7 +21,7 @@ services:
       SMTP_URL: ${SMTP_URL:-}
       AUTH_EMAIL_FROM: ${AUTH_EMAIL_FROM:-}
       DOCKER_HOST: http://socket-proxy:2375
-      COOLIFY_URL: ${COOLIFY_URL:-}
+      KOPES_COOLIFY_URL: ${KOPES_COOLIFY_URL:-}
       COOLIFY_API_TOKEN: ${COOLIFY_API_TOKEN:-}
       DATA_DIR: /data
       HOST_ROOT: /host

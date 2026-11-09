@@ -17,15 +17,17 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   const secret = required('BETTER_AUTH_SECRET');
   if (secret.length < 32) throw new Error('BETTER_AUTH_SECRET must contain at least 32 random characters.');
   const optional = (name: string) => env[name]?.trim() ?? '';
-  const coolifyUrl = optional('COOLIFY_URL');
+  // COOLIFY_URL is injected by Coolify as the application's own public URL.
+  // Never use it as an API destination or infer an integration from its presence.
+  const coolifyUrl = optional('KOPES_COOLIFY_URL');
   const coolifyToken = optional('COOLIFY_API_TOKEN');
-  if (!!coolifyUrl !== !!coolifyToken) throw new Error('Set both COOLIFY_URL and COOLIFY_API_TOKEN to enable automatic Coolify names.');
+  if (!!coolifyUrl !== !!coolifyToken) throw new Error('Set both KOPES_COOLIFY_URL and COOLIFY_API_TOKEN to enable automatic Coolify names.');
   let coolifyOrigin = '';
   if (coolifyUrl) {
     const url = new URL(coolifyUrl);
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
       !(url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
-      throw new Error('COOLIFY_URL must be an HTTPS origin, without /api/v1 (HTTP is allowed only on localhost).');
+      throw new Error('KOPES_COOLIFY_URL must be an HTTPS origin, without /api/v1 (HTTP is allowed only on localhost).');
     }
     coolifyOrigin = url.origin;
   }

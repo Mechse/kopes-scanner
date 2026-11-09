@@ -10,7 +10,7 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
   try {
     for (const file of ['compose.yaml', 'compose.local.yaml', 'compose.desktop.yaml', 'compose.dev.yaml', 'compose.https.yaml', 'Caddyfile']) await cp(file, join(directory, file));
     // No .env: simulate the variables Coolify generates and the three user inputs.
-    const env = { ...process.env, BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '', SERVICE_URL_SCANNER_3100: 'https://scanner.example.test', SERVICE_PASSWORD_64_AUTH: 'a'.repeat(64), GITHUB_CLIENT_ID: 'test-id', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'alice' };
+    const env = { ...process.env, BETTER_AUTH_URL: '', BETTER_AUTH_SECRET: '', COOLIFY_URL: 'https://scanner.example.test', KOPES_COOLIFY_URL: 'https://coolify.example.test', SERVICE_URL_SCANNER_3100: 'https://scanner.example.test', SERVICE_PASSWORD_64_AUTH: 'a'.repeat(64), GITHUB_CLIENT_ID: 'test-id', GITHUB_CLIENT_SECRET: 'test-secret', GITHUB_ADMIN_USER: 'alice' };
     const config = (files: string[], environment: NodeJS.ProcessEnv = env) => JSON.parse(execFileSync('docker', [
       'compose', '-f', 'compose.yaml', ...files.flatMap(file => ['-f', file]), 'config', '--format', 'json',
     ], { cwd: directory, env: environment, encoding: 'utf8', timeout: 10_000 }));
@@ -31,6 +31,8 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
     assert.equal(linux.services.scanner.environment.BETTER_AUTH_URL, env.SERVICE_URL_SCANNER_3100);
     assert.equal(linux.services.scanner.environment.BETTER_AUTH_SECRET, env.SERVICE_PASSWORD_64_AUTH);
     assert.equal(linux.services.scanner.environment.GITHUB_ADMIN_USER, 'alice');
+    assert.equal(linux.services.scanner.environment.KOPES_COOLIFY_URL, 'https://coolify.example.test');
+    assert.equal(linux.services.scanner.environment.COOLIFY_URL, undefined);
     assert.equal(local.services.scanner.ports[0].host_ip, '127.0.0.1');
     assert.equal(local.services.scanner.ports[0].published, '3100');
     const manual = config([], { ...env, BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'b'.repeat(64) });

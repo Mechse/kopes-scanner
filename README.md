@@ -65,9 +65,12 @@ if it changes, re-enter the Coolify token. Leave the token field empty when edit
 to retain it; changing the URL requires a new token. **Disconnect** removes the
 saved credentials and disables the integration while Docker scanning continues.
 
-Existing installations can still supply `COOLIFY_URL` and `COOLIFY_API_TOKEN` as
+Installations can supply `KOPES_COOLIFY_URL` and `COOLIFY_API_TOKEN` as
 environment variables. In-app settings take precedence, including Disconnect;
 the environment is only used before an in-app connection choice has been saved.
+If you previously configured `COOLIFY_URL`, rename it to `KOPES_COOLIFY_URL`.
+Coolify reserves `COOLIFY_URL` for the deployed application URL; it is not the
+control-plane API address.
 
 Names come from the applications, services and databases API, matched by exact
 UUID or typed legacy Coolify ID. Compose project UUIDs work even when Coolify
