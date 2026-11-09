@@ -1,3 +1,5 @@
+import { projectName } from '../lib/display-name';
+import { AuthSetup, providerNames, type AuthSettings } from './auth-setup';
 import { ContentSkeleton, LoadingStatus } from "./ui/loading";
 import { Link, useLocation } from "@tanstack/react-router";
 import { createAuthClient } from "better-auth/react";
@@ -13,7 +15,7 @@ import {
   Activity,
   Box,
   Menu,
-  Users,
+  Settings,
   LogIn,
   LogOut,
   Moon,
@@ -46,6 +48,7 @@ export function WorkspaceBar({
   report?: string;
   project?: string;
 }) {
+  const { inventory } = useWorkspace();
   return (
     <nav
       aria-label="Breadcrumb"
@@ -64,7 +67,7 @@ export function WorkspaceBar({
       )}
       {project !== undefined && <>
         <ChevronRight size={13} />
-        <Link to="/" search={{ view: "apps", project }} className="truncate">{project || "Ungrouped"}</Link>
+        <Link to="/" search={{ view: "apps", project }} className="truncate">{projectName(project, inventory?.data)}</Link>
       </>}
       {report && (
         <>
@@ -110,6 +113,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname, search } = useLocation();
   const { data: session, isPending, error: sessionError } = auth.useSession();
   const [error, setError] = useState("");
+  const [settings, setSettings] = useState<AuthSettings | null>(null);
+  const [settingsError, setSettingsError] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/auth/providers', { signal: controller.signal }).then(response => {
+      if (!response.ok) throw new Error('Configuration unavailable');
+      return response.json();
+    }).then(setSettings).catch(() => { if (!controller.signal.aborted) setSettingsError(true); });
+    return () => controller.abort();
+  }, []);
   const [revision, setRevision] = useState(0);
   const [open, setOpen] = useState(false);
   const [authAction, setAuthAction] = useState<"in" | "out" | null>(null);
@@ -182,12 +195,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {label}
           </Link>
         ))}
-        {inventory?.data?.isAdmin && (
-          <Link className={navLinkClass} to="/users" onClick={navigate}>
-            <Users size={16} />
-            User access
-          </Link>
-        )}
+        {inventory?.data?.isAdmin && <Link className={navLinkClass} to="/settings" search={{}} aria-current={pathname === '/settings' || pathname.startsWith('/settings/') ? 'page' : undefined} onClick={navigate}>
+          <Settings size={16} />Settings
+        </Link>}
       </nav>
       {actions}
     </div>
@@ -216,7 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {error}
         </div>
       )}
-      {isPending ? (
+      {isPending || (!settings && !settingsError) ? (
         <main
           id="main"
           className="mx-auto flex min-h-[calc(100vh-145px)] max-w-[480px] flex-col justify-center px-6 py-12 [&_h1]:text-[28px]"
@@ -259,7 +269,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           id="main"
           className="mx-auto flex min-h-[calc(100vh-145px)] max-w-[480px] flex-col justify-center px-6 py-12 [&_h1]:text-[28px]"
         >
-          <section className="rounded-[10px] border border-border bg-raised p-8 mobile:p-6 [&>button]:w-full">
+          {settingsError ? <section role="alert">Unable to load sign-in settings. <Button onClick={() => window.location.reload()}>Try again</Button></section> : settings?.providers.length === 0 ? <AuthSetup origin={settings.origin} /> : <section className="rounded-[10px] border border-border bg-raised p-8 mobile:p-6 [&>button]:w-full [&>button]:mb-3">
             <div className="pb-5">
               <Logo variant="small" width={40} decorative />
             </div>
@@ -272,38 +282,40 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Authentication is unavailable. Check installation settings.
               </p>
             )}
-            <Button
+            {settings?.providers.map(provider => <Button
+              key={provider}
+              disabled={authAction === "in"}
               busy={authAction === "in"}
               onClick={async () => {
                 setAuthAction("in");
                 setError("");
                 try {
                   const result = await auth.signIn.social({
-                    provider: "github",
+                    provider,
                     callbackURL: window.location.pathname + window.location.search,
                     errorCallbackURL: `${pathname}?authError=1`,
                   });
                   if (result.error) {
                     setAuthAction(null);
                     setError(
-                      "GitHub sign-in failed. Check OAuth configuration and the allowlist.",
+                      `${providerNames[provider]} sign-in failed. Check OAuth configuration and your access invitation.`,
                     );
                   }
                 } catch {
                   setAuthAction(null);
-                  setError("Unable to contact GitHub sign-in. Please retry.");
+                  setError("Unable to start sign-in. Please retry.");
                 }
               }}
             >
               {authAction !== "in" && <LogIn />}
-              {authAction === "in" ? "Connecting to GitHub…" : "Sign in with GitHub"}
-            </Button>
+              {authAction === "in" ? "Connecting…" : `Sign in with ${providerNames[provider]}`}
+            </Button>)}
             <AuthError />
             <div className="mt-6 border-t border-border pt-6 text-xs text-muted-foreground">
               Access requires administrator approval. GitHub repositories are
               not requested or scanned. Scans do not change your server.
             </div>
-          </section>
+          </section>}
         </main>
       )}
     </>
@@ -316,8 +328,7 @@ function AuthError() {
   }, []);
   return failed ? (
     <p className="mb-6 text-critical" role="alert">
-      Sign-in was not completed. Check your allowed username and the GitHub
-      OAuth callback URL.
+      Sign-in was not completed. If you used Microsoft, check your inbox for a verification link, then sign in again. Otherwise check your invitation and the provider’s callback URL. Use the same provider as your first sign-in.
     </p>
   ) : null;
 }

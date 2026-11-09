@@ -42,7 +42,7 @@ test('configuration fails closed; username matching is exact and case-insensitiv
   assert.equal(readConfig(env).admin, 'alice');
   assert.ok(isGithubUsername('octocat'));
   for (const invalid of ['', '-alice', 'alice-', 'alice@example.com', 'alice,bob', 'a'.repeat(40), undefined]) assert.ok(!isGithubUsername(invalid));
-  for (const patch of [{ GITHUB_ADMIN_USER: '' }, { GITHUB_ADMIN_USER: 'alice@example.com' }, { GITHUB_ADMIN_USER: 'alice,bob' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
+  for (const patch of [{ GITHUB_ADMIN_USER: 'alice@example.com' }, { GITHUB_ADMIN_USER: 'alice,bob' }, { BETTER_AUTH_SECRET: 'short' }, { BETTER_AUTH_URL: 'http://public.example' }, { BETTER_AUTH_URL: 'https://example.com/path' }, { DOCKER_HOST: 'http://proxy:2375/?foo=1' }]) assert.throws(() => readConfig({ ...env, ...patch }));
   assert.throws(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { method: 'POST', headers: { origin: 'https://attacker.test' } }), env.BETTER_AUTH_URL), (e: unknown) => e instanceof Response && e.status === 403);
   assert.doesNotThrow(() => requireSameOrigin(new Request('http://localhost:3100/api/data/rescan', { headers: { origin: env.BETTER_AUTH_URL } }), env.BETTER_AUTH_URL));
 });
@@ -52,8 +52,94 @@ test('inventory groups platform labels and uses immutable image IDs', () => {
   assert.equal(containerInfo(dockerContainer).target_id, `image:${digest}`);
   assert.equal(containerInfo({ ...dockerContainer, Labels: { 'coolify.applicationId': 'app-1', 'coolify.name': 'shop' } }).project, 'Coolify · shop');
   assert.equal(containerInfo({ ...dockerContainer, Labels: { 'dokploy.composeId': 'stack-1' } }).manager, 'Dokploy');
-  assert.equal(containerInfo({ ...dockerContainer, Labels: {} }).project, 'Standalone');
+  assert.equal(containerInfo({ ...dockerContainer, Labels: {} }).project, 'Standalone · web-1');
   assert.throws(() => containerInfo({ ...dockerContainer, ImageID: 'nginx:latest' }));
+});
+
+test('an explicit project label takes priority over discovered names', () => {
+  assert.equal(containerInfo({ ...dockerContainer, Labels: { ...dockerContainer.Labels, 'coolify.projectName': 'generated', 'kopes.project': ' Kopes Test ' } }).project, 'Kopes Test');
+  assert.equal(containerInfo({ ...dockerContainer, Labels: { ...dockerContainer.Labels, 'kopes.project': ' ' } }).project, 'website');
+});
+
+test('Coolify inventory uses readable project and environment labels across resource types', () => {
+  for (const idLabel of ['applicationUuid', 'serviceUuid', 'databaseUuid', 'applicationId', 'serviceId', 'databaseId']) {
+    const container = containerInfo({ ...dockerContainer, Labels: {
+      [`coolify.${idLabel}`]: 'opaque-id',
+      'coolify.projectName': 'storefront', 'coolify.environmentName': 'production',
+      'coolify.resourceName': 'shop', 'coolify.serviceName': 'frontend',
+      'coolify.name': 'generated-container-name',
+      'com.docker.compose.project': '2owmarhy34g9havpcfmf2ncl',
+      'com.docker.compose.service': 'web',
+    } });
+    assert.equal(container.project, 'Coolify · storefront · production');
+    assert.equal(container.manager, 'Coolify');
+    assert.equal(container.service, 'frontend');
+    assert.equal(container.name, 'web-1');
+    assert.equal(container.target_id, `image:${digest}`);
+  }
+});
+
+test('Coolify naming falls back through available metadata without guessing from Compose names', () => {
+  const project = (Labels: Record<string, string>) => containerInfo({ ...dockerContainer, Labels }).project;
+  assert.equal(project({ 'coolify.projectName': ' store ', 'coolify.environmentName': ' ' }), 'Coolify · store');
+  assert.equal(project({ 'coolify.resourceName': 'shop', 'coolify.name': 'generated' }), 'Coolify · shop');
+  assert.equal(project({ 'coolify.name': 'shop' }), 'Coolify · shop');
+  assert.equal(project({ 'coolify.databaseUuid': 'db-id' }), 'Coolify · db-id');
+  assert.equal(project({ 'coolify.managed': 'true', 'coolify.projectName': ' ', 'com.docker.compose.project': 'stack' }), 'Coolify · stack');
+  assert.equal(project({ 'coolify.managed': 'true' }), 'Coolify · web-1');
+  assert.equal(project({ 'coolify.managed': 'false', 'com.docker.compose.project': 'source' }), 'source');
+  assert.notEqual(project({ 'coolify.projectName': 'shop', 'coolify.environmentName': 'production' }), project({ 'coolify.projectName': 'shop', 'coolify.environmentName': 'staging' }));
+});
+
+test('Coolify infrastructure gets recognizable names without relabeling unrelated stacks', () => {
+  const info = (project: string, name: string, labels: Record<string, string> = {}) => containerInfo({
+    ...dockerContainer, Names: [`/${name}`], Labels: { 'com.docker.compose.project': project, ...labels },
+  });
+  for (const name of ['coolify', 'coolify-db', 'coolify-redis', 'coolify-realtime']) {
+    const container = info('source', name);
+    assert.equal(container.project, 'Coolify · Platform');
+    assert.equal(container.manager, 'Coolify');
+    assert.equal(container.name, name);
+    assert.equal(container.target_id, `image:${digest}`);
+  }
+  for (const name of ['coolify-proxy', 'coolify-proxy-logrotate']) {
+    assert.equal(info('coolify-proxy', name).project, 'Coolify · Reverse proxy');
+    assert.equal(info('coolify-proxy', name).manager, 'Coolify');
+  }
+  for (const [project, folder, expected] of [
+    ['source', 'source', 'Coolify · Platform'],
+    ['coolify-proxy', 'proxy', 'Coolify · Reverse proxy'],
+  ]) {
+    assert.equal(info(project, 'custom-sidecar', { 'com.docker.compose.project.working_dir': `/data/coolify/${folder}/` }).project, expected);
+    assert.equal(info(project, 'unrelated').project, project);
+    assert.equal(info(project, 'unrelated', { 'com.docker.compose.project.working_dir': `/other/coolify/${folder}` }).project, project);
+  }
+  assert.equal(info('source', 'coolify', { 'coolify.projectName': 'customer-app' }).project, 'Coolify · customer-app');
+  assert.equal(info('source', 'coolify', { 'dokploy.composeId': 'other' }).project, 'Dokploy · other');
+  assert.equal(info('website', 'coolify').project, 'website');
+});
+
+test('standalone containers identify Coolify agents and otherwise show their own names', () => {
+  const info = (Image: string, Labels: Record<string, string> = {}, Names = ['/agent']) => containerInfo({ ...dockerContainer, Image, Labels, Names });
+  for (const registry of ['', 'docker.io/', 'ghcr.io/']) {
+    for (const suffix of [':1.0', `@${digest}`, `:1.0@${digest}`, '']) {
+      assert.equal(info(`${registry}coollabsio/sentinel${suffix}`).project, 'Coolify · Monitoring');
+      assert.equal(info(`${registry}coollabsio/coolify-helper${suffix}`).project, 'Coolify · Deployment helpers');
+      assert.equal(info(`${registry}coollabsio/sentinel${suffix}`).manager, 'Coolify');
+    }
+  }
+  assert.equal(info('private.example/agent:v1', { 'coolify.managed': 'true' }, ['/coolify-sentinel']).project, 'Coolify · Monitoring');
+  for (const image of ['redis:7', 'other/sentinel:1', 'coollabsio/sentinel-extra:1', 'private.example/coollabsio/sentinel:1']) {
+    assert.equal(info(image).project, 'Standalone · agent');
+    assert.equal(info(image).manager, 'Docker');
+  }
+  assert.equal(info('redis:7', {}, ['/coolify-sentinel']).project, 'Standalone · coolify-sentinel');
+  assert.equal(info('redis:7', {}, []).project, `Standalone · ${dockerContainer.Id.slice(0, 12)}`);
+  assert.equal(info('redis:7', {}, ['/']).project, `Standalone · ${dockerContainer.Id.slice(0, 12)}`);
+  assert.notEqual(info('redis:7', {}, ['/cache-a']).project, info('redis:7', {}, ['/cache-b']).project);
+  assert.equal(info('coollabsio/sentinel:1', { 'com.docker.compose.project': 'monitoring' }).project, 'monitoring');
+  assert.equal(info('coollabsio/sentinel:1', { 'coolify.projectName': 'custom' }).project, 'Coolify · custom');
+  assert.equal(info('coollabsio/sentinel:1', { 'dokploy.applicationId': 'custom' }).project, 'Dokploy · custom');
 });
 
 test('registry candidates stay in the same major/variant and exclude moving tags and untrusted registries', () => {

@@ -1,18 +1,22 @@
-import { scanSettingsSchema, overridesSchema } from '../lib/settings';
+import { projectSettingsSchema, resourceSettingsSchema } from '../lib/settings';
 import { createFileRoute } from '@tanstack/react-router';
 import { lookupAdvisory } from '../server/advisory';
 import { isCve } from '../lib/advisory';
 import { runtime } from '../server/runtime';
-import { requireSameOrigin, requireSession } from '../server/auth';
+import { isAdministrator, requireSameOrigin, requireSession } from '../server/auth';
 import { accessIdentifier } from '../lib/user-access';
+import { handleAuthSettings } from '../server/auth-settings';
+import { handleCoolifySettings } from '../server/coolify-settings';
 
 async function handle({ request }: { request: Request }) {
-  const { auth, store, config } = await runtime();
+  const { auth, store, config, baseConfig } = await runtime();
   const session = await requireSession(request, auth, config, store);
-  const isAdmin = session.user.githubLogin?.toLowerCase() === config.admin;
+  const isAdmin = isAdministrator(session.user, config);
   const url = new URL(request.url);
   const action = url.pathname.replace('/api/data/', '');
   const id = url.searchParams.get('id') ?? '';
+  if (action === 'auth-settings') return handleAuthSettings(request, isAdmin, session.user.accessId?.startsWith('microsoft:') ? 'microsoft' : session.user.accessId ? 'google' : 'github', store, baseConfig);
+  if (action === 'coolify') return handleCoolifySettings(request, isAdmin, store, config);
   if (request.method === 'GET' && action === 'advisory') {
     if (!isCve(id)) return new Response('Invalid CVE identifier.', { status: 400 });
     return Response.json(await lookupAdvisory(id), { headers: { 'Cache-Control': 'private, no-store' } });
@@ -24,12 +28,12 @@ async function handle({ request }: { request: Request }) {
       const body = await request.json().catch(() => null);
       const login = accessIdentifier(body?.login);
       if (!login || !['add', 'remove'].includes(body?.action)) return new Response('Supply a GitHub handle or valid email address and add/remove action.', { status: 400 });
-      if (login === config.admin || body.action === 'add' && store.userAccess(config.admin).people.some(person => person.login === config.admin && (person.identifier === login || person.email?.toLowerCase() === login))) return new Response('The administrator is managed through GITHUB_ADMIN_USER.', { status: 400 });
+      if (login === config.adminEmail || login === config.admin || body.action === 'add' && store.userAccess(config.admin, config.adminEmail).people.some(person => person.login === config.admin && (person.identifier === login || person.email?.toLowerCase() === login))) return new Response('The administrator is managed in sign-in settings or the deployment environment.', { status: 400 });
       if (body.action === 'add') {
-        if (!store.addUser(login, config.admin)) return new Response('This person already has an access entry.', { status: 409 });
-      } else store.removeUser(login, config.admin);
+        if (!store.addUser(login, session.user.githubLogin || session.user.accessLogin || 'Administrator')) return new Response('This person already has an access entry.', { status: 409 });
+      } else store.removeUser(login, session.user.githubLogin || session.user.accessLogin || 'Administrator');
     }
-    return Response.json(store.userAccess(config.admin), { headers: { 'Cache-Control': 'private, no-store' } });
+    return Response.json(store.userAccess(config.admin, config.adminEmail), { headers: { 'Cache-Control': 'private, no-store' } });
   }
   if (action === 'pulse-feed') {
     if (request.method === 'POST') {
@@ -47,8 +51,8 @@ async function handle({ request }: { request: Request }) {
     if (!store.settings(scope, key)) return new Response('Resource or project no longer exists.', { status: 404 });
     if (request.method === 'POST') {
       requireSameOrigin(request, config.origin);
-      const parsed = (scope === 'project' ? scanSettingsSchema : overridesSchema).safeParse(await request.json().catch(() => null));
-      if (!parsed.success) return new Response('Invalid scan or notification settings.', { status: 400 });
+      const parsed = (scope === 'project' ? projectSettingsSchema : resourceSettingsSchema).safeParse(await request.json().catch(() => null));
+      if (!parsed.success) return new Response('Invalid settings. Display names must be at most 120 characters.', { status: 400 });
       store.saveSettings(scope, key, parsed.data);
     }
     return Response.json(store.settings(scope, key), { headers: { 'Cache-Control': 'private, no-store' } });

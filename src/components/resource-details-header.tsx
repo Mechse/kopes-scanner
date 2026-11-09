@@ -1,3 +1,5 @@
+import { useWorkspace } from './app-shell';
+import { resourceName, projectName as displayProjectName } from '../lib/display-name';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeft, Info, Package } from 'lucide-react';
 import type { Container, Target } from '../lib/model';
@@ -8,7 +10,8 @@ import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 
 export function ResourceDetailsHeader({ target, container, project, open, onOpenChange }: { target: Target; container?: Container; project?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
-  const name = container?.name ?? target.name;
+  const { inventory } = useWorkspace();
+  const name = resourceName(container ?? target);
   const parentProject = container?.project ?? project;
   const count = target.summary ? Object.values(target.summary.counts).reduce((sum, value) => sum + value, 0) : undefined;
   const status = { ready: 'Scan complete', queued: 'Queued', scanning: 'Scanning', error: 'Scan failed', unassessed: 'Not assessed' }[target.status];
@@ -22,11 +25,11 @@ export function ResourceDetailsHeader({ target, container, project, open, onOpen
         <Link
           to="/"
           search={{ view: 'apps', project: parentProject }}
-          aria-label={parentProject !== undefined ? `Back to project: ${parentProject || 'Ungrouped'}` : 'Back to projects'}
+          aria-label={parentProject !== undefined ? `Back to project: ${displayProjectName(parentProject, inventory?.data)}` : 'Back to projects'}
           className="mb-5 inline-flex max-w-full items-center gap-2 rounded-md text-sm text-muted-foreground hover:text-brand-ink"
         >
           <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
-          {parentProject !== undefined ? <><span className="shrink-0">Back to project:</span><span className="truncate" title={parentProject || 'Ungrouped'}>{parentProject || 'Ungrouped'}</span></> : 'Back to projects'}
+          {parentProject !== undefined ? <><span className="shrink-0">Back to project:</span><span className="truncate" title={displayProjectName(parentProject, inventory?.data)}>{displayProjectName(parentProject, inventory?.data)}</span></> : 'Back to projects'}
         </Link>
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -46,6 +49,10 @@ export function ResourceDetailsHeader({ target, container, project, open, onOpen
         </header>
         <section aria-label="Resource summary" className="mt-5 rounded-xl border border-border p-4 sm:p-5">
           <dl className="grid min-w-0 gap-4">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Detected name</dt>
+              <dd className="mt-1 text-sm leading-6 wrap-anywhere">{container?.name ?? target.name}</dd>
+            </div>
             <div className="min-w-0">
               <dt className="text-xs text-muted-foreground">{target.kind === 'host' ? 'Operating system' : 'Image'}</dt>
               <dd className="mt-1 text-sm leading-6 wrap-anywhere">{container?.image ?? (target.kind === 'host' ? target.summary?.os || 'Not identified yet' : target.name)}</dd>

@@ -18,13 +18,13 @@ export type Suggestion = {
   removed: number; introduced: number; remaining: number; checkedAt: number;
 };
 export type Target = {
-  id: string; kind: 'host' | 'image'; name: string; image_id: string | null;
+  displayName?: string; id: string; kind: 'host' | 'image'; name: string; image_id: string | null;
   platform: string | null; status: 'queued' | 'scanning' | 'ready' | 'error' | 'unassessed';
   scanned_at: number | null; attempted_at: number | null; error: string | null;
   summary: Summary | null; suggestions: Suggestion[]; recommendation_note: string | null;
 };
-export type Container = { id: string; name: string; image: string; target_id: string; project: string; service: string; manager: string };
-export type Dashboard = { targets: Target[]; containers: Container[]; inventoryAt: number | null; inventoryError: string | null; intervalHours: number };
+export type Container = { displayName?: string; id: string; name: string; image: string; target_id: string; project: string; service: string; manager: string };
+export type Dashboard = { projectNames?: Record<string, string>; targets: Target[]; containers: Container[]; inventoryAt: number | null; inventoryError: string | null; intervalHours: number };
 
 export function summarize(report: Report): Summary {
   const counts = Object.fromEntries(severities.map(s => [s, 0])) as Record<Severity, number>;

@@ -65,7 +65,7 @@ test('standalone production output: SSR, assets, auth, access control and data',
     assert.match(html, /aria-label="kopes\.dev"/);
     assert.doesNotMatch(html, /trivy/i);
     assert.doesNotMatch(html, /kopes\.ai/i);
-    const usersPage = await fetch(`${origin}/users`);
+    const usersPage = await fetch(`${origin}/settings/users`);
     assert.equal(usersPage.status, 200);
     const usersHtml = await usersPage.text();
     assert.match(usersHtml, /<title>User management · kopes\.dev<\/title>/);
@@ -141,6 +141,42 @@ test('standalone production output: SSR, assets, auth, access control and data',
       await stopped; clearTimeout(killer);
     }
     docker.closeAllConnections(); await new Promise<void>(done => docker.close(() => done()));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('production starts with no OAuth credentials and exposes only public setup metadata', { timeout: 30_000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'kopes-no-auth-'));
+  const probe = createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
+  const port = (probe.address() as { port: number }).port;
+  await new Promise<void>(done => probe.close(() => done()));
+  const origin = `http://localhost:${port}`;
+  const child = spawn(process.execPath, [resolve('.output/server/index.mjs')], {
+    env: { ...process.env, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: String(port), BETTER_AUTH_URL: origin,
+      BETTER_AUTH_SECRET: 'test-secret-with-at-least-32-characters',
+      GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '', GITHUB_ADMIN_USER: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '',
+      MICROSOFT_CLIENT_ID: '', MICROSOFT_CLIENT_SECRET: '', AUTH_ADMIN_EMAIL: '', SMTP_URL: '', AUTH_EMAIL_FROM: '',
+      DATA_DIR: directory, HOST_ROOT: join(directory, 'missing-host'), TRIVY_BIN: '/nonexistent-test-trivy', DOCKER_HOST: 'http://127.0.0.1:1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = ''; child.stdout!.on('data', chunk => { output += chunk; }); child.stderr!.on('data', chunk => { output += chunk; });
+  try {
+    let healthy = false;
+    for (let attempt = 0; attempt < 80; attempt++) {
+      if (child.exitCode !== null) throw new Error(output);
+      try { if ((await fetch(`${origin}/healthz`)).ok) { healthy = true; break; } } catch { /* Starting up. */ }
+      await delay(100);
+    }
+    assert.ok(healthy, output);
+    assert.equal((await fetch(origin)).status, 200);
+    const response = await fetch(`${origin}/api/auth/providers`);
+    assert.deepEqual(await response.json(), { providers: [], origin });
+    assert.equal((await fetch(`${origin}/api/data/inventory`)).status, 401);
+    const signIn = await fetch(`${origin}/api/auth/sign-in/social`, { method: 'POST',
+      headers: { origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: 'github' }) });
+    assert.equal(signIn.status, 404);
+  } finally {
+    child.kill('SIGTERM'); if (child.exitCode === null) await once(child, 'exit');
     await rm(directory, { recursive: true, force: true });
   }
 });

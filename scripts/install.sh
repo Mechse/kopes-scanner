@@ -136,7 +136,7 @@ main() {
   [[ $(stat -c %a .env) == 600 && $(stat -c %u .env) == 0 ]] || fail '.env must be owned by root with mode 0600. Fix its permissions and rerun.'
   grep -Fxq -e "COMPOSE_FILE='compose.yaml:compose.https.yaml'" -e "COMPOSE_FILE='compose.yaml:compose.local.yaml'" .env || fail 'Existing .env is not configured for this installer. Use manual Compose commands; credentials were not changed.'
   # Always use the saved settings, not credentials or Compose options inherited through sudo.
-  unset COMPOSE_FILE COMPOSE_PROJECT_NAME BETTER_AUTH_URL BETTER_AUTH_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET GITHUB_ADMIN_USER SCAN_INTERVAL_HOURS CADDY_DOMAIN
+  unset COMPOSE_FILE COMPOSE_PROJECT_NAME BETTER_AUTH_URL BETTER_AUTH_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET GITHUB_ADMIN_USER GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET AUTH_ADMIN_EMAIL SMTP_URL AUTH_EMAIL_FROM SCAN_INTERVAL_HOURS CADDY_DOMAIN
   docker compose config --quiet
   local containers container working_dir
   containers=$(docker ps -aq --filter label=com.docker.compose.project=kopes)
@@ -155,13 +155,13 @@ main() {
   origin=$(docker compose exec -T scanner node -p 'process.env.BETTER_AUTH_URL')
   printf '\nScanner is healthy. Browser URL: %s\n' "$origin"
   if [[ "$origin" == http://localhost:3100 ]]; then
-    printf '\nFrom your computer: ssh -N -L 3100:127.0.0.1:3100 <user>@<vps-address>\nThen open http://localhost:3100 and sign in with GitHub.\n'
+    printf '\nFrom your computer: ssh -N -L 3100:127.0.0.1:3100 <user>@<vps-address>\nThen open http://localhost:3100 to configure sign-in or open your workspace.\n'
   else
     if grep -qx "COMPOSE_FILE='compose.yaml:compose.local.yaml'" .env; then
       printf '\nConfigure your existing HTTPS proxy to forward %s to http://127.0.0.1:3100.\n' "$origin"
     fi
     if curl --fail --silent --show-error --output /dev/null --max-time 10 --retry 5 --retry-delay 5 --retry-all-errors "$origin/healthz"; then
-      printf '\nPublic HTTPS health check passed. Open %s and sign in with GitHub.\n' "$origin"
+      printf '\nPublic HTTPS health check passed. Open %s to configure sign-in or open your workspace.\n' "$origin"
     else
       fail 'Scanner is healthy internally, but public HTTPS is not ready. Check DNS (including AAAA), TCP 80/443, and reverse-proxy logs/configuration. Rerun after fixing; no data was removed.'
     fi

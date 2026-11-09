@@ -15,6 +15,10 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
       'compose', '-f', 'compose.yaml', ...files.flatMap(file => ['-f', file]), 'config', '--format', 'json',
     ], { cwd: directory, env: environment, encoding: 'utf8', timeout: 10_000 }));
     const linux = config([]), local = config(['compose.local.yaml']), desktop = config(['compose.local.yaml', 'compose.desktop.yaml']);
+    const unconfigured = config([], { ...env, GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '', GITHUB_ADMIN_USER: '' });
+    assert.equal(unconfigured.services.scanner.environment.GITHUB_CLIENT_ID, '');
+    assert.equal(unconfigured.services.scanner.environment.GITHUB_CLIENT_SECRET, '');
+    assert.equal(unconfigured.services.scanner.environment.GITHUB_ADMIN_USER, '');
     assert.equal(linux.services.scanner.build.context, await realpath(directory));
     assert.equal(linux.services.scanner.build.dockerfile, 'Dockerfile');
     assert.equal(linux.services['socket-proxy'].build.dockerfile, 'Dockerfile.socket-proxy');

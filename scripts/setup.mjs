@@ -42,6 +42,7 @@ try {
     }
     if (mode === 'https') console.log(`\nPoint the DNS A/AAAA records for ${url.hostname} at this VPS and allow inbound TCP 80/443. Remove any incorrect AAAA record.\n`);
     console.log(`\nCreate a GitHub OAuth App: https://github.com/settings/developers\nHomepage URL: ${origin}\nAuthorization callback URL: ${origin}/api/auth/callback/github\nNo repository permissions are needed.\n`);
+    console.log('You can leave GitHub settings blank and configure sign-in later using the guide in the browser.');
     const env = {
       BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),

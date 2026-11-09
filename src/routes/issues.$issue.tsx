@@ -1,3 +1,4 @@
+import { resourceName, projectName as displayProjectName } from '../lib/display-name';
 import { ContentSkeleton } from "../components/ui/loading";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -47,14 +48,14 @@ function IssuePage() {
         <ul className="divide-y divide-border">
           {currentItem?.events.map(entry => {
             const resource = data?.containers.find(candidate => candidate.target_id === entry.target && resourceKey(candidate) === entry.resource);
-            const name = resource?.name ?? entry.resourceName ?? entry.name;
+            const name = (resource ? resourceName(resource) : undefined) ?? entry.resourceName ?? entry.name;
             const project = resource?.project ?? entry.project;
             const resolved = entry.kind === 'resolved';
             const status = resolved ? 'Not detected' : entry.finding?.fixed ? 'Fix available' : 'Detected';
             return <li key={entry.resource ?? entry.target} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
               <div className="min-w-0 flex-1 basis-40">
                 <p className="font-medium wrap-anywhere">{name}</p>
-                {project && <p className="mt-0.5 text-xs text-muted-foreground wrap-anywhere">{project}</p>}
+                {project && <p className="mt-0.5 text-xs text-muted-foreground wrap-anywhere">{displayProjectName(project, data)}</p>}
               </div>
               <span title={`Pulse update: ${new Date(entry.time).toLocaleString()}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${resolved ? 'bg-muted-foreground' : 'bg-brand-ink'}`} />

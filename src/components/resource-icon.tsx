@@ -1,3 +1,4 @@
+import { resourceName } from '../lib/display-name';
 import { useSyncExternalStore } from 'react';
 import { Box, Database, Globe, HardDrive, Layers, ListTree, Network, Radar, Server } from 'lucide-react';
 import type { Container } from '../lib/model';
@@ -45,7 +46,7 @@ export function ResourceIcon({ container }: { container?: Container }) {
   const selected = override && Object.hasOwn(icons, override) ? override as ResourceType : null;
   const type = selected ?? automatic;
   const Icon = icons[type];
-  const label = `Change icon for ${container?.name ?? 'Host OS packages'} (currently ${type})`;
+  const label = `Change icon for ${container ? resourceName(container) : 'Host OS packages'} (currently ${type})`;
   return <label className="relative z-10 grid size-8 cursor-pointer place-items-center rounded text-muted-foreground hover:bg-sunken hover:text-foreground focus-within:ring-2 focus-within:ring-brand-ink" title={label}>
     <Icon size={17} aria-hidden="true" />
     <select aria-label={label} className="absolute inset-0 size-full cursor-pointer opacity-0" value={selected ?? ''} onChange={event => {

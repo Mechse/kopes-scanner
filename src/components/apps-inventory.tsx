@@ -1,3 +1,4 @@
+import { resourceName, projectName as displayProjectName } from '../lib/display-name';
 import { BusyIndicator } from "./ui/loading";
 import { SearchToolbar } from "./search-toolbar";
 import { Link } from "@tanstack/react-router";
@@ -10,6 +11,7 @@ import { ResourceIcon } from "./resource-icon";
 import { ScanSettingsLink } from "./scan-settings";
 import { Assessment } from "./assessment";
 import { pillClass } from "./ui/pill";
+import { projectLabel } from "../lib/project-label";
 
 type View = "grid" | "line";
 const preferenceKey = "kopes.projects-view";
@@ -18,7 +20,7 @@ const preferenceKey = "kopes.projects-view";
 const resourceRowClass = "mobile-resource-row group relative isolate grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50 @min-[720px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_148px_100px]";
 
 function ResourceLine({ target, container }: { target?: Target; container?: Container }) {
-  const name = container?.name ?? target?.name ?? "Resource";
+  const name = resourceName(container ?? target);
   const image = container?.image ?? target?.summary?.os ?? "Operating system packages";
   const findings = target?.summary
     ? Object.values(target.summary.counts).reduce((sum, count) => sum + count, 0)
@@ -47,7 +49,7 @@ function ResourceLine({ target, container }: { target?: Target; container?: Cont
 
 function Resource({ target, container, view }: { target: Target; container?: Container; view: View }) {
   if (view === "line") return <ResourceLine target={target} container={container} />;
-  const name = container?.name ?? target.name;
+  const name = resourceName(container ?? target);
   const image = container?.image ?? target.summary?.os ?? "Operating system packages";
   const search = { view: "apps" as const, target: target.id, app: container?.id, project: container?.project };
   const findings = target.summary
@@ -127,22 +129,22 @@ export function ProjectsInventory({ data, project }: { data: Dashboard; project?
   const projects = [...groups]
     .filter(([name, members]) =>
       matches(
-        name || "Ungrouped",
-        ...members.flatMap((member) => [member.name, member.image]),
+        displayProjectName(name, data), name || "Ungrouped",
+        ...members.flatMap((member) => [resourceName(member), member.name, member.image, member.service]),
       ),
     )
-    .sort(([a], [b]) => compare(a, b));
+    .sort(([a, aMembers], [b, bMembers]) => compare(projectLabel(a, aMembers, data.projectNames).title, projectLabel(b, bMembers, data.projectNames).title));
   const members = project !== undefined ? (groups.get(project) ?? []) : [];
   const resources = members
-    .filter((member) => matches(member.name, member.image, member.manager))
-    .sort((a, b) => compare(a.name, b.name));
+    .filter((member) => matches(resourceName(member), member.name, member.image, member.manager))
+    .sort((a, b) => compare(resourceName(a), resourceName(b)));
   const hosts = data.targets
     .filter(
       (target) =>
         target.kind === "host" &&
-        matches(target.name, target.summary?.os ?? "", "Host OS"),
+        matches(resourceName(target), target.name, target.summary?.os ?? "", "Host OS"),
     )
-    .sort((a, b) => compare(a.name, b.name));
+    .sort((a, b) => compare(resourceName(a), resourceName(b)));
   const drilling = project !== undefined;
   const collectionClass = view === "grid" ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4" : "@container min-w-0";
   return <div>
@@ -168,7 +170,7 @@ export function ProjectsInventory({ data, project }: { data: Dashboard; project?
               <div className="flex min-w-0 items-start gap-3">
                 <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-background"><ResourceIcon container={container} /></div>
                 <div className="min-w-0 flex-1">
-                  <strong title={container.name} className="block truncate text-sm leading-5 font-medium">{container.name}</strong>
+                  <strong title={resourceName(container)} className="block truncate text-sm leading-5 font-medium">{resourceName(container)}</strong>
                   <span title={`${container.manager} · ${container.image}`} className="block truncate text-xs leading-5 text-muted-foreground">{container.image}</span>
                 </div>
               </div>
@@ -182,11 +184,15 @@ export function ProjectsInventory({ data, project }: { data: Dashboard; project?
       <section aria-label="Projects">
         <div className={projects.length ? collectionClass : undefined}>
           {projects.map(([name, containers]) => {
+            const label = projectLabel(name, containers, data.projectNames);
             const projectTargets = [...new Set(containers.map(container => container.target_id))].flatMap(id => targets.get(id) ? [targets.get(id)!] : []);
             return <Link key={name} to="/" search={{ view: "apps", project: name }} className={view === "grid" ? "group flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink focus-visible:outline-2 focus-visible:outline-brand-ink" : "mobile-project-row group flex min-w-0 items-center gap-4 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-ink"}>
               <div className={view === "grid" ? "flex min-w-0 flex-1 items-start gap-3" : "flex min-w-0 flex-1 items-center gap-2"}>
                 <span className={view === "grid" ? "grid size-10 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground group-hover:text-brand-ink" : "grid size-8 shrink-0 place-items-center text-muted-foreground group-hover:text-brand-ink"}><Folder size={view === "grid" ? 20 : 17} aria-hidden="true" /></span>
-                <span title={name || "Ungrouped"} className={view === "grid" ? "line-clamp-2 min-h-10 min-w-0 text-sm leading-5 font-medium wrap-anywhere" : "min-w-0 truncate text-sm font-medium"}>{name || "Ungrouped"}</span>
+                <span className="min-w-0 flex-1">
+                  <span title={label.title} className={view === "grid" ? "block line-clamp-2 text-sm leading-5 font-medium wrap-anywhere" : "block truncate text-sm font-medium"}>{label.title}</span>
+                  {label.detail && <span title={label.detail} className="mt-1 block truncate text-xs text-muted-foreground">{label.detail}</span>}
+                </span>
               </div>
               <div className={view === "grid" ? "flex min-w-0 flex-wrap items-center gap-2" : "flex shrink-0 flex-col items-end gap-1 @min-[480px]:grid @min-[480px]:grid-cols-[100px_148px] @min-[480px]:items-center @min-[480px]:gap-4"}>
                 <span className={view === "grid" ? `${pillClass} w-fit` : "text-xs tabular-nums text-muted-foreground"}>{containers.length} {containers.length === 1 ? "resource" : "resources"}</span>

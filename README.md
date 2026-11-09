@@ -1,6 +1,6 @@
 # kopes.dev — single-host scanner
 
-An installable TanStack Start app using Trivy, Better Auth/GitHub, SQLite, Tailwind
+An installable TanStack Start app using Trivy, Better Auth (GitHub, Google and Microsoft), SQLite, Tailwind
 and shadcn-style Radix components. This repository is self-contained: it includes
 its own logo and light/dark design tokens and does not require the private landing
 page repository.
@@ -29,36 +29,121 @@ needed. Both images build directly from this repository.
    The `:3100` tells Coolify which internal port to route to; your browser URL is
    still `https://security.example.com` (no port). Do not assign a domain to
    `socket-proxy`; leave **Connect to predefined network** off.
-4. Create a **GitHub OAuth App** at <https://github.com/settings/developers>:
-   - Homepage URL: `https://security.example.com`
-   - Authorization callback URL: `https://security.example.com/api/auth/callback/github`
-   - No repository access is needed; login uses profile/email scopes only.
-5. In Coolify's runtime environment variables, fill in:
-   - `GITHUB_CLIENT_ID`: the OAuth app's client ID.
-   - `GITHUB_CLIENT_SECRET`: the OAuth app's client secret.
-   - `GITHUB_ADMIN_USER`: your exact GitHub username, **not an email address**.
-   Coolify generates `SERVICE_PASSWORD_64_AUTH` for the persistent auth secret and
-   `SERVICE_URL_SCANNER_3100` from the scanner domain. Check that the resolved
-   `BETTER_AUTH_URL` is exactly your browser HTTPS origin, without `:3100`, a path
-   or a trailing callback. If your Coolify version does not resolve the generated
-   URL as expected, set `BETTER_AUTH_URL` explicitly. Keep the generated secret;
-   do not regenerate it on redeploy.
-6. Deploy, wait for `scanner` to become healthy, then sign in with GitHub. Expand
-   **User access** to grant/revoke access by GitHub handle or verified GitHub email. Other users can view
-   scans, download SBOMs and request scans; only the configured admin manages users.
+4. Deploy with no OAuth credentials. Coolify generates `SERVICE_PASSWORD_64_AUTH`
+   for the persistent auth secret and `SERVICE_URL_SCANNER_3100` from the domain.
+   Check that `BETTER_AUTH_URL` resolves to your browser HTTPS origin, without
+   `:3100`, a path or a callback suffix. Set it explicitly if necessary. Preserve
+   the secret across redeploys.
+5. Open your browser URL. The setup guide defaults to GitHub and has a dropdown
+   for Google and Microsoft, with registration links, callback URLs and required
+   environment variables. Add the settings in Coolify and redeploy. OAuth values
+   are optional for building and starting the app. Make supplied values available
+   to Compose and the running application.
+6. Sign in as the configured administrator. Open **User access** to grant/revoke
+   access. Members can view scans, download SBOMs and request scans.
 
-GitHub OAuth app registration is the only external setup. There are no shared
-admin passwords or public signups. The admin is always authorized through
-`GITHUB_ADMIN_USER` and cannot be removed in the UI. Access changes persist in
-SQLite and revocation blocks existing sessions immediately; re-granting access
-requires signing in again. Email entries are matched against verified GitHub emails
-(including private and secondary addresses) on first sign-in, then bound to the
-GitHub account ID. No invitation is sent. Handle entries are also bound on their
-next sign-in. Until then, keep handle entries current if someone renames or
-relinquishes their username. The administrator remains username-based; update
-`GITHUB_ADMIN_USER` promptly if that username changes.
+### Automatic Coolify app names
 
-User access includes profile details after sign-in, last GitHub sign-in time,
+The scanner can resolve deployment IDs to the exact names in Coolify, such as
+**Coolify · Kopes Test**, without adding labels to your application services.
+
+1. In Coolify, select the team that owns the apps. Under **Keys & Tokens → API
+   tokens**, create a token with only **read** permission. Enable API access on
+   your self-hosted Coolify instance and allow the scanner's source IP if you use
+   an API IP allowlist.
+2. Sign in to the scanner as an administrator and open **Settings → Coolify
+   connection**. Enter your Coolify URL (for example `https://coolify.example.com`,
+   without `/api/v1`) and paste the read-only token.
+3. Click **Test connection** to check access to applications, services and databases.
+   Testing uses the entered details without saving them. Click **Save connection**
+   to enable automatic names on the next inventory refresh, normally within 30
+   seconds. No restart, service labels or application redeployments are needed.
+
+The token is encrypted in the scanner database using a key derived from
+`BETTER_AUTH_SECRET` and is never returned to the browser. Keep that secret stable;
+if it changes, re-enter the Coolify token. Leave the token field empty when editing
+to retain it; changing the URL requires a new token. **Disconnect** removes the
+saved credentials and disables the integration while Docker scanning continues.
+
+Existing installations can still supply `COOLIFY_URL` and `COOLIFY_API_TOKEN` as
+environment variables. In-app settings take precedence, including Disconnect;
+the environment is only used before an in-app connection choice has been saved.
+
+Names come from the applications, services and databases API, matched by exact
+UUID or typed legacy Coolify ID. Compose project UUIDs work even when Coolify
+labels are absent. Only resources visible to that token's team can be resolved.
+Lookups refresh every five minutes. Failed lookups retain in-memory cached names;
+without a cached match, Docker label naming still works and scanning continues.
+Check scanner logs for a lookup warning if names do not resolve. API response
+bodies and tokens are not stored in scan results or sent to the browser.
+
+Enabling the integration or renaming a Coolify resource can change its scanner
+group name. Reapply custom project/resource scan settings under the new name;
+existing image scan results are retained. Identically named Coolify resources
+include their UUID to keep their groups distinct.
+
+See [Coolify API permissions](https://coolify.io/docs/api/permissions) for token
+permissions and team scope.
+
+### Sign-in providers
+
+Configure the first provider through the deployment environment. After signing in
+as an administrator, open **Settings → Sign-in methods** to add or manage GitHub,
+Google and Microsoft credentials and copy their callback URLs. Microsoft email
+delivery can also be configured there. You still create the OAuth application in
+each provider’s dashboard.
+
+Saved settings take effect immediately and override deployment values. Client
+secrets and SMTP credentials are stored encrypted in SQLite using
+`BETTER_AUTH_SECRET`; keep that secret and the data volume when redeploying. Blank
+secret fields retain the saved value; changing a client ID requires a new secret.
+Disabling a provider also overrides its environment configuration. Saving does not
+verify credentials: try a new sign-in to confirm access and email delivery.
+
+The method used for your current session cannot be changed or disabled. Sign in
+through another method before editing it, so an untested configuration cannot
+replace your only working method. Google and Microsoft share an administrator
+email, which cannot be changed while either email provider is enabled.
+
+| Provider | Environment variables | Callback path |
+| --- | --- | --- |
+| GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_ADMIN_USER` | `/api/auth/callback/github` |
+| Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_ADMIN_EMAIL` | `/api/auth/callback/google` |
+| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `AUTH_ADMIN_EMAIL`, `SMTP_URL`, `AUTH_EMAIL_FROM` | `/api/auth/callback/microsoft` |
+
+Prefix callbacks with `BETTER_AUTH_URL`. Only fully configured providers appear
+on the login page; if none are ready, the setup guide appears. Partial provider
+configuration does not prevent startup. The URL and a persistent auth secret of
+at least 32 characters remain required at runtime.
+
+For Google, create a Web application client in Google Auth Platform and configure
+its audience and consent branding. Add test users while the OAuth app is in testing.
+For Microsoft, register an application supporting **accounts in any organizational
+directory and personal Microsoft accounts**, add a Web redirect URI, and use the
+client secret **value**, not its ID. The app uses Microsoft's `common` tenant.
+
+Microsoft sign-in requires local mailbox verification because organization email
+claims are not reliable proof of mailbox ownership. Set `SMTP_URL` to your mail
+service's SMTP connection URL (for example
+`smtps://username:password@smtp.example.com:465`) and `AUTH_EMAIL_FROM` to an approved
+sender address. URL-encode credentials containing special characters. Users follow
+the verification email, then sign in with Microsoft again. No access is granted
+until verification succeeds. Verification links expire after one hour.
+
+There are no public signups or shared admin passwords. `GITHUB_ADMIN_USER` grants
+administrator access by GitHub username; `AUTH_ADMIN_EMAIL` grants administrator
+access by verified Google or locally verified Microsoft email. Both can coexist
+and can be set when configuring a provider in Settings or the deployment environment.
+Saved Settings values take precedence. Keep these values current.
+
+Only administrators can add members. Use a GitHub handle or verified GitHub email
+(including private secondary addresses), or an email for Google/Microsoft. Grants
+bind to the first provider account that successfully signs in. Accounts are not
+automatically linked across providers; keep using the original provider for an
+existing account. Revocation blocks existing sessions immediately and re-granting
+requires a fresh sign-in. Access grants and history persist in SQLite.
+
+User access includes profile details after sign-in, last sign-in time,
 search, role/status filters, revoke confirmation, and the latest 100 access-history
 events. Existing grants are retained; historical sign-ins and access changes from
 before this update are not backfilled. Revoking a person removes all grants already
@@ -136,7 +221,7 @@ in a temporary Node container (no host Node or pnpm installation), and offers:
 
 The wizard prints the exact GitHub OAuth homepage/callback URLs, asks for the
 client ID/secret and admin GitHub username, and saves `.env` with mode **0600**.
-You still need to register the OAuth app in GitHub yourself. It then builds and
+Leave these blank to configure a provider later in the browser. It then builds and
 starts the services, waits for the scanner's health check, and checks the public
 HTTPS endpoint where applicable. Initial builds and vulnerability downloads can
 take several minutes. Internal health does not mean the first scan has finished.
@@ -203,12 +288,11 @@ generate a secret with `openssl rand -hex 32`, and fill in the values manually.
 
 1. Choose the browser URL: `https://security.example.com`, or
    `http://localhost:3100` for local use/SSH forwarding.
-2. Create a **GitHub OAuth App** at <https://github.com/settings/developers>.
-   Homepage: your browser URL. Callback: `<browser URL>/api/auth/callback/github`.
-3. Supply its client ID, client secret and your administrator GitHub username as
-   `GITHUB_ADMIN_USER`. This uses profile/email scopes, **not repository access**.
-4. Open your browser URL and sign in. Grant additional GitHub users access through
-   **User access** in the dashboard; no environment edits or redeploy are needed.
+2. Start the application with `BETTER_AUTH_URL` and `BETTER_AUTH_SECRET` set.
+   GitHub credentials can be left blank in the setup helper.
+3. Open your browser URL and follow the setup guide for GitHub, Google or Microsoft.
+   Add the environment variables and restart/redeploy.
+4. Sign in as administrator and grant additional users access through **User access**.
 
 Keep both `-f` flags for subsequent local Compose commands. The local override
 binds the app to **127.0.0.1:3100**; the base file publishes no host ports. For production, configure your
@@ -243,9 +327,27 @@ privileged mode or making the bind writable.
 
 ## What it does
 
-- Lists running containers, grouped by Coolify/Dokploy labels where present,
-  falling back to Compose project or Standalone. Deduplicates scans by immutable
-  image ID. Platform labels vary; generic Compose grouping is the fallback.
+- Lists running containers, grouped by Coolify project and environment names
+  where present, with resource names as a fallback. Recognizes current Coolify
+  application/service/database UUID labels and legacy ID labels, plus Dokploy
+  labels. Falls back to Compose project or **Standalone · container-name** without platform metadata;
+  Coolify's `source` and `coolify-proxy` stacks appear as **Coolify · Platform**
+  and **Coolify · Reverse proxy** when their standard container names or Compose
+  working directories identify them as Coolify infrastructure. Unrelated stacks
+  with the same Compose project names keep their original grouping.
+  Standalone Coolify Sentinel and helper images are grouped as **Coolify · Monitoring**
+  and **Coolify · Deployment helpers**. Other Coolify-managed containers without
+  project metadata use their container name. Image names alone do not establish
+  ownership for other standalone containers.
+  Project cards show service summaries; generated deployment IDs use those summaries
+  as their title and retain the full ID underneath. This display change preserves
+  grouping and settings. To supply an exact name when metadata is missing, add
+  `kopes.project: "Kopes Test"` under `labels` on every Compose service in that
+  project and redeploy those services. This explicit label overrides automatic
+  grouping; use distinct names for projects that should remain separate.
+  Deduplicates scans by immutable image ID. After upgrading from ID-based grouping,
+  reapply any custom project/resource scan settings under the new names: settings
+  are keyed by project name. Existing image scan results are retained.
 - Watches Docker start/lifecycle events; reconciles inventory every 30 seconds to
   recover missed events. An existing container's restart also queues a re-match.
 - Generates a CycloneDX SBOM for each new image. Weekly by default,

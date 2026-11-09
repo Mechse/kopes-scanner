@@ -37,6 +37,9 @@ export class Store {
       CREATE TABLE IF NOT EXISTS scan_settings (
         scope TEXT NOT NULL, key TEXT NOT NULL, settings_json TEXT NOT NULL, PRIMARY KEY(scope,key)
       );
+      CREATE TABLE IF NOT EXISTS display_names (
+        scope TEXT NOT NULL, key TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY(scope,key)
+      );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
       CREATE TABLE IF NOT EXISTS access_profiles (
@@ -101,7 +104,8 @@ export class Store {
     })) as PulseEvent[];
     const states = Object.fromEntries(this.db.prepare('SELECT * FROM pulse_states WHERE user=?').all(user).map(row =>
       [String(row.issue), { dismissed: Number(row.dismissed), bookmarked: !!row.bookmarked }])) as Record<string, PulseState>;
-    return groupPulse(events, states);
+    const names = this.displayNames('resource');
+    return groupPulse(events.map(event => ({ ...event, resourceName: Object.hasOwn(names, event.resource ?? event.target) ? names[event.resource ?? event.target] : event.resourceName })), states);
   }
   setPulseState(user: string, issue: string, seq: number, action: 'dismiss' | 'restore' | 'bookmark' | 'unbookmark') {
     const event = this.pulseFeed(user).find(item => item.id === issue && item.seq === seq);
@@ -152,9 +156,10 @@ export class Store {
         this.db.prepare('DELETE FROM allowed_users WHERE login=?').run(row.login);
         this.accessEvent(actor, 'revoked', String(row.login));
       }
-      if (login !== actor) this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=? OR githubId=?)').run(login, profile?.github_id ?? grant.github_id);
+      if (login !== actor) this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=? OR githubId=? OR accessLogin=? OR accessId=?)').run(login, profile?.github_id ?? grant.github_id, login, profile?.github_id ?? grant.github_id);
     });
   }
+  // Legacy column names also hold provider-prefixed IDs for Google and Microsoft.
   matchGithubProfile(profile: { id: string; login: string; name: string | null; email: string | null; image: string | null }, verifiedEmails: string[], admin: string) {
     let allowed = false;
     this.transaction(() => {
@@ -175,13 +180,14 @@ export class Store {
     });
     return allowed;
   }
-  userAccess(admin: string): AccessData {
+  userAccess(admin: string, adminEmail = ''): AccessData {
     const rows = this.db.prepare(`SELECT a.login AS identifier, p.login, p.name, p.email, p.image, p.last_sign_in AS lastSignIn
       FROM allowed_users a LEFT JOIN access_profiles p ON p.github_id=a.github_id OR (a.github_id IS NULL AND p.login=a.login)
       WHERE a.login<>? ORDER BY a.login`).all(admin);
     const profile = this.db.prepare('SELECT login,name,email,image,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(admin);
     const administrator = { identifier: admin, login: admin, name: null, email: null, image: null, lastSignIn: null, ...profile, role: 'Administrator' } as AccessPerson;
-    return { people: [administrator, ...rows.map(row => ({ ...row, role: 'Member' } as AccessPerson))],
+    const emailProfile = adminEmail ? this.db.prepare('SELECT login,name,email,image,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(adminEmail) : undefined;
+    return { people: [...(admin ? [administrator] : []), ...(adminEmail && adminEmail !== admin ? [{ identifier: adminEmail, login: adminEmail, name: null, email: adminEmail, image: null, lastSignIn: null, ...emailProfile, role: 'Administrator' as const }] : []), ...rows.filter(row => row.identifier !== adminEmail).map(row => ({ ...row, role: 'Member' } as AccessPerson))],
       history: this.db.prepare('SELECT * FROM access_history ORDER BY seq DESC LIMIT 100').all() as AccessData['history'] };
   }
   recover() { this.db.exec("UPDATE targets SET status='queued', requested=1 WHERE status='scanning'"); }
@@ -222,6 +228,12 @@ export class Store {
     return (this.db.prepare('SELECT DISTINCT project,name FROM containers WHERE target_id=?').all(target) as { project: string; name: string }[])
       .map(container => ({ ...container, key: resourceKey(container) }));
   }
+  displayNames(scope: 'project' | 'resource'): Record<string, string> {
+    return Object.fromEntries(this.db.prepare('SELECT key,name FROM display_names WHERE scope=?').all(scope).map(row => [String(row.key), String(row.name)]));
+  }
+  private displayName(scope: 'project' | 'resource', key: string) {
+    return String(this.db.prepare('SELECT name FROM display_names WHERE scope=? AND key=?').get(scope, key)?.name ?? '');
+  }
   settings(scope: 'project' | 'resource', key: string): SettingsData | null {
     let project: string | null = key;
     if (scope === 'project') {
@@ -240,16 +252,24 @@ export class Store {
     };
     const defaults = { ...defaultSettings, ...(project !== null ? read('project', project) : {}) };
     const overrides = scope === 'resource' ? read(scope, key) : {};
-    return { project, defaults, overrides, effective: { ...defaults, ...overrides } };
+    return { displayName: this.displayName(scope, key), project, defaults, overrides, effective: { ...defaults, ...overrides } };
   }
-  saveSettings(scope: 'project' | 'resource', key: string, settings: Partial<ScanSettings>) {
+  saveSettings(scope: 'project' | 'resource', key: string, settings: Partial<ScanSettings> & { displayName?: string }) {
     if (!this.settings(scope, key)) return null;
-    this.db.prepare(`INSERT INTO scan_settings VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET settings_json=excluded.settings_json`)
-      .run(scope, key, JSON.stringify(settings));
+    const { displayName, ...scanSettings } = settings;
+    this.transaction(() => {
+      this.db.prepare(`INSERT INTO scan_settings VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET settings_json=excluded.settings_json`)
+        .run(scope, key, JSON.stringify(scanSettings));
+      if (displayName !== undefined) {
+        const name = displayName.trim();
+        if (name) this.db.prepare('INSERT INTO display_names VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET name=excluded.name').run(scope, key, name);
+        else this.db.prepare('DELETE FROM display_names WHERE scope=? AND key=?').run(scope, key);
+      }
+    });
     return this.settings(scope, key);
   }
   decode(row: TargetRow): Target {
-    return { id: row.id, kind: row.kind, name: row.name, image_id: row.image_id, platform: row.platform,
+    return { ...(row.kind === 'host' && { displayName: this.displayName('resource', 'host') }), id: row.id, kind: row.kind, name: row.name, image_id: row.image_id, platform: row.platform,
       status: row.status, scanned_at: row.scanned_at, attempted_at: row.attempted_at, error: row.error,
       summary: row.summary_json ? JSON.parse(row.summary_json) : null,
       suggestions: JSON.parse(row.suggestions_json), recommendation_note: row.recommendation_note };
@@ -307,10 +327,12 @@ export class Store {
     }
   }
   timeline() {
-    return this.db.prepare('SELECT * FROM issue_events ORDER BY name, app, time DESC, issue, package, ecosystem').all();
+    const names = this.displayNames('resource');
+    return this.db.prepare('SELECT * FROM issue_events ORDER BY name, app, time DESC, issue, package, ecosystem').all().map((row): typeof row => ({ ...row, name: Object.hasOwn(names, String(row.app)) ? names[String(row.app)] : row.name }));
   }
   activity() {
-    return this.db.prepare('SELECT * FROM scan_activity ORDER BY seq DESC').all();
+    const data = this.dashboard();
+    return this.db.prepare('SELECT * FROM scan_activity ORDER BY seq DESC').all().map((row): typeof row => ({ ...row, name: data.containers.filter(c => c.target_id === row.target).map(c => c.displayName || c.name).join(', ') || (row.target === 'host' ? this.displayName('resource', 'host') : '') || row.name }));
   }
   searchFindings(term: string) {
     return this.db.prepare(`SELECT t.id, count(*) AS matches FROM targets t,
@@ -324,8 +346,9 @@ export class Store {
     return row?.report_json ? JSON.parse(row.report_json) : null;
   }
   dashboard(intervalHours = 168): Dashboard {
-    return { targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
-      containers: this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[],
+    const names = this.displayNames('resource');
+    return { projectNames: this.displayNames('project'), targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
+      containers: (this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[]).map(c => ({ ...c, displayName: names[resourceKey(c)] ?? '' })),
       inventoryAt: Number(this.getMeta('inventoryAt')) || null, inventoryError: this.getMeta('inventoryError') || null, intervalHours };
   }
 }

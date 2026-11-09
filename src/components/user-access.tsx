@@ -10,7 +10,7 @@ import { Button } from './ui/button';
 import { accessIdentifier, type AccessData, type AccessPerson } from '../lib/user-access';
 
 const field = 'w-full rounded-sm border border-border bg-background px-3 py-2.5 text-foreground';
-const label = (person: AccessPerson) => person.login ? `@${person.login}` : person.identifier;
+const label = (person: AccessPerson) => person.login ? (person.login.includes('@') ? person.login : `@${person.login}`) : person.identifier;
 const date = (time: number) => new Date(time).toLocaleString();
 
 export function UserAccess() {
@@ -78,7 +78,7 @@ export function UserAccess() {
           <Dialog.Close asChild><Button variant="ghost" size="icon" className="absolute top-3 right-3" aria-label="Close grant access" disabled={busy}><X aria-hidden="true" /></Button></Dialog.Close>
           <form className="mt-5" onSubmit={event => { event.preventDefault(); void update('add', identifier); }}>
             <label className="block text-sm">GitHub handle or email<input ref={identifierInput} className={`${field} mt-1.5`} required disabled={busy} maxLength={254} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="@octocat or name@example.com" aria-describedby="access-help" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label>
-            <p id="access-help" className="mt-3 text-xs leading-relaxed text-muted-foreground">Use their GitHub handle or a verified GitHub email, including a private email. They can sign in immediately with GitHub. No invitation is sent.</p>
+            <p id="access-help" className="mt-3 text-xs leading-relaxed text-muted-foreground">Use an email address for Google or Microsoft, or a GitHub handle or verified email for GitHub. No invitation is sent. Microsoft users verify their email when first signing in.</p>
             {error && <p className="mt-3 text-sm text-critical" role="alert">{error}</p>}
             <div className="mt-6 flex justify-end gap-2">
               <Dialog.Close asChild><Button variant="outline" disabled={busy}>Cancel</Button></Dialog.Close>
@@ -103,11 +103,11 @@ export function UserAccess() {
               {person.identifier.includes('@') && person.email && person.email.toLowerCase() !== person.identifier && <span className="min-w-0 truncate text-xs text-muted-foreground" title={`Granted via ${person.identifier}`}>Granted via {person.identifier}</span>}
             </div>
             <div className="w-36 shrink-0 text-xs text-muted-foreground">
-              {person.lastSignIn !== null ? <time dateTime={new Date(person.lastSignIn).toISOString()} title={`Last GitHub sign-in: ${date(person.lastSignIn)}`}>Signed in {new Date(person.lastSignIn).toLocaleDateString()}</time> : <span>Awaiting first sign-in</span>}
+              {person.lastSignIn !== null ? <time dateTime={new Date(person.lastSignIn).toISOString()} title={`Last sign-in: ${date(person.lastSignIn)}`}>Signed in {new Date(person.lastSignIn).toLocaleDateString()}</time> : <span>Awaiting first sign-in</span>}
             </div>
             <span className={pillClass}>{person.role}</span>
             <div className="flex w-36 shrink-0 justify-end">
-              {person.role === 'Member' ? <Button variant="ghost" size="sm" disabled={busy} aria-label={`Revoke access for ${label(person)}`} onClick={() => { setError(''); setRevoke(person); }}>Revoke access</Button> : <span className="text-xs text-muted-foreground" title="Administrator access is managed in the deployment configuration">Managed in deployment</span>}
+              {person.role === 'Member' ? <Button variant="ghost" size="sm" disabled={busy} aria-label={`Revoke access for ${label(person)}`} onClick={() => { setError(''); setRevoke(person); }}>Revoke access</Button> : <span className="text-xs text-muted-foreground" title="Administrator access is managed in sign-in settings or the deployment configuration">Managed in sign-in settings</span>}
             </div>
           </li>)}
         </ul>
@@ -120,14 +120,14 @@ export function UserAccess() {
       <details className="group mt-6 border-t border-border">
         <summary className="flex items-center gap-2 rounded-sm py-4 text-sm font-medium hover:text-brand-ink [&::-webkit-details-marker]:hidden"><ChevronRight size={15} aria-hidden="true" className="transition-transform group-open:rotate-90 motion-reduce:transition-none" />Access history<span className={pillClass}>{access.history.length}</span></summary>
         <p className="text-xs text-muted-foreground">Latest 100 access changes.</p>
-        <ol className="mt-2 divide-y divide-border/60">{access.history.map(event => <li key={event.seq} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm"><p className="min-w-0 break-words"><span className="font-medium">@{event.actor}</span> {event.action === 'matched' ? 'matched their GitHub account to' : `${event.action} access for`} <span className="break-all">{event.identifier}</span></p><time className="shrink-0 text-xs text-muted-foreground" dateTime={new Date(event.time).toISOString()}>{date(event.time)}</time></li>)}</ol>
+        <ol className="mt-2 divide-y divide-border/60">{access.history.map(event => <li key={event.seq} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 text-sm"><p className="min-w-0 break-words"><span className="font-medium">{event.actor.includes('@') ? event.actor : `@${event.actor}`}</span> {event.action === 'matched' ? 'matched their account to' : `${event.action} access for`} <span className="break-all">{event.identifier}</span></p><time className="shrink-0 text-xs text-muted-foreground" dateTime={new Date(event.time).toISOString()}>{date(event.time)}</time></li>)}</ol>
         {!access.history.length && <p className="py-3 text-sm text-muted-foreground">No access changes recorded yet.</p>}
       </details>
     </>}
     <AlertDialog.Root open={revoke !== null} onOpenChange={open => { if (!open && !busy) setRevoke(null); }}>
       <AlertDialog.Portal><AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/55" /><AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(440px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-raised p-6 shadow-lg">
         <AlertDialog.Title className="text-lg font-semibold">Revoke access for {revoke && label(revoke)}?</AlertDialog.Title>
-        <AlertDialog.Description className="mt-3 text-sm text-muted-foreground">They will lose access immediately and their sessions will end. All known access entries for this GitHub account will be removed. You can grant access again later.</AlertDialog.Description>
+        <AlertDialog.Description className="mt-3 text-sm text-muted-foreground">They will lose access immediately and their sessions will end. All known access entries for this account will be removed. You can grant access again later.</AlertDialog.Description>
         {error && <p className="mt-3 text-critical" role="alert">{error}</p>}
         <div className="mt-6 flex justify-end gap-3"><AlertDialog.Cancel asChild><Button variant="outline" disabled={busy}>Cancel</Button></AlertDialog.Cancel><Button busy={busy} disabled={busy} onClick={() => { if (revoke) void update('remove', revoke.identifier); }}>{busy ? 'Revoking…' : 'Revoke access'}</Button></div>
       </AlertDialog.Content></AlertDialog.Portal>

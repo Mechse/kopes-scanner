@@ -1,3 +1,4 @@
+import { resourceName } from '../lib/display-name';
 import { ContentSkeleton, BusyIndicator, LoadingStatus } from "../components/ui/loading";
 import { SearchToolbar } from "../components/search-toolbar";
 import {
@@ -128,8 +129,8 @@ function Workspace() {
   const targetName = (t: Target) =>
     data?.containers
       .filter((c) => c.target_id === t.id)
-      .map((c) => c.name)
-      .join(", ") || t.name;
+      .map((c) => resourceName(c))
+      .join(", ") || resourceName(t);
   const outstanding = data?.targets.filter((t) => t.status !== "ready") ?? [];
   const isReport = view === "apps" && !!id;
   const selectedApp = data?.containers.find(
@@ -153,7 +154,7 @@ function Workspace() {
         project={view === "apps" ? selectedApp?.project ?? project : undefined}
         report={
           isReport
-            ? (selectedApp?.name ??
+            ? ((selectedApp ? resourceName(selectedApp) : undefined) ??
               (target ? targetName(target) : "Scan target"))
             : undefined
         }

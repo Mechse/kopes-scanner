@@ -1,3 +1,4 @@
+import { resourceName } from '../lib/display-name';
 import { BusyIndicator } from "./ui/loading";
 import { useState, type ReactNode } from 'react';
 import { Copy, ShieldAlert, ExternalLink } from 'lucide-react';
@@ -38,7 +39,7 @@ export function FindingOverview({ finding, locked, target, container, recordedAt
   const properties = [
     ['Package', finding.package], [locked ? 'Locked version' : 'Installed version', finding.installed],
     ['Fixed version(s)', finding.fixed || 'Not reported by scanner'], ['Ecosystem', finding.type], ['Path', finding.path],
-    ['Resource', container?.name || target.name], ['Published', displayDate(external?.published || finding.published)],
+    ['Resource', resourceName(container ?? target)], ['Published', displayDate(external?.published || finding.published)],
     ['Advisory updated', displayDate(external?.modified || finding.modified)],
     ['CVSS source', finding.cvss?.source || 'Not reported'], ['CVSS vector', vector || 'Not reported'],
     ['Weaknesses', [...new Set([...(finding.cwes ?? []), ...(external?.weaknesses ?? [])])].join('; ') || 'Not reported'],

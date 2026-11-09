@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as UsersRouteImport } from './routes/users'
 import { Route as IssuesIssueRouteImport } from './routes/issues.$issue'
+import { Route as SettingsUsersRouteImport } from './routes/settings_.users'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
 
@@ -32,14 +32,14 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UsersRoute = UsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IssuesIssueRoute = IssuesIssueRouteImport.update({
   id: '/issues/$issue',
   path: '/issues/$issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsUsersRoute = SettingsUsersRouteImport.update({
+  id: '/settings_/users',
+  path: '/settings/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -57,8 +57,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/settings': typeof SettingsRoute
-  '/users': typeof UsersRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
@@ -66,8 +66,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/settings': typeof SettingsRoute
-  '/users': typeof UsersRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
@@ -76,8 +76,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
   '/settings': typeof SettingsRoute
-  '/users': typeof UsersRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/settings_/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
 }
@@ -87,8 +87,8 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/settings'
-    | '/users'
     | '/issues/$issue'
+    | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
   fileRoutesByTo: FileRoutesByTo
@@ -96,8 +96,8 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/settings'
-    | '/users'
     | '/issues/$issue'
+    | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
   id:
@@ -105,8 +105,8 @@ export interface FileRouteTypes {
     | '/'
     | '/healthz'
     | '/settings'
-    | '/users'
     | '/issues/$issue'
+    | '/settings_/users'
     | '/api/auth/$'
     | '/api/data/$'
   fileRoutesById: FileRoutesById
@@ -115,8 +115,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
   SettingsRoute: typeof SettingsRoute
-  UsersRoute: typeof UsersRoute
   IssuesIssueRoute: typeof IssuesIssueRoute
+  SettingsUsersRoute: typeof SettingsUsersRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataSplatRoute: typeof ApiDataSplatRoute
 }
@@ -144,18 +144,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/issues/$issue': {
       id: '/issues/$issue'
       path: '/issues/$issue'
       fullPath: '/issues/$issue'
       preLoaderRoute: typeof IssuesIssueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings_/users': {
+      id: '/settings_/users'
+      path: '/settings/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -179,8 +179,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
   SettingsRoute: SettingsRoute,
-  UsersRoute: UsersRoute,
   IssuesIssueRoute: IssuesIssueRoute,
+  SettingsUsersRoute: SettingsUsersRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataSplatRoute: ApiDataSplatRoute,
 }

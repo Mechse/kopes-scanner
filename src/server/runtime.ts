@@ -4,8 +4,10 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readConfig } from './config';
 import { Store } from './store';
-import { createAuth, migrateAuth } from './auth';
+import { migrateAuth } from './auth';
+import { savedAuthRuntime } from './auth-settings';
 import { inventory, watchEvents } from './docker';
+import { savedCoolifyLookup } from './coolify-settings';
 import { NoPackageCoverage } from './trivy';
 import { scanTarget } from './scanner';
 
@@ -14,8 +16,10 @@ async function initialize() {
   if (isMainThread) process.umask(0o077);
   const config = readConfig();
   const store = new Store(config.dataDir);
+  const coolifyLookup = savedCoolifyLookup(store, config);
   await mkdir(join(config.dataDir, 'tmp'), { recursive: true, mode: 0o700 });
-  const auth = createAuth(config, store);
+  const getAuth = savedAuthRuntime(store, config);
+  const { auth } = getAuth();
   await migrateAuth(auth);
   store.recover();
   // Interrupted scans only contain scratch copies; completed SBOMs live transactionally in SQLite.
@@ -26,7 +30,7 @@ async function initialize() {
   async function reconcile() {
     if (syncing || signal.aborted) return;
     syncing = true;
-    try { store.syncInventory(await inventory(config.docker)); }
+    try { store.syncInventory(await inventory(config.docker, coolifyLookup)); }
     catch { store.setMeta('inventoryError', 'Docker inventory unavailable. Showing the last successful inventory; check socket proxy connectivity.'); }
     finally { syncing = false; }
   }
@@ -70,7 +74,10 @@ async function initialize() {
   const shutdown = () => { controller.abort(); };
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
-  return { config, store, auth, signal };
+  return { baseConfig: config, store, getAuth, signal };
 }
 let instance: ReturnType<typeof initialize> | undefined;
-export function runtime() { return instance ??= initialize(); }
+export async function runtime() {
+  const state = await (instance ??= initialize());
+  return { ...state, ...state.getAuth() };
+}

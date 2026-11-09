@@ -69,3 +69,23 @@ test('settings validation rejects unsupported intervals, unknown fields and non-
   assert.equal(overridesSchema.safeParse({}).success, true);
   assert.equal(scanSettingsSchema.safeParse({}).success, false);
 });
+
+test('new rescan intervals survive saving and become due at the exact interval', context => {
+  const now = 2_000_000_000_000;
+  context.mock.method(Date, 'now', () => now);
+  const s = setup();
+  try {
+    for (const minutes of [5, 15, 30, 60, 360, 720, 4320, 20160]) {
+      // Round-trip through JSON just as the settings form and API do.
+      const settings = overridesSchema.parse(JSON.parse(JSON.stringify({ rescanHours: minutes / 60 })));
+      s.saveSettings('resource', 'host', settings);
+      assert.equal(s.settings('resource', 'host')?.effective.rescanHours, minutes / 60);
+      s.db.prepare("UPDATE targets SET requested=0,status='ready',attempted_at=?,scanned_at=?").run(now, now);
+      const dueAt = now - minutes * 60_000;
+      s.db.prepare("UPDATE targets SET attempted_at=? WHERE id='host'").run(dueAt + 1);
+      assert.equal(s.next(), null, `${minutes} minutes: not due early`);
+      s.db.prepare("UPDATE targets SET attempted_at=? WHERE id='host'").run(dueAt);
+      assert.equal(s.next()?.id, 'host', `${minutes} minutes: due on time`);
+    }
+  } finally { s.db.close(); }
+});
