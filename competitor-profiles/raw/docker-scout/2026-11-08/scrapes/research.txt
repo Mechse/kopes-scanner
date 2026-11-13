@@ -1,0 +1,473 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+Docker Scout | Docker Docs (https://docs.docker.com/scout/)
+citeturn10view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://docs.docker.com/scout/","lineno":null}); Total lines: 42
+L0: When enabled, Gordon considers the current page you're viewing to provide more relevant answers.
+L1: 
+L2: 【0†Share feedback†github.com】
+L3: 
+L4: Answers are generated based on the documentation.
+L5: 
+L6: Back
+L7: 
+L8: 【1†Manuals】
+L9: 
+L10:   * 【2†Get started】
+L11:   * 【3†Guides】
+L12:   * 【4†Reference】
+L13: 
+L14:   *   *     *     *     *     *     *     *     *     *     *     *       *       *         * 【5†Manage swarm security with public key infrastructure (PKI)】
+L15:     *     *   *   *   *   *   * # Docker Scout
+L16: 
+L17: * * *
+L18: Container images consist of layers and software packages, which are susceptible to vulnerabilities. These vulnerabilities can compromise the security of containers and applications.
+L19: 
+L20: Docker Scout is a solution for proactively enhancing your software supply chain security. By analyzing your images, Docker Scout compiles an inventory of components, also known as a Software Bill of Materials (SBOM). The SBOM is matched against a continuously updated vulnerability database to pinpoint security weaknesses.
+L21: Docker Scout is a standalone service and platform that you can interact with using Docker Hub, the Docker CLI, and the Docker Scout Dashboard.
+L22: 
+L23: 【6†Quickstart Learn what Docker Scout can do, and how to get started.】
+L24: 
+L25: 【7†Image analysis Reveal and dig into the composition of your images.】
+L26: 
+L27: 【8†Advisory database Learn about the information sources that Docker Scout uses.】
+L28: 
+L29: 【9†Integrations Connect Docker Scout with your CI, registries, and other third-party services.】
+L30: 【10†Dashboard The web interface for Docker Scout.】
+L31: 
+L32: 【11†Policy Ensure that your artifacts align with supply chain best practices.】
+L33: 
+L34: 【12†Upgrade A Personal subscription includes up to 1 repository. Upgrade for more.】
+L35: 
+L36: 【13†Product offerings†www.docker.com】 【14†Pricing†www.docker.com】 【15†About us†www.docker.com】 【16†llms.txt】 【17†llms-full.txt】
+L37: 
+L38: [Button: Cookies Settings ] | 【18†Terms of Use†www.docker.com】 | 【19†Status†www.dockerstatus.com】 | 【20†Legal†www.docker.com】
+L39: Copyright © 2013-2026 Docker Inc. All rights reserved.
+L40: 
+L41: 【21†Automated traffic detection】
+--------------------------------------------------------------------------------
+Pricing | Docker (https://www.docker.com/pricing/)
+citeturn10view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://www.docker.com/pricing/","lineno":null}); Total lines: 586
+L0: 【0†iframe†www.googletagmanager.com】
+L1: 
+L2:   * 【1†Products】
+L3: 
+L4: AI and Agents
+L5: 
+L6:     * 【2†Docker Sandboxes New Isolated environments for coding agents】
+L7:     * 【3†AI Governance New Govern agents and Claws across every team】
+L8:     * 【4†MCP Enterprise Gateway Connect and manage MCP tools】
+L9:     * 【5†Gordon Your AI Agent across Docker】
+L10:     * 【6†Docker Model Runner Local-first LLM inference made easy】
+L11: 
+L12: Application Security
+L13:     * 【7†Docker Hardened Images Ship with secure, enterprise-ready images】
+L14:     * 【8†Docker Scout Simplify the software supply chain】
+L15: 
+L16: Application Development
+L17: 
+L18:     * 【9†Docker Desktop Containerize your applications】
+L19:     * 【10†Docker Hub Discover and share container images】
+L20:     * 【11†Docker Offload Break free of local constraints】
+L21: 
+L22:   * 【12†Support】
+L23: 
+L24: Developers
+L25:     * 【13†Documentation Find guides for Docker products†docs.docker.com】
+L26:     * 【14†Getting Started Learn the Docker basics】
+L27:     * 【15†Resources Search a library of helpful materials】
+L28:     * 【16†Training Skill up your Docker knowledge】
+L29:     * 【17†Extensions SDK Create and share your own extensions】
+L30:     * 【18†Community Connect with other Docker developers】
+L31:     * 【19†Open Source Explore open source projects】
+L32:     * 【20†Preview Program Help shape the future of Docker】
+L33:     * 【21†Customer Stories Get inspired with customer stories】
+L34:     * 【22†Onboarding Get started with Docker Onboarding】
+L35: 【23†Get the latest Docker news】
+L36: 
+L37:   * 【24†Pricing】
+L38: 
+L39: 【25†Yearly】
+L40: 
+L41: 【25†Monthly】
+L42: 
+L43: Docker Personal
+L44: 
+L45: $0
+L46: 
+L47: $0
+L48: 
+L49: For individual developers who need the essential tools to build and deploy containers.
+L50: 
+L51: 【26†Get started†app.docker.com】
+L52: 
+L53: 【26†Get started†app.docker.com】
+L54: 
+L55: Docker Pro
+L56: 
+L57: $11
+L58: 
+L59: $9
+L60: 
+L61: per user/month
+L62: 
+L63: For individual professionals who require more advanced features and additional resources.
+L64: 
+L65: 【27†Buy now†app.docker.com】
+L66: 
+L67: 【28†Buy now†app.docker.com】
+L68: 
+L69: MOST POPULAR
+L70: 
+L71: Docker Team
+L72: 
+L73: $16
+L74: 
+L75: $15
+L76: 
+L77: per user/month
+L78: For small teams that need collaborative tools to make working together more efficient.
+L79: 
+L80: 【29†Buy now†app.docker.com】
+L81: 
+L82: 【30†Buy now†app.docker.com】
+L83: 
+L84: 【31†Docker Business】
+L85: 
+L86: $24
+L87: 
+L88: $24
+L89: 
+L90: per user/month
+L91: 
+L92: For enterprises desiring robust security, control, and compliance features.
+L93: 
+L94: 【32†Buy now†app.docker.com】
+L95: 
+L96: 【32†Buy now†app.docker.com】
+L97: 
+L98: 【33†Contact sales】
+L99: 
+L100: 【33†Contact sales】
+L101: 
+L102: 【34†Image】
+L103: 
+L104: Docker Hardened Images (DHI)
+L105: 
+L106: Secure, minimal container images for every team, free with enterprise features, if needed.
+L107: 【35†Start Free Trial】
+L108: 
+L109:   * 【36†Blog】
+L110:   * 【13†Docs†docs.docker.com】
+L111: 
+L112: [Input: ]
+L113: 
+L114: 【37†Sign In†app.docker.com】 【38†Contact Sales】
+L115: 
+L116: [Button: Toggle menu ]
+L117: 
+L118: 【39†Image: - gray】
+L119: #
+L120: Find Your Perfect Docker Plan
+L121: 
+L122: Compare tailored plans designed for individual developers, growing teams, and large enterprises
+L123: 
+L124: 【34†Image: - incred bgs】
+L125: 
+L126: Docker Hardened Images, now accessible to everyone
+L127: 
+L128: 【40†Compare plans】 【35†Get Demo】
+L129: 
+L130: 【25†Yearly】
+L131: 
+L132: 【25†Monthly】
+L133: 
+L134: ## Docker Personal
+L135: 
+L136: ### $0
+L137: 
+L138: ### $0
+L139: 
+L140: For individual developers who need the essential tools to build and deploy containers.
+L141: 
+L142: 【26†Get started†app.docker.com】
+L143: 
+L144: 【26†Get started†app.docker.com】
+L145: 
+L146: #### Includes:
+L147: 
+L148: #### Docker Desktop
+L149: #### Docker Engine + Kubernetes
+L150: 
+L151: #### Docker Hub
+L152: 
+L153: #### Docker Scout
+L154: 
+L155: #### Docker Debug
+L156: 
+L157: #### Included usage:
+L158: 
+L159: #### 1 user
+L160: 
+L161: #### 1 Docker Scout-enabled repo*
+L162: 
+L163: #### 100 Docker Hub pulls/hr*
+L164: 
+L165: #### 1 private Docker Hub repo
+L166: 
+L167: ## Docker Pro
+L168: 
+L169: ### $11
+L170: 
+L171: ### $9
+L172: 
+L173: per user/month
+L174: 
+L175: For individual professionals who require more advanced features and additional resources.
+L176: 
+L177: 【27†Buy now†app.docker.com】
+L178: 
+L179: 【28†Buy now†app.docker.com】
+L180: 
+L181: #### Includes:
+L182: 
+L183: #### Testcontainers Cloud
+L184: 
+L185: #### Synchronized File Shares
+L186: #### Visibility into Docker Scout health scores
+L187: 
+L188: #### 5 business day support response
+L189: 
+L190: #### Included usage:
+L191: 
+L192: #### 1 user
+L193: 
+L194: #### 2 Docker Scout-enabled repos
+L195: 
+L196: #### Unlimited Docker Hub pull rate
+L197: 
+L198: #### 100 Testcontainers Cloud runtime minutes**
+L199: 
+L200: MOST POPULAR
+L201: 
+L202: ## Docker Team
+L203: 
+L204: ### $16
+L205: 
+L206: ### $15
+L207: 
+L208: per user/month
+L209: 
+L210: For small teams that need collaborative tools to make working together more efficient.
+L211: 
+L212: 【29†Buy now†app.docker.com】
+L213: 
+L214: 【30†Buy now†app.docker.com】
+L215: 
+L216: #### Includes:
+L217: 
+L218: #### Add users in bulk
+L219: 
+L220: #### Audit logs
+L221: #### Docker Hub role-based access control
+L222: 
+L223: #### 2 business day support response
+L224: 
+L225: #### Included usage:
+L226: 
+L227: #### Up to 100 users
+L228: 
+L229: #### Unlimited Docker Scout-enabled repos
+L230: 
+L231: #### Unlimited Docker Hub pull rate
+L232: 
+L233: #### Unlimited private Docker Hub repos
+L234: 
+L235: #### 500 Testcontainers Cloud runtime minutes**
+L236: 
+L237: #### 10 Organization access tokens
+L238: 
+L239: #### 1 Docker Hub organization
+L240: 
+L241: ## 【31†Docker Business】
+L242: 
+L243: ### $24
+L244: ### $24
+L245: 
+L246: per user/month
+L247: 
+L248: For enterprises desiring robust security, control, and compliance features.
+L249: 
+L250: 【32†Buy now†app.docker.com】
+L251: 
+L252: 【32†Buy now†app.docker.com】
+L253: 
+L254: 【33†Contact sales】
+L255: 
+L256: 【33†Contact sales】
+L257: 
+L258: #### Includes:
+L259: 
+L260: #### Hardened Docker Desktop
+L261: 
+L262: #### Single Sign-On (SSO)
+L263: 
+L264: #### SCIM user provisioning
+L265: 
+L266: #### Image and Registry Access Management
+L267: 
+L268: #### Desktop Insights Dashboard
+L269: 
+L270: #### Enhanced container Isolation (ECI)
+L271: 
+L272: #### Purchase via invoice
+L273: 
+L274: #### 1 business day support response
+L275: 
+L276: #### Included usage:
+L277: #### No user cap
+L278: 
+L279: #### Unlimited Docker Scout-enabled repos
+L280: 
+L281: #### Unlimited Docker Hub pull rate
+L282: 
+L283: #### Unlimited private Docker Hub repos
+L284: 
+L285: #### 1,500 Testcontainers Cloud runtime minutes**
+L286: 
+L287: #### 100 Organization access tokens
+L288: 
+L289: #### Unlimited Docker Hub organizations***
+L290: 
+L291: *Access with reasonable use when logged in
+L292: **Included usage per month per subscription with options to buy more
+L293: ***Not available for self-service customers. Please contact your rep
+L294: ## Docker Hardened Images (DHI)
+L295: 
+L296: Secure, minimal container images for every team, free with enterprise features, if needed.
+L297: 
+L298: 【35†Request a demo of DHI Enterprise】
+L299: 
+L300: Community
+L301: 
+L302: ## Free for every developer
+L303: 
+L304: Secure, transparent, and no-cost for everyone.
+L305: 
+L306: #### What’s included:
+L307: 
+L308: #### Hardened, minimal images
+L309: 
+L310: #### Near-zero CVEs
+L311: 
+L312: #### Verifiable SBOMs & SLSA Build L3 provenance
+L313: 
+L314: #### Full, unsuppressed CVE visibility
+L315: 
+L316: #### Drop-in adoption, no workflow changes
+L317: #### Full catalog of open source images under Apache 2.0
+L318: 
+L319: #### Built with Docker Hardened System Packages
+L320: 
+L321: #### Upstream cadence for Docker-released patches
+L322: 
+L323: Select
+L324: 
+L325: ## Starting at $5k/repo
+L326: 
+L327: Production-ready security with compliance support
+L328: 
+L329: #### Everything in community, plus:
+L330: 
+L331: #### FIPS/STIG variants
+L332: 
+L333: #### Critical CVE fixes < 7 days with
+L334: SLA-backed continuous patching
+L335: 
+L336: #### Up to 5 customizations
+L337: 
+L338: Enterprise
+L339: 
+L340: ## Contact us for pricing
+L341: 
+L342: Advanced security controls and unlimited customization
+L343: #### Everything in select, plus:
+L344: 
+L345: #### Unlimited customizations, including system packages
+L346: 
+L347: #### Access to Hardened System Packages repo
+L348: 
+L349: #### Full catalog access available
+L350: 
+L351: #### ELS add-on available
+L352: 
+L353: #### Extended Lifecycle Support
+L354: 
+L355: Add on
+L356: 
+L357: Security and compliance for end-of-life software. Requires DHI Enterprise.
+L358: 
+L359: #### +5 years of hardened updates
+L360: 
+L361: #### Maintains security updates after upstream EOL
+L362: 
+L363: #### SBOMs & provenance
+L364: 
+L365: #### Protects long-lived workloads
+L366: ## Take advantage of our premium offerings
+L367: 
+L368: In addition to our comprehensive pricing plans, we also offer these premium services and products.
+L369: 
+L370: 【41†Docker Premium Support and TAM Services Available as an add-on to Docker Business and DHI, the Premium Support and TAM (technical advisory manager) service gives your development teams 24×7 response, priority SLAs, and expert guidance. Learn more about Premium Support & TAM Services】
+L371: 
+L372: Go back
+L373: ##
+L374: 
+L375: Restart wizard
+L376: 
+L377: Docker Subscriptions【25†Yearly】【25†Monthly】  |
+L378: 
+L379: ### Personal
+L380: 
+L381: ### Personal
+L382: 
+L383: #### $0
+L384: 
+L385: #### $0
+L386: 
+L387: #### /mo
+L388: 
+L389: 【26†Buy Now†app.docker.com】 【26†Buy Now†app.docker.com】  |
+L390: 
+L391: ### Pro
+L392: 
+L393: ### Pro
+L394: 
+L395: #### $9
+L396: 
+L397: #### $11
+L398: 
+L399: #### per user/mo
+L400: 
+L401: 【27†Buy Now†app.docker.com】 【28†Buy Now†app.docker.com】  | MOST POPULAR
+L402: 
+L403: ### Team
+L404: 
+L405: ### Team
+L406: 
+L407: #### $15
+L408: 
+L409: #### $16
+L410: 
+L411: #### per user/mo
+L412: 
+L413: 【29†Buy Now†app.docker.com】 【30†Buy Now†app.docker.com】  |
+L414: 
+L415: ### Business
+L416: 
+L417: ### Business
+L418: 
+L419: #### $24
+L420: 
+L421: #### $24
+L422: #### per user/mo
+L423: 【33†Contact sales】 【33†Contact sales】
+

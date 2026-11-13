@@ -1,0 +1,23 @@
+# Phase 3 — isolated JS/TS dependency analysis pilot
+
+Implementation: `analysis.ts`, `jobs.ts`, `scripts/source-worker/`, `Dockerfile.source-worker`, `compose.source.yaml`. The application collects allowlisted files; only the worker parses dependency manifests/lockfiles and runs Trivy. No package installation, repository scripts, hooks, builds, or repository-controlled package managers execute.
+
+The worker is a separate predefined service with no network, application credentials, database, Docker socket, or host-root mount. Input is read-only; output has a separate volume. The public vulnerability database is mounted read-only. Trivy configuration/ignore discovery is disabled. Credentials never appear in commands or input bundles.
+
+Supported first slice: npm package-lock v2/v3 and pnpm v9, including the measured workspace fixtures. Graph nodes retain package-instance identity, versions, requested dependency names/specifiers, scope, manifests, workspace roots, raw analyzer packages and contextual lock metadata. Peer/local/unsupported contexts that cannot be established remain partial. Yarn inputs are explicitly unsupported until generated-fixture compatibility is validated. Bun and legacy locks remain unsupported.
+
+Persistent jobs deduplicate pending work by binding/kind, recover after restart, retry with bounded backoff, cancel on disconnect/archive, and alternate with host/image scanning in the same expensive-job loop. Collection, process, graph traversal and result sizes are bounded. Polling runs at 15-minute intervals; unchanged heads are rematched daily. The saved SBOM is used for rematching while the filesystem graph and dev/workspace annotations remain authoritative. New advisories can appear without a Git change. Exact provider-reported deployed SHAs can be assessed independently without changing tracked-head state or claiming image linkage.
+
+## Measured acceptance
+
+`worker-evidence.json` records the isolated Docker matrix and real SBOM rematch. Synthetic npm v2/v3 and npm/pnpm workspaces recover both introduction paths to vulnerable lodash, retain development context, and retain multiple package versions. Missing/malformed/stale/unsupported inputs never produce complete clean coverage. The malicious lifecycle marker was absent. Authored advanced fixtures additionally exercise linked local workspaces, aliased packages and installed peer context; these are static contract fixtures, not a claim that package-manager-generated edge cases are fully certified. Multiple SBOM targets cannot multiply a package occurrence during rematching.
+
+The same driver also accepts the public npm/pnpm bundles fetched in Phase 6. Their warnings are evidence of actual limitations, not suppressed errors. Real library peer constraints, optional dependencies, and nested manifests can leave graph coverage partial even when the analyzer inventory is complete.
+
+Limits: 200 input files, 2 MiB/file, 8 MiB total raw inputs, 20 path levels, 50,000 nodes, 200,000 edges, 100 introduction paths per finding (explicit truncation), 32 MiB result, 1 GiB worker memory, one CPU, 64 PIDs, 256 MiB scratch. Source admission stops below 256 MiB free spool space or above a 2 GiB SQLite budget. These are conservative admission bounds, not a completed long-running retention benchmark.
+
+## Open gates
+
+Generated advanced peer/alias/optional/workspace-reference fixtures across package managers; production-volume isolation/permissions and repeated crash/cancellation stress; long-running disk/retention pilot. The final Docker validation uses the dedicated packaged worker image (its image ID is recorded), with no substituted worker code. Thirteen cases include two immutable public-repository bundles. Active cancellation removes the input, stops the analyzer child, releases the worker claim and publishes no cancelled result. Runtime/source scheduling waits for active claims; a worker restart clears claims left by its terminated process. A pending rematch survives restart. This does not certify a live installation or sustained operational load.
+
+The public vulnerability database is hashed using a streaming read and checked for changes during the worker lifetime. Total container memory accounting, including file cache, reached the 1 GiB ceiling in local validation, with zero OOM kills. The post-case anonymous/file counters are recorded separately; they do not establish the composition of the peak. This is measured memory pressure, not spare-capacity evidence; see `memoryEvents` and `peakMemoryBytes`. The intended deployment footprint still requires a sustained pressure test.

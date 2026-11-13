@@ -1,0 +1,126 @@
+{
+  "observedAt": "2026-11-09T20:37:56.247Z",
+  "publicBundle": {
+    "commit": "a191537e0c93c3912189797499239e5ad8519f8c",
+    "hash": "b527ca35c8a922ee52d1aa1d20c647cc1aa0c01ce588c875b9327c2ed7202ac3"
+  },
+  "provider": "offline replay of previously measured public GitHub inputs",
+  "workerUid": "host UID for bind-file ownership; production UID tested separately",
+  "retainedScans": 31,
+  "sharedSnapshots": 1,
+  "sourceEvents": 86,
+  "byteSamples": [
+    {
+      "scans": 10,
+      "databaseBytes": 5922816,
+      "journalBytes": 4210480,
+      "free": [
+        {
+          "location": "input",
+          "bytes": 80923836416
+        },
+        {
+          "location": "output",
+          "bytes": 80923836416
+        },
+        {
+          "location": "database",
+          "bytes": 80923836416
+        }
+      ],
+      "allowed": true,
+      "reason": null,
+      "retention": "preserve-all-evidence"
+    },
+    {
+      "scans": 20,
+      "databaseBytes": 10756096,
+      "journalBytes": 4350560,
+      "free": [
+        {
+          "location": "input",
+          "bytes": 80903258112
+        },
+        {
+          "location": "output",
+          "bytes": 80903258112
+        },
+        {
+          "location": "database",
+          "bytes": 80903258112
+        }
+      ],
+      "allowed": true,
+      "reason": null,
+      "retention": "preserve-all-evidence"
+    },
+    {
+      "scans": 30,
+      "databaseBytes": 15589376,
+      "journalBytes": 4350560,
+      "free": [
+        {
+          "location": "input",
+          "bytes": 80909545472
+        },
+        {
+          "location": "output",
+          "bytes": 80909545472
+        },
+        {
+          "location": "database",
+          "bytes": 80909545472
+        }
+      ],
+      "allowed": true,
+      "reason": null,
+      "retention": "preserve-all-evidence"
+    }
+  ],
+  "pressureMeasurement": {
+    "databaseBytes": 15589376,
+    "journalBytes": 4350560,
+    "free": [
+      {
+        "location": "input",
+        "bytes": 80909541376
+      },
+      {
+        "location": "output",
+        "bytes": 80909541376
+      },
+      {
+        "location": "database",
+        "bytes": 80909541376
+      }
+    ],
+    "allowed": true,
+    "reason": null,
+    "retention": "preserve-all-evidence"
+  },
+  "reducedBudgetBytes": 556810847,
+  "pressurePreservesEvidence": true,
+  "pressureDoesNotReadProviderOrConsumeAttempts": true,
+  "restartPreservesEvidence": true,
+  "resumedAfterPressure": true,
+  "backupRestoreDigests": {
+    "source_snapshots": "dd6cb8bd466ec32a83fbfd065db43d84e4c80e2b0f376f10459afcd104a582dc",
+    "source_scans": "cf700b369a2f44922d0f1d7dc2dae96acd76fae4a7721a3e7c542244f7092ddb",
+    "source_events": "48f2b04d8ad6d12b146984928df2ab1e74e284c3ba77e72c48ecfc7b7bee77fc",
+    "source_bindings": "6da35a06ea884015b0148899e6205a1870e1664f7ddab49852c183509bf4dbd3",
+    "source_binding_resources": "067b6df00061598e8851daf31d33fb55194707ed3f0517cd588b67daebe089e5",
+    "projects": "5979376b0d7997409a426da426c6ffb0842c510739e8d469b493fd99cf041d27",
+    "project_members": "b89da61b8e258e2d459f575dccfa205fbda70a3d60443681e52c0fc99d704ac8",
+    "scan_settings": "b3d104598eb7dc8f1294667bc24bb91f74a1890d6d436beff8e890c3f3413b30",
+    "display_names": "c8b9066201293c979de63dfbe9ffdafa7196e9c6a5dd17bea22791726ed604c2",
+    "scan_observations": "02e37b5d31e4b374fd7715f1fa91b4b62575f0cacd4068a9f3c37d76401fdf18",
+    "access_history": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "pulse_states": "3070af33ab9949fd593a973423838d432e7db6e988c4d1726b57f552cba6278c",
+    "favourites": "5a29e6ccbfa33ce5811dfb7180f1d7ef7f412b0beac19d07747971e9bbed4e85",
+    "allowed_users": "b7f7079c3ae8dab7c47ee3d140c77f455f9035e44894ec2a17a7e5d5c13c756c",
+    "resources": "c9a64491417b246dcfd44acc1210905b53c5e5cc6686d4f90b7050f1c5196d76"
+  },
+  "backupRestoreVerified": true,
+  "zeroSpoolFiles": true,
+  "productionDataTouched": false
+}

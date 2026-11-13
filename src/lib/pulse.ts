@@ -1,7 +1,7 @@
 import { severities, type Finding, type Report } from './model';
 
 export type PulseKind = 'discovered' | 'fix' | 'resolved' | 'changed' | 'failure' | 'recovered' | 'coverage';
-export type PulseChange = { project?: string | null; resource?: string; resourceName?: string; issue: string; kind: PulseKind; finding?: Finding; detail?: string };
+export type PulseChange = { sourceBinding?: string; project?: string | null; resource?: string; resourceName?: string; issue: string; kind: PulseKind; finding?: Finding; detail?: string };
 export type PulseEvent = PulseChange & { seq: number; target: string; name: string; time: number };
 export type PulseItem = { id: string; seq: number; time: number; events: PulseEvent[]; dismissed: boolean; bookmarked: boolean };
 export type PulseState = { dismissed: number; bookmarked: boolean };
@@ -10,9 +10,9 @@ export type CurrentPulseItem = PulseItem & { removedEvents: PulseEvent[] };
 // Keep historical details and the original sequence for actions, but exclude
 // removed targets from the visible summary, filters, and ranking.
 export function currentPulseItem(item: PulseItem, targetIds: ReadonlySet<string>): CurrentPulseItem | null {
-  const events = item.events.filter(event => targetIds.has(event.target));
+  const events = item.events.filter(event => (!!event.sourceBinding || targetIds.has(event.target)));
   if (!events.length) return null;
-  return { ...item, events, removedEvents: item.events.filter(event => !targetIds.has(event.target)) };
+  return { ...item, events, removedEvents: item.events.filter(event => !(!!event.sourceBinding || targetIds.has(event.target))) };
 }
 
 // Choose the same representative finding for the message and its details page.

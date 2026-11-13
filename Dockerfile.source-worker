@@ -1,0 +1,19 @@
+FROM aquasec/trivy:0.76.1 AS trivy
+FROM node:24.17.0-bookworm-slim AS build
+WORKDIR /repo
+RUN npm install --global pnpm@10.8.0
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+COPY scripts/build-source-worker.mjs scripts/build-source-worker.mjs
+COPY scripts/source-worker/ scripts/source-worker/
+COPY src/server/source/ src/server/source/
+COPY src/lib/cvss.ts src/lib/cvss.ts
+COPY src/lib/source-inputs.ts src/lib/source-inputs.ts
+RUN node scripts/build-source-worker.mjs
+FROM node:24.17.0-bookworm-slim
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+COPY --from=build /repo/.source-worker/worker.mjs /app/worker.mjs
+RUN mkdir -p /spool/in /spool/out && chown -R 65532:65532 /spool
+USER 65532:65532
+ENV HOME=/tmp TMPDIR=/tmp
+CMD ["node", "--max-old-space-size=512", "/app/worker.mjs"]

@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   ChevronRight,
+  GitBranch,
   Activity,
   Box,
   Menu,
@@ -41,31 +42,37 @@ export function useWorkspace() {
 }
 export function WorkspaceBar({
   section,
+  actions,
   report,
   project,
+  managedProject,
+  repository,
 }: {
+  repository?: string;
   section: string;
+  actions?: ReactNode;
   report?: string;
   project?: string;
+  managedProject?: { id: string; name: string };
 }) {
   const { inventory } = useWorkspace();
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`${report || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&_svg]:text-muted-foreground`}
+      className={`${actions || repository || report || managedProject || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&>svg]:text-muted-foreground`}
     >
       <Link to="/" search={{}}>
         Workspace
       </Link>
       <ChevronRight size={13} />
-      {report || project !== undefined ? (
+      {repository ? <><Link to="/repositories">Repositories</Link><ChevronRight size={13}/><span aria-current="page" className="truncate" title={repository}>{repository}</span></> : report || managedProject || project !== undefined ? (
         <Link to="/" search={{ view: "apps" }}>
-          Projects
+          Containers
         </Link>
       ) : (
         <span>{section}</span>
       )}
-      {project !== undefined && <>
+      {managedProject ? <><ChevronRight size={13}/><Link to="/" search={{ view: 'apps', managedId: managedProject.id }} className="truncate">{managedProject.name}</Link></> : project !== undefined && <>
         <ChevronRight size={13} />
         <Link to="/" search={{ view: "apps", project }} className="truncate">{projectName(project, inventory?.data)}</Link>
       </>}
@@ -77,11 +84,12 @@ export function WorkspaceBar({
           </span>
         </>
       )}
+      {actions && <div className="ml-auto">{actions}</div>}
     </nav>
   );
 }
 const navLinkClass =
-  "flex items-center gap-2.5 rounded-md px-2.5 py-3 text-sm text-muted-foreground hover:bg-sunken hover:text-foreground aria-[current=page]:bg-sunken aria-[current=page]:text-foreground desktop:gap-2 desktop:text-[13px] desktop:py-[5px] desktop:hover:bg-foreground/5 desktop:aria-[current=page]:bg-foreground/9 [&[aria-current=page]_svg]:text-brand-ink";
+  "flex min-h-11 items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground aria-[current=page]:bg-brand-tint aria-[current=page]:text-brand-ink desktop:min-h-10 desktop:gap-2.5 desktop:py-2.5 desktop:text-[13px] [&_svg]:shrink-0";
 
 const auth = createAuthClient();
 function ThemeButton() {
@@ -159,7 +167,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOpen(false);
   };
   const sidebar = (
-    <div className="flex flex-col gap-4 px-3 pt-3 pb-3 desktop:gap-0 desktop:sticky desktop:top-0 desktop:h-dvh desktop:overflow-y-auto desktop:top-2 desktop:h-[calc(100dvh-16px)] desktop:pt-4 desktop:pb-2">
+    <div className="flex flex-col gap-4 px-3 pt-3 pb-3 desktop:gap-0 desktop:h-full desktop:min-h-0 desktop:overflow-y-auto desktop:pt-4 desktop:pb-2">
       <Link
         to="/"
         search={{}}
@@ -169,12 +177,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Logo width={88} />
       </Link>
-      <nav className="grid gap-[3px] desktop:mx-1 desktop:gap-0.5" aria-label="Workspace">
+      <nav className="grid gap-1 desktop:mx-1" aria-label="Workspace">
         {(
           [
             ["Pulse", undefined, Activity],
-            ["Projects", "apps", Box],
-            ["Activity", "activity", Activity],
+            ["Containers", "apps", Box],
           ] as const
         ).map(([label, view, Icon]) => (
           <Link
@@ -195,6 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {label}
           </Link>
         ))}
+        <Link className={navLinkClass} to="/repositories" aria-current={pathname === '/repositories' || pathname.startsWith('/repositories/') ? 'page' : undefined} onClick={navigate}><GitBranch size={16}/>Repositories</Link>
         {inventory?.data?.isAdmin && <Link className={navLinkClass} to="/settings" search={{}} aria-current={pathname === '/settings' || pathname.startsWith('/settings/') ? 'page' : undefined} onClick={navigate}>
           <Settings size={16} />Settings
         </Link>}
@@ -259,8 +267,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Sheet>
             <Logo width={76} />
           </header>
-          <div className="min-h-dvh desktop:grid desktop:grid-cols-[208px_minmax(0,1fr)] desktop:bg-[linear-gradient(145deg,var(--surface),color-mix(in_srgb,var(--surface)_60%,var(--surface-sunken)))] desktop:py-2 desktop:pr-2">
-            <aside className="hidden desktop:block">{sidebar}</aside>
+          <div className="workspace-frame min-h-[calc(100dvh-53px)] desktop:h-dvh desktop:min-h-0 desktop:overflow-hidden desktop:grid desktop:grid-cols-[208px_minmax(0,1fr)] desktop:bg-[linear-gradient(145deg,var(--surface),color-mix(in_srgb,var(--surface)_60%,var(--surface-sunken)))] desktop:py-2 desktop:pr-2 desktop:[&>main]:min-h-0 desktop:[&>main]:overflow-y-auto">
+            <aside className="hidden desktop:block desktop:min-h-0">{sidebar}</aside>
             {children}
           </div>
         </WorkspaceContext.Provider>
@@ -313,7 +321,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <AuthError />
             <div className="mt-6 border-t border-border pt-6 text-xs text-muted-foreground">
               Access requires administrator approval. GitHub repositories are
-              not requested or scanned. Scans do not change your server.
+              not requested during sign-in. Administrators can separately enable read-only source connections. Scans do not change your server.
             </div>
           </section>}
         </main>

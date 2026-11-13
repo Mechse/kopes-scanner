@@ -1,3 +1,7 @@
+import { originOf } from '../lib/finding-origin';
+import type { SourceEvidence } from '../lib/finding-evidence';
+import { remediationGuidance } from '../lib/source-guidance';
+import { FindingEvidence } from './finding-evidence';
 import { resourceName } from '../lib/display-name';
 import { BusyIndicator } from "./ui/loading";
 import { useState, type ReactNode } from 'react';
@@ -26,7 +30,10 @@ function displayDate(value?: string) {
   if (!value || !Number.isFinite(Date.parse(value))) return 'Not reported';
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
-export function FindingOverview({ finding, locked, target, container, recordedAt, historical = false, resources }: { finding: Finding; locked: boolean; target: Target; container?: Container; recordedAt?: number; historical?: boolean; resources?: ReactNode }) {
+type OverviewProps = { finding: Finding; locked: boolean; container?: Container; recordedAt?: number; historical?: boolean; resources?: ReactNode; showEvidence?: boolean }
+  & ({ target: Target; sourceEvidence?: never } | { target?: never; sourceEvidence: SourceEvidence });
+
+export function FindingOverview({ finding, locked, target, sourceEvidence, container, recordedAt, historical = false, resources, showEvidence = false }: OverviewProps) {
   const [revision, setRevision] = useState(0);
   const resource = useResource<Advisory>(isCve(finding.id) ? `advisory?id=${encodeURIComponent(finding.id)}` : '', revision);
   const advisory = resource?.data;
@@ -35,11 +42,12 @@ export function FindingOverview({ finding, locked, target, container, recordedAt
   const explanation = explainVector(vector);
   const description = finding.description || external?.description;
   const sources = [...new Set([...(finding.references ?? []), ...(external?.references ?? []), ...(isCve(finding.id) ? [`https://www.cve.org/CVERecord?id=${finding.id}`, `https://nvd.nist.gov/vuln/detail/${finding.id}`] : [])])].filter(safeUrl);
-  const steps = remediation(finding, target.kind, container, locked);
+  const steps = target ? remediation(finding, target.kind, container, locked) : [];
+  const sourceEdits = sourceEvidence && (sourceEvidence.edits.length ? sourceEvidence.edits : [{ manifest: 'Unknown manifest', dependency: undefined, direct: false }]);
   const properties = [
     ['Package', finding.package], [locked ? 'Locked version' : 'Installed version', finding.installed],
     ['Fixed version(s)', finding.fixed || 'Not reported by scanner'], ['Ecosystem', finding.type], ['Path', finding.path],
-    ['Resource', resourceName(container ?? target)], ['Published', displayDate(external?.published || finding.published)],
+    [sourceEvidence ? 'Repository' : 'Resource', sourceEvidence ? sourceEvidence.repository : resourceName(container ?? target!)], ['Published', displayDate(external?.published || finding.published)],
     ['Advisory updated', displayDate(external?.modified || finding.modified)],
     ['CVSS source', finding.cvss?.source || 'Not reported'], ['CVSS vector', vector || 'Not reported'],
     ['Weaknesses', [...new Set([...(finding.cwes ?? []), ...(external?.weaknesses ?? [])])].join('; ') || 'Not reported'],
@@ -56,26 +64,31 @@ export function FindingOverview({ finding, locked, target, container, recordedAt
 
     <section className="mt-8 text-sm leading-7" aria-label="What this means">
       <h2 className="mb-3 text-lg">What this means</h2>
-      <p>The scan matched <strong>{finding.package} {finding.installed}</strong> to this advisory{locked ? ' using release source metadata' : ''}. Whether it can be exploited here depends on the affected features and how this resource is exposed.</p>
+      <p>The scan matched <strong>{finding.package} {finding.installed}</strong> to this advisory{sourceEvidence ? ' using the repository’s lockfile' : locked ? ' using release source metadata' : ''}. Whether it can be exploited here depends on the affected features and how this resource is exposed.</p>
       {explanation.length > 0 && <><ul className="mt-3 list-disc space-y-1 pl-5">{explanation.map(line => <li key={line}>{line}</li>)}</ul><p className="mt-2 text-xs text-muted-foreground">Attack conditions and impact translated from {finding.cvss?.vector ? `the ${finding.cvss.source} scanner rating` : 'the CVE publisher’s rating'}. This is not a test of your deployment’s exposure.</p></>}
       {description ? <details className="mt-4" open><summary className="cursor-pointer font-medium">Advisory description</summary><p className="mt-2 whitespace-pre-line">{description}</p><p className="mt-2 text-xs text-muted-foreground">Source: {finding.description ? 'scanner advisory data' : `CVE record · ${external?.publisher || 'publishing authority'}`}</p></details> : <p className="mt-3 text-muted-foreground">No description is available in this scan{!resource && isCve(finding.id) ? '; checking the CVE record…' : '. Review the source links below.'}</p>}
     </section>
 
+    {!historical && showEvidence && target && <FindingEvidence finding={finding} targetId={target.id} />}
+    {target?.kind === 'image' && <section className="my-6 text-sm" aria-label="Finding origin"><h2 className="mb-2 text-lg">Origin: {originOf(finding).category}</h2><p>{originOf(finding).explanation}</p><details className="mt-3"><summary>Attribution evidence</summary><p className="mt-2 font-mono text-xs">{originOf(finding).layer ?? 'Layer not recorded'}</p>{originOf(finding).command && <pre className="mt-2 whitespace-pre-wrap text-xs">{originOf(finding).command}</pre>}{originOf(finding).baseDigest && <p>{originOf(finding).baseDigest}</p>}</details><p className="mt-2 text-xs text-muted-foreground">Remove tooling only after confirming it is unnecessary at runtime. A scanned production rebuild is required to verify any reduction.</p></section>}
     {resources}
 
     {advisory?.status === 'rejected' && <p role="status" className="mt-6 rounded border border-border bg-sunken p-4 text-sm">This CVE record has been rejected. Review the CVE record before acting on the scanner finding. {advisory.description}</p>}
     {!historical && advisory?.status !== 'rejected' && <section className="my-8 border-l-[3px] border-brand-ink bg-brand-tint/30 px-5 py-5 text-sm" aria-label="How to fix it">
       <h2 className="mb-2 text-xl">{finding.fixed ? 'How to fix it' : 'What to do while no fix is reported'}</h2>
       {finding.fixed && <p className="mb-5 leading-6">The scanner reports <code className="rounded bg-sunken px-1.5 py-0.5">{finding.fixed}</code> as fixed. Multiple versions can refer to different release branches; check the vendor advisory for yours.</p>}
-      <ol className="list-decimal space-y-5 pl-5">{steps.map(step => <li key={step.title} className="pl-1"><h3 className="font-medium">{step.title}</h3><p className="mt-1 leading-6 text-muted-foreground">{step.detail}</p>{step.command && <Command key={step.command} command={step.command} />}</li>)}</ol>
+      {sourceEvidence && sourceEdits ? <ol className="list-decimal space-y-5 pl-5">{sourceEdits.map((edit, index) => {
+        const guidance = remediationGuidance(sourceEvidence.manager, edit.dependency, finding.package, finding.fixed, edit.direct);
+        return <li key={index} className="pl-1"><h3 className="font-medium">{edit.dependency ?? 'Review the dependency path'}</h3><p className="mt-1 text-xs text-muted-foreground">{edit.manifest} · {edit.direct ? 'Direct dependency' : 'Introducing dependency'}</p><p className="mt-2 leading-6 text-muted-foreground">{guidance.summary}</p>{guidance.commands.map(command => <Command key={command} command={command}/>)}<p className="mt-3 text-xs leading-6 text-muted-foreground">{guidance.note}</p></li>;
+      })}<li className="pl-1"><h3 className="font-medium">Verify the dependency update</h3><p className="mt-1 leading-6 text-muted-foreground">Regenerate the lockfile, run your application tests, commit the change, and rescan the repository. Deploy through your normal workflow and scan the resulting container to verify its dependencies separately.</p></li></ol> : <ol className="list-decimal space-y-5 pl-5">{steps.map(step => <li key={step.title} className="pl-1"><h3 className="font-medium">{step.title}</h3><p className="mt-1 leading-6 text-muted-foreground">{step.detail}</p>{step.command && <Command key={step.command} command={step.command} />}</li>)}</ol>}
       {(external?.solutions.length || external?.workarounds.length) ? <div className="mt-6 border-t border-border pt-4"><h3 className="font-medium">Published guidance</h3><p className="mt-1 text-xs text-muted-foreground">From <a className="underline" href={external.source} target="_blank" rel="noreferrer">{external.publisher || 'the CVE publisher'}</a>. Check product and version applicability before using it.</p>{external.solutions.map((text, i) => <p key={`s${i}`} className="mt-3 whitespace-pre-line leading-6"><strong>Solution: </strong>{text}</p>)}{external.workarounds.map((text, i) => <p key={`w${i}`} className="mt-3 whitespace-pre-line leading-6"><strong>Workaround: </strong>{text}</p>)}</div> : !finding.fixed && <p className="mt-5 text-xs text-muted-foreground">{external ? 'The CVE record does not list a workaround. Linked vendor advisories may contain further guidance.' : 'No published workaround has been retrieved. Check the source advisories; this does not mean none exists.'}</p>}
     </section>}
 
-    {!historical && target.kind === 'image' && target.suggestions.length > 0 && <section className="mb-8 text-sm"><h2 className="mb-3 text-lg">Image versions already compared</h2><p className="mb-3 text-muted-foreground">These are overall scan comparisons; they do not establish that this specific CVE is fixed.</p>{target.suggestions.map(s => <div key={s.digest} className="border-t border-border py-3"><code>{s.reference}</code><p className="mt-1 text-xs text-muted-foreground">{s.removed} advisory/package pairs removed · {s.introduced} introduced · {s.remaining} remaining · {s.platform} · checked {new Date(s.checkedAt).toLocaleString()}</p></div>)}</section>}
+    {!historical && target && target.kind === 'image' && target.suggestions.length > 0 && <section className="mb-8 text-sm"><h2 className="mb-3 text-lg">Image versions already compared</h2><p className="mb-3 text-muted-foreground">These are overall scan comparisons; they do not establish that this specific CVE is fixed.</p>{target.suggestions.map(s => <div key={s.digest} className="border-t border-border py-3"><code>{s.reference}</code><p className="mt-1 text-xs text-muted-foreground">{s.scope === 'base-image' ? 'Base images only; application reduction unverified. ' : 'Image comparison; compatibility unverified. '}{s.removed} advisory/package pairs removed · {s.introduced} introduced · {s.remaining} remaining in total (including introduced) · {s.platform} · checked {new Date(s.checkedAt).toLocaleString()}</p></div>)}</section>}
 
-    <details className="border-y border-border py-4 text-sm"><summary className="cursor-pointer font-medium">Technical details</summary><dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)]">{properties.map(([label, value]) => <div key={label} className="contents"><dt className="text-muted-foreground">{label}</dt><dd className="font-mono text-xs leading-6">{value || 'Not reported'}</dd></div>)}</dl>{locked && <p className="mt-4 text-xs text-muted-foreground">Release source coverage: dependency versions come from release metadata rather than a complete binary inventory.</p>}</details>
+    <details className="border-y border-border py-4 text-sm"><summary className="cursor-pointer font-medium">Technical details</summary><dl className="mt-5 grid gap-x-6 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)]">{properties.map(([label, value]) => <div key={label} className="contents"><dt className="text-muted-foreground">{label}</dt><dd className="font-mono text-xs leading-6">{value || 'Not reported'}</dd></div>)}</dl>{locked && <p className="mt-4 text-xs text-muted-foreground">{sourceEvidence ? "Repository coverage: dependency versions come from the scanned lockfile. These results do not establish which versions are deployed." : "Release source coverage: dependency versions come from release metadata rather than a complete binary inventory."}</p>}</details>
     <section className="mt-8 text-sm" aria-label="Sources"><h2 className="mb-3 text-lg">Sources & freshness</h2>
-      <p className="text-xs leading-6 text-muted-foreground">{recordedAt !== undefined ? `Pulse update: ${new Date(recordedAt).toLocaleString()}` : `Scan: ${target.scanned_at ? new Date(target.scanned_at).toLocaleString() : 'unknown'}`}. External records add context; package fix status reflects {historical ? 'the recorded update' : 'this scan'}.</p>
+      <p className="text-xs leading-6 text-muted-foreground">{recordedAt !== undefined ? `Pulse update: ${new Date(recordedAt).toLocaleString()}` : `Scan: ${sourceEvidence ? new Date(sourceEvidence.scannedAt).toLocaleString() : target?.scanned_at ? new Date(target.scanned_at).toLocaleString() : 'unknown'}`}. External records add context; package fix status reflects {historical ? 'the recorded update' : 'this scan'}.</p>
       {isCve(finding.id) && <div className="my-3 text-xs text-muted-foreground" role="status">
         {!resource ? <><BusyIndicator className="mr-2" />Loading the CVE record…</> : resource.error || advisory?.status === 'unavailable' ? 'The CVE source is unavailable. Scanner details and source links are still usable. Retry in one minute.' : advisory?.status === 'not-found' ? 'No public CVE record was found.' : `CVE record retrieved ${new Date(advisory!.fetchedAt).toLocaleString()}. Cached for up to one hour.`}
         {(resource?.error || advisory?.status === 'unavailable') && <Button className="ml-2" size="sm" variant="outline" onClick={() => setRevision(r => r + 1)}>Retry source</Button>}

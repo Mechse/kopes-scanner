@@ -1,0 +1,11 @@
+# Phase 5 — provenance pilot, conservative evidence
+
+The Coolify adapter reads allowlisted fields from bounded, paginated application deployment history. Only a unique stable application alias is eligible. It retains provider ID, resource/environment, validated full SHA, known status and source/collection times. It does not retain logs/raw payloads or infer an actor/image digest. Polling reconciles relevant resources every 15 minutes and when observed image identity changes; outages retain earlier evidence and display an unavailable state.
+
+Source events are append-only and deduplicated. Fix available, comparable source changes, observed commit metadata, confirmed provider merge metadata and deployment reports remain different event kinds. Commit author/committer text is explicitly distinct from authenticated fixing identity. GitHub review records and provider author/merger/bot identities are kept separately; unsupported GitLab review capability remains unknown. History is bounded and labelled when truncated. A direct push does not fabricate a PR/MR or a fixer.
+
+A provider-reported deployment SHA can trigger a historical source scan for a uniquely bound repository. That scan cannot replace the tracked branch head or resolve current-branch history. Multiple bound repositories remain ambiguous rather than assigning one SHA to all of them.
+
+The runtime evidence rules are implemented and tested as a conservative module: immutable current image, relevant package coverage, confirmed source/image linkage, all active replicas, late observations, rollback reopening, and package disappearance. **Automatic runtime verification/reopening publication is intentionally not wired into production collection**, because real Coolify-to-image linkage and relevant runtime package coverage have not passed the Phase 0 gate. The UI does not show a provider success as a verified fix.
+
+Local evidence tests cover different environments, failed/missing evidence, mixed images, late observations, rollback reopening, deduplicated corrections and no invented actor. These are synthetic contract checks. The live normal-deploy/failed-build/same-SHA-rebuild/rollback/mixed-replica matrix remains open; no deployments were initiated.

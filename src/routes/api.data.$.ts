@@ -1,3 +1,10 @@
+import { findingEvidence, annotateReport, syncSourcePulse } from '../server/source/finding-evidence';
+import { rescan } from '../server/rescan';
+import { handleRepositories } from '../server/source/repositories';
+import { handleFavourites } from '../server/favourites';
+import { handleProvenance } from '../server/source/provenance-api';
+import { handleSource } from '../server/source/service';
+import { handleProjects } from '../server/project-api';
 import { projectSettingsSchema, resourceSettingsSchema } from '../lib/settings';
 import { createFileRoute } from '@tanstack/react-router';
 import { lookupAdvisory } from '../server/advisory';
@@ -15,6 +22,11 @@ async function handle({ request }: { request: Request }) {
   const url = new URL(request.url);
   const action = url.pathname.replace('/api/data/', '');
   const id = url.searchParams.get('id') ?? '';
+  if (action === 'favourites') return handleFavourites(request, store, session.user.id, config.origin, isAdmin);
+  if (action === 'provenance') return handleProvenance(request, store, { userId: session.user.id, administrator: isAdmin }, config);
+  if (action === 'repositories') return handleRepositories(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin);
+  if (action === 'source') return handleSource(request, store, { userId: session.user.id, administrator: isAdmin }, config);
+  if (action === 'projects') return handleProjects(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin);
   if (action === 'auth-settings') return handleAuthSettings(request, isAdmin, session.user.accessId?.startsWith('microsoft:') ? 'microsoft' : session.user.accessId ? 'google' : 'github', store, baseConfig);
   if (action === 'coolify') return handleCoolifySettings(request, isAdmin, store, config);
   if (request.method === 'GET' && action === 'advisory') {
@@ -35,20 +47,22 @@ async function handle({ request }: { request: Request }) {
     }
     return Response.json(store.userAccess(config.admin, config.adminEmail), { headers: { 'Cache-Control': 'private, no-store' } });
   }
+  if (request.method === 'GET' && action === 'finding-evidence') return Response.json(findingEvidence(store, { userId: session.user.id, administrator: isAdmin }, url.searchParams.get('issue') || undefined), { headers: { 'Cache-Control': 'private, no-store' } });
   if (action === 'pulse-feed') {
+    const sourceBindings = syncSourcePulse(store, { userId: session.user.id, administrator: isAdmin });
     if (request.method === 'POST') {
       requireSameOrigin(request, config.origin);
       const body = await request.json().catch(() => null);
       if (typeof body?.issue !== 'string' || !Number.isSafeInteger(body?.seq) || !['dismiss', 'restore', 'bookmark', 'unbookmark'].includes(body?.action)) return new Response('Invalid Pulse action.', { status: 400 });
-      if (!store.setPulseState(session.user.id, body.issue, body.seq, body.action)) return new Response('Update no longer available.', { status: 404 });
+      if (!store.setPulseState(session.user.id, body.issue, body.seq, body.action, sourceBindings)) return new Response('Update no longer available.', { status: 404 });
     }
-    return Response.json(store.pulseFeed(session.user.id), { headers: { 'Cache-Control': 'private, no-store' } });
+    return Response.json(store.pulseFeed(session.user.id, sourceBindings), { headers: { 'Cache-Control': 'private, no-store' } });
   }
   if (action === 'settings') {
     const scope = url.searchParams.get('scope');
     const key = url.searchParams.get('key');
     if ((scope !== 'project' && scope !== 'resource') || key === null) return new Response('Invalid settings scope.', { status: 400 });
-    if (!store.settings(scope, key)) return new Response('Resource or project no longer exists.', { status: 404 });
+    if (!store.settings(scope, key)) return new Response('Resource or container no longer exists.', { status: 404 });
     if (request.method === 'POST') {
       requireSameOrigin(request, config.origin);
       const parsed = (scope === 'project' ? projectSettingsSchema : resourceSettingsSchema).safeParse(await request.json().catch(() => null));
@@ -67,7 +81,7 @@ async function handle({ request }: { request: Request }) {
   if (id !== 'host' && !/^image:sha256:[a-f0-9]{64}$/.test(id)) return new Response('Invalid target.', { status: 400 });
   if (request.method === 'GET' && action === 'report') {
     const report = store.report(id, url.searchParams.has('scan') ? Number(url.searchParams.get('scan')) : null);
-    return report ? Response.json(report) : new Response('No completed scan yet.', { status: 404 });
+    return report ? Response.json(annotateReport(report, id, url.searchParams.has('scan') && Number(url.searchParams.get('scan')) !== store.dashboard().targets.find(t => t.id === id)?.scanned_at ? [] : findingEvidence(store, { userId: session.user.id, administrator: isAdmin }))) : new Response('No completed scan yet.', { status: 404 });
   }
   if (request.method === 'GET' && action === 'sbom') {
     const sbom = store.sbom(id);
@@ -75,11 +89,7 @@ async function handle({ request }: { request: Request }) {
   }
   if (request.method === 'POST' && action === 'rescan') {
     requireSameOrigin(request, config.origin);
-    const target = store.db.prepare('SELECT attempted_at, status FROM targets WHERE id=?').get(id) as { attempted_at: number | null; status: string } | undefined;
-    if (!target) return new Response('Unknown target.', { status: 404 });
-    if (target.status === 'scanning' || (target.attempted_at && Date.now() - target.attempted_at < 60_000)) return new Response('A scan is running or was just attempted. Wait one minute before retrying.', { status: 429 });
-    store.request(id);
-    return Response.json({ queued: true }, { status: 202 });
+    return rescan(store, id, { userId: session.user.id, administrator: isAdmin }, url.searchParams.get('app') || undefined);
   }
   return new Response('Not found.', { status: 404 });
 }

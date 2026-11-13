@@ -1,0 +1,165 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+Dependency-Track | Software Bill of Materials (SBOM) Analysis | OWASP (https://dependencytrack.org/)
+citeturn7view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://dependencytrack.org/","lineno":null}); Total lines: 161
+L0: 【0†Skip to content】【1†Image†static.scarf.sh】
+L1: 
+L2: 【2†Platform】【3†Download】【4†News】【5†Documentation†dependencytrack.github.io】
+L3: 
+L4: 【3†Get started】 【6†View on GitHub†github.com】
+L5: # Know exactly what is in your software.
+L6: 
+L7: Dependency-Track is the open source platform that over 20,000 organizationsuse to inventory components, find vulnerabilities, and enforce policy across the software supply chain.
+L8: 
+L9: 【3†Get started】【7†Read the 5.2 announcement】
+L10: 
+L11: 20,000+
+L12: 
+L13: Organizations in production
+L14: 
+L15: 20,000+
+L16: 
+L17: SBOMs/hour in a single instance
+L18: 
+L19: 1M+
+L20: 
+L21: SBOMs in a single instance
+L22: 
+L23: 5B+
+L24: 
+L25: Components tracked globally
+L26: 
+L27: Why Dependency-Track
+L28: ## One platform for your entire software supply chain
+L29: 
+L30: Built around the software bill of materials, it tracks every component in every version of every project, and surfaces risk the moment it emerges.
+L31: 
+L32: ### Inventory
+L33: 
+L34: Know what you ship.
+L35: 
+L36: Ingest CycloneDX SBOMs and track libraries, containers, operating systems, firmware, and services across every version of every project in your portfolio.
+L37: ### Analyze
+L38: 
+L39: See risk as it emerges.
+L40: 
+L41: Continuously match every component against multiple vulnerability sources, verify upstream integrity, and prioritize what matters with EPSS.
+L42: 
+L43: ### Govern
+L44: 
+L45: Enforce your standards.
+L46: 
+L47: Codify policy in an expression engine, auto-triage findings, break the build on a fail, and route alerts to everywhere your teams work.
+L48: 
+L49: How it works
+L50: ## Operationalize software bill of materials
+L51: 
+L52: A continuous pipeline from SBOM production to intelligent response, with no step left to chance.
+L53: 
+L54:   1. 01
+L55: 
+L56: ### Produce
+L57: 
+L58: CycloneDX SBOMs are generated during CI/CD or acquired from suppliers.
+L59: 
+L60:   2. 02
+L61: 
+L62: ### Ingest
+L63: 
+L64: SBOMs are published to Dependency-Track via the REST API, CI plugins, or the web interface.
+L65: 
+L66:   3. 03
+L67: 
+L68: ### Analyze
+L69: 
+L70: Components are evaluated for security, operational, and license risk against live intelligence.
+L71: 
+L72:   4. 04
+L73: ### Monitor
+L74: 
+L75: The entire portfolio is continuously re-analyzed as new vulnerabilities and policy changes land.
+L76: 
+L77:   5. 05
+L78: 
+L79: ### Respond
+L80: 
+L81: Actionable findings flow to the tools teams already use through webhooks, chat-ops, and email.
+L82: ### Accurate, complete, full-stack inventory
+L83: 
+L84: Track libraries, frameworks, applications, containers, operating systems, firmware, hardware, and services across every project. Full-stack traceability for the cloud, the enterprise, smart devices, and IoT.
+L85: 
+L86: 【8†Image: Dependency-Track component inventory view】
+L87: ### Identify and remediate vulnerable components
+L88: 
+L89: Bring vulnerable components to light with multiple sources of vulnerability intelligence, including the NVD, Sonatype OSS Index, GitHub Advisories, Snyk, and OSV.
+L90: 
+L91: 【9†Image: Dependency-Track vulnerability findings view】
+L92: ### Measure and enforce policy compliance
+L93: 
+L94: Security, operational, and license policies surface risk quickly across development teams, suppliers, and partners in the supply chain.
+L95: 
+L96: 【10†Image: Dependency-Track policy violations view】
+L97: 
+L98: New in 5.0
+L99: ## The largest redesign in the project's history
+L100: 
+L101: Codenamed Hyades, v5 rebuilds how Dependency-Track scales, survives failure, and reasons about risk: horizontal scaling and active/active high availability, durable processing that resumes after a crash, supply chain integrity verification, and an expression-based policy engine.
+L102: 
+L103: 【11†See what changed in 5.0】
+L104:   * Horizontal scaling & active/active HA
+L105:   * Durable processing that survives crashes
+L106:   * Supply chain integrity verification
+L107:   * PostgreSQL only, fewer failure modes
+L108: 
+L109: Platform
+L110: ## Everything you need to manage supply chain risk
+L111: 
+L112: 【2†All features】
+L113: 【2†Inventory Build a complete, continuously updated record of everything you ship, from one SBOM standard.Full-Stack Inventory CycloneDX Native Project Hierarchies Explore】 【2†Analyze Surface vulnerabilities, integrity failures, and risk the moment they emerge, not on a periodic scan.Vulnerability Detection Reproducible Analysis Integrity Verification Explore】 【2†Govern Turn your standards into enforceable policy and the machine-readable evidence regulators now expect.Expression-Based Policy Vulnerability Policies License Compliance Explore】 【2†Operate at scale The v5 redesign rebuilt the engine to stay up, never silently lose work, and run from one team to an enterprise portfolio.Horizontal Scaling & HA Durable Processing One Database Explore】
+L114: Connectors & integrations
+L115: 
+L116: Get started
+L117: ## Run it in minutes
+L118: 
+L119: Spin up a full deployment with Docker Compose. Dependency-Track 5.2 ships as separate API server and frontend container images from Docker Hub and the GitHub Container Registry.
+L120: 
+L121: 【5†Read the docs†dependencytrack.github.io】 【12†Container images†hub.docker.com】
+L122: 
+L123: Upgrading from 4.x? v5 does not upgrade in place. Plan a maintenance window and follow the 【13†v4 to v5 migration guide†dependencytrack.github.io】.
+L124: 
+L125: Docker Compose
+L126: Copy
+L127: 
+L128:     `curl -LO https://dependencytrack.org/docker-compose.yml
+L129:     docker compose up -d`
+L130: 
+L131: Then open http://localhost:8081 and sign in with admin / admin
+L132: ## Built by a community of contributors and adopters
+L133: 
+L134: Dependency-Track is free and open source. Join the teams across more than 20,000 organizations who help shape the project.
+L135: 
+L136: 【14†Join us on Slack†owasp.org】 【15†Contribute on GitHub†github.com】
+L137: 
+L138: 【16†Image: Dependency-Track】
+L139: 
+L140: ## Platform
+L141: 
+L142:   * 【2†Features】
+L143:   * 【3†Download】
+L144:   * 【5†Documentation†dependencytrack.github.io】
+L145:   * 【12†Container images†hub.docker.com】
+L146: ## Project
+L147: 
+L148:   * 【4†News】
+L149:   * 【15†GitHub†github.com】
+L150:   * 【17†OWASP project†owasp.org】
+L151:   * 【18†Releases†github.com】
+L152: 
+L153: ## Community
+L154: 
+L155:   * 【14†Slack†owasp.org】
+L156:   * 【19†GitHub Discussions†github.com】
+L157:   * 【20†Mailing list†groups.io】
+L158:   * 【21†YouTube†www.youtube.com】
+L159: 
+L160: © 2013 to 2026 The OWASP Foundation. All rights reserved.
+

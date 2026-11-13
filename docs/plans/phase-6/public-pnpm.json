@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-11-09T20:03:44.029Z",
+  "provider": "github",
+  "repository": "pmndrs/zustand",
+  "providerId": "180328715",
+  "commit": "9fed2eb2f3af672da9f7bf694b996df3831fc207",
+  "authentication": "none",
+  "inputPaths": [
+    "examples/demo/package.json",
+    "examples/starter/package.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "bundleHash": "a14f01f3c0f082cad24c8789dc358574475b061d160f3129e9a6dd563e9cbda8",
+  "privateAccessValidated": false,
+  "selfHostedValidated": false
+}

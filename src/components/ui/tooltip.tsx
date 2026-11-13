@@ -6,7 +6,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactEle
     <Primitive.Root>
       <Primitive.Trigger asChild>{children}</Primitive.Trigger>
       <Primitive.Portal>
-        <Primitive.Content sideOffset={6} className="z-50 rounded-md border border-border bg-raised px-2.5 py-1.5 text-xs text-foreground shadow-md">
+        <Primitive.Content sideOffset={6} className="z-50 max-w-[min(22rem,calc(100vw-2rem))] whitespace-normal wrap-anywhere rounded-md border border-border bg-raised px-2.5 py-1.5 text-xs text-foreground shadow-md">
           {label}
         </Primitive.Content>
       </Primitive.Portal>

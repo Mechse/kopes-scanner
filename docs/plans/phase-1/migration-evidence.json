@@ -1,0 +1,13 @@
+{
+  "sourceOpenedReadOnly": true,
+  "originalVersion": 2,
+  "targetVersion": 9,
+  "preservedTables": [
+    "targets",
+    "containers",
+    "scan_activity",
+    "allowed_users"
+  ],
+  "restoreVerified": true,
+  "sourceSchemaUnchanged": true
+}

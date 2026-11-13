@@ -1,6 +1,9 @@
 export const severities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const;
 export type Severity = typeof severities[number];
 export type Finding = {
+  origin?: import("./finding-origin").OriginEvidence;
+  layer?: string;
+  detection?: import("./finding-evidence").Detection;
   id: string; package: string; installed: string; fixed: string;
   cvss?: { score: number; version: number; source: string; vector?: string };
   description?: string; references?: string[]; published?: string; modified?: string; cwes?: string[];
@@ -11,9 +14,10 @@ export const garageRelease = {
   commit: '268334bd2530fa99f8b06c7383b2e9f776691edd',
   binarySha256: '004b6081c6e3cccbb80317c69e3c5749fbb3fc889e217cc9b89c215bf0dd7ded',
 };
-export type Report = { coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
+export type Report = { imageContext?: string; coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
 export type Summary = { newCves?: string[]; coverage?: Report['coverage']; counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
 export type Suggestion = {
+  action?: 'Rebuild' | 'Upgrade' | 'Remove'; scope?: 'base-image' | 'image'; currentPackages?: number; candidatePackages?: number; currentOs?: string; candidateOs?: string; baseline?: string;
   tag: string; reference: string; digest: string; platform: string;
   removed: number; introduced: number; remaining: number; checkedAt: number;
 };
@@ -23,7 +27,7 @@ export type Target = {
   scanned_at: number | null; attempted_at: number | null; error: string | null;
   summary: Summary | null; suggestions: Suggestion[]; recommendation_note: string | null;
 };
-export type Container = { displayName?: string; id: string; name: string; image: string; target_id: string; project: string; service: string; manager: string };
+export type Container = { sourceRepository?: string; discoveryKey?: string; environment?: string; displayName?: string; id: string; name: string; image: string; target_id: string; project: string; service: string; manager: string };
 export type Dashboard = { projectNames?: Record<string, string>; targets: Target[]; containers: Container[]; inventoryAt: number | null; inventoryError: string | null; intervalHours: number };
 
 export function summarize(report: Report): Summary {

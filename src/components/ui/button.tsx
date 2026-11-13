@@ -9,5 +9,5 @@ const buttonVariants = cva('inline-flex items-center justify-center gap-2 whites
 });
 export function Button({ className, variant, size, asChild = false, busy = false, children, disabled, ...props }: React.ComponentProps<'button'> & VariantProps<typeof buttonVariants> & { asChild?: boolean; busy?: boolean }) {
   const Comp = asChild ? Slot.Root : 'button';
-  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} disabled={disabled || busy} aria-busy={busy || undefined}>{asChild ? children : <>{busy && <BusyIndicator />}{children}</>}</Comp>;
+  return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} disabled={disabled || busy} aria-busy={busy || props['aria-busy'] || undefined}>{asChild ? children : <>{busy && <BusyIndicator />}{children}</>}</Comp>;
 }

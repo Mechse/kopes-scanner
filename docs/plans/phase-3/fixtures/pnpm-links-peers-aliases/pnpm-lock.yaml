@@ -1,0 +1,25 @@
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      shared: {specifier: 'workspace:*', version: 'link:packages/shared'}
+      old-lodash: {specifier: 'npm:lodash@4.17.20', version: 'lodash@4.17.20'}
+      peer-user: {specifier: '1.0.0', version: '1.0.0(lodash@4.17.20)'}
+  apps/web:
+    dependencies:
+      shared: {specifier: 'workspace:*', version: 'link:../../packages/shared'}
+  packages/shared:
+    dependencies:
+      lodash: {specifier: '4.17.20', version: '4.17.20'}
+    devDependencies:
+      left-pad: {specifier: '1.3.0', version: '1.3.0'}
+packages:
+  lodash@4.17.20: {}
+  left-pad@1.3.0: {}
+  peer-user@1.0.0:
+    peerDependencies: {lodash: '^4.17.0'}
+snapshots:
+  lodash@4.17.20: {}
+  left-pad@1.3.0: {}
+  peer-user@1.0.0(lodash@4.17.20):
+    dependencies: {lodash: '4.17.20'}

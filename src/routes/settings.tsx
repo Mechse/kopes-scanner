@@ -34,7 +34,7 @@ function SettingsPage() {
   const back = { view: 'apps' as const, project: projectName, target: targetId, app };
   return <main id="main" className="min-w-0 bg-raised px-4 pb-8 desktop:rounded-[10px] desktop:border desktop:border-border desktop:pb-12 desktop:shadow-sm desktop:dark:shadow-black/30">
     <nav aria-label="Breadcrumb" className="-mx-4 flex min-h-[55px] min-w-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3 text-xs">
-      <Link to="/" search={{ view: 'apps' }} className="shrink-0 text-muted-foreground hover:text-brand-ink">Projects</Link>
+      <Link to="/" search={{ view: 'apps' }} className="shrink-0 text-muted-foreground hover:text-brand-ink">Containers</Link>
       {valid && isResource && projectName !== undefined && <>
         <ChevronRight size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         <Link to="/" search={{ view: 'apps', project: projectName }} title={displayProjectName(projectName, data)} className="max-w-40 truncate text-muted-foreground hover:text-brand-ink">{displayProjectName(projectName, data)}</Link>
@@ -47,6 +47,6 @@ function SettingsPage() {
       <span aria-current="page">Settings</span>
     </nav>
     {inventory?.error && <p role="alert" className="mt-4 rounded-lg border border-critical/20 bg-critical/5 p-4 text-sm text-critical">{inventory.error}</p>}
-    {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <><CoolifySettings /><AuthMethodsSettings /></> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <SettingsForm key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} /> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'project'} is no longer in the inventory. Return to Projects to select another.</p>}
+    {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <><CoolifySettings /><AuthMethodsSettings /></> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <SettingsForm key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} /> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}
   </main>;
 }

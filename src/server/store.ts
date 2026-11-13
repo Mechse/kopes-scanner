@@ -1,3 +1,6 @@
+import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories } from './source/schema';
+import { randomUUID } from 'node:crypto';
+import { migrateProjects, syncResources, linkScanResources } from './project-store';
 import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
 import { defaultSettings, resourceKey, type ScanSettings, type SettingsData } from '../lib/settings';
 import { DatabaseSync } from 'node:sqlite';
@@ -16,7 +19,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 5) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 13) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -51,6 +54,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS pulse_events (
         seq INTEGER PRIMARY KEY, target TEXT NOT NULL, name TEXT NOT NULL, time INTEGER NOT NULL, payload TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS favourites (
+        user_id TEXT NOT NULL, scope TEXT NOT NULL CHECK(scope IN ('project','resource')),
+        key TEXT NOT NULL, PRIMARY KEY(user_id,scope,key)
+      );
       CREATE TABLE IF NOT EXISTS pulse_states (
         user TEXT NOT NULL, issue TEXT NOT NULL, seen INTEGER NOT NULL DEFAULT 0,
         dismissed INTEGER NOT NULL DEFAULT 0, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user,issue)
@@ -73,6 +80,33 @@ export class Store {
       this.db.exec('PRAGMA user_version=4');
     });
     if (version.user_version < 5) this.db.exec('PRAGMA user_version=5');
+    if (version.user_version < 6) this.transaction(() => {
+      migrateProjects(this.db);
+      this.db.exec('PRAGMA user_version=6');
+    });
+    if (version.user_version < 7) this.transaction(() => { migrateSource(this.db); this.db.exec('PRAGMA user_version=7'); });
+    if (version.user_version < 8) this.transaction(() => {
+      if (!this.db.prepare('PRAGMA table_info(resources)').all().some(c => c.name === 'settings_mode')) this.db.exec("ALTER TABLE resources ADD COLUMN settings_mode TEXT NOT NULL DEFAULT 'pinned' CHECK(settings_mode IN ('pinned','inherit'))");
+      this.db.exec('PRAGMA user_version=8');
+    });
+    if (version.user_version < 9) this.transaction(() => {
+      this.db.exec('CREATE TABLE IF NOT EXISTS resource_identity_conflicts(alias TEXT NOT NULL, resource_id TEXT NOT NULL REFERENCES resources(id), candidate_id TEXT NOT NULL REFERENCES resources(id), observed_at INTEGER NOT NULL, PRIMARY KEY(alias,resource_id,candidate_id)); PRAGMA user_version=9');
+    });
+    if (version.user_version < 10) migrateStandaloneSources(this.db);
+    if (version.user_version < 11) this.transaction(() => {
+      // Earlier project databases were versioned before this join table was added.
+      // Preserve existing links; historical ownership cannot be inferred from today's inventory.
+      this.db.exec(`CREATE TABLE IF NOT EXISTS scan_observation_resources (
+        observation_id TEXT NOT NULL REFERENCES scan_observations(id),
+        resource_id TEXT NOT NULL REFERENCES resources(id), PRIMARY KEY(observation_id,resource_id));
+        PRAGMA user_version=11`);
+    });
+    if (version.user_version < 12) this.transaction(() => {
+      this.db.exec(`CREATE TABLE IF NOT EXISTS source_removed_repositories (
+        provider TEXT NOT NULL, origin TEXT NOT NULL, provider_id TEXT NOT NULL, name TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY(provider,origin,provider_id,name)); PRAGMA user_version=12`);
+    });
+    if (version.user_version < 13) migrateIndependentRepositories(this.db);
     if (!this.getMeta('pulseInitialized')) this.transaction(() => {
       for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
         this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));
@@ -98,17 +132,17 @@ export class Store {
     this.db.prepare('INSERT INTO pulse_events(target,name,time,payload) SELECT id,name,?,? FROM targets WHERE id=?')
       .run(time, JSON.stringify(change), id);
   }
-  pulseFeed(user: string) {
+  pulseFeed(user: string, sourceBindings = new Set<string>()) {
     const events = this.db.prepare('SELECT * FROM pulse_events ORDER BY seq DESC').all().map(row => ({
       seq: Number(row.seq), target: String(row.target), name: String(row.name), time: Number(row.time), ...JSON.parse(String(row.payload)),
     })) as PulseEvent[];
     const states = Object.fromEntries(this.db.prepare('SELECT * FROM pulse_states WHERE user=?').all(user).map(row =>
       [String(row.issue), { dismissed: Number(row.dismissed), bookmarked: !!row.bookmarked }])) as Record<string, PulseState>;
     const names = this.displayNames('resource');
-    return groupPulse(events.map(event => ({ ...event, resourceName: Object.hasOwn(names, event.resource ?? event.target) ? names[event.resource ?? event.target] : event.resourceName })), states);
+    return groupPulse(events.filter(event => !event.sourceBinding || sourceBindings.has(event.sourceBinding)).map(event => ({ ...event, resourceName: Object.hasOwn(names, event.resource ?? event.target) ? names[event.resource ?? event.target] : event.resourceName })), states);
   }
-  setPulseState(user: string, issue: string, seq: number, action: 'dismiss' | 'restore' | 'bookmark' | 'unbookmark') {
-    const event = this.pulseFeed(user).find(item => item.id === issue && item.seq === seq);
+  setPulseState(user: string, issue: string, seq: number, action: 'dismiss' | 'restore' | 'bookmark' | 'unbookmark', sourceBindings = new Set<string>()) {
+    const event = this.pulseFeed(user, sourceBindings).find(item => item.id === issue && item.seq === seq);
     if (!event) return false;
     this.db.prepare('INSERT OR IGNORE INTO pulse_states(user,issue) VALUES (?,?)').run(user, issue);
     const column = action === 'dismiss' || action === 'restore' ? 'dismissed' : 'bookmarked';
@@ -117,9 +151,9 @@ export class Store {
     return true;
   }
 
-  transaction(fn: () => void) {
+  transaction<T>(fn: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');
-    try { fn(); this.db.exec('COMMIT'); } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+    try { const result = fn(); this.db.exec('COMMIT'); return result; } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
   setMeta(key: string, value: string) {
     this.db.prepare('INSERT INTO metadata VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, value);
@@ -194,6 +228,7 @@ export class Store {
   syncInventory(containers: Container[]) {
     this.transaction(() => {
       this.db.prepare("INSERT OR IGNORE INTO targets (id, kind, name) VALUES ('host', 'host', 'Host OS')").run();
+      syncResources(this.db, containers);
       const previous = new Set((this.db.prepare('SELECT id FROM containers').all() as { id: string }[]).map(c => c.id));
       this.db.exec('DELETE FROM containers');
       for (const c of containers) {
@@ -203,6 +238,7 @@ export class Store {
         if (!previous.has(c.id)) this.request(c.target_id);
       }
       this.db.exec("DELETE FROM targets WHERE kind='image' AND status!='scanning' AND id NOT IN (SELECT target_id FROM containers)");
+      this.setMeta('containerSourceLabels', JSON.stringify(Object.fromEntries(containers.filter(c => c.sourceRepository).map(c => [c.id, c.sourceRepository]))));
       this.setMeta('inventoryAt', String(Date.now()));
       this.setMeta('inventoryError', '');
     });
@@ -229,7 +265,14 @@ export class Store {
       .map(container => ({ ...container, key: resourceKey(container) }));
   }
   displayNames(scope: 'project' | 'resource'): Record<string, string> {
-    return Object.fromEntries(this.db.prepare('SELECT key,name FROM display_names WHERE scope=?').all(scope).map(row => [String(row.key), String(row.name)]));
+    const names = Object.fromEntries(this.db.prepare('SELECT key,name FROM display_names WHERE scope=?').all(scope).map(row => [String(row.key), String(row.name)]));
+    if (scope === 'resource') for (const row of this.db.prepare(`SELECT k.legacy_key,r.name FROM legacy_resource_keys k JOIN resources r ON r.id=k.resource_id
+      WHERE EXISTS(SELECT 1 FROM display_names d WHERE (d.scope='stable-resource' AND d.key=r.id) OR (d.scope='resource' AND d.key IN (SELECT legacy_key FROM legacy_resource_keys WHERE resource_id=r.id)))
+      GROUP BY k.legacy_key HAVING count(DISTINCT r.id)=1`).all()) {
+      let original = ''; try { original = JSON.parse(String(row.legacy_key))[1]; } catch { /* legacy key remains unchanged */ }
+      if (String(row.name) !== original) names[String(row.legacy_key)] = String(row.name);
+    }
+    return names;
   }
   private displayName(scope: 'project' | 'resource', key: string) {
     return String(this.db.prepare('SELECT name FROM display_names WHERE scope=? AND key=?').get(scope, key)?.name ?? '');
@@ -252,7 +295,12 @@ export class Store {
     };
     const defaults = { ...defaultSettings, ...(project !== null ? read('project', project) : {}) };
     const overrides = scope === 'resource' ? read(scope, key) : {};
-    return { displayName: this.displayName(scope, key), project, defaults, overrides, effective: { ...defaults, ...overrides } };
+    // Stable resources retain effective settings independently of discovery label changes.
+    const stable = scope === 'resource' ? this.db.prepare(`SELECT r.* FROM resources r
+      JOIN legacy_resource_keys k ON k.resource_id=r.id WHERE k.legacy_key=?
+      AND EXISTS (SELECT 1 FROM runtime_instances i WHERE i.resource_id=r.id AND i.active=1)`).all(key) : [];
+    const effective = stable.length === 1 ? JSON.parse(String(stable[0].settings_json)) : { ...defaults, ...overrides };
+    return { displayName: this.displayName(scope, key), project, defaults, overrides, effective };
   }
   saveSettings(scope: 'project' | 'resource', key: string, settings: Partial<ScanSettings> & { displayName?: string }) {
     if (!this.settings(scope, key)) return null;
@@ -260,6 +308,27 @@ export class Store {
     this.transaction(() => {
       this.db.prepare(`INSERT INTO scan_settings VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET settings_json=excluded.settings_json`)
         .run(scope, key, JSON.stringify(scanSettings));
+      // Keep pre-adoption copies in step with legacy edits. Ambiguous legacy keys are not joined.
+      const keys = scope === 'resource' ? [key] : (this.db.prepare('SELECT project,name FROM containers WHERE project=?').all(key) as { project: string; name: string }[]).map(resourceKey);
+      for (const legacy of new Set(keys)) {
+        const rows = this.db.prepare(`SELECT r.* FROM resources r JOIN legacy_resource_keys k ON k.resource_id=r.id
+          WHERE k.legacy_key=? AND EXISTS (SELECT 1 FROM runtime_instances i WHERE i.resource_id=r.id AND i.active=1)`).all(legacy);
+        if (rows.length !== 1) continue;
+        const row = rows[0];
+        if (row.project_id && scope === 'project') continue;
+        const effective = row.project_id
+          ? { ...defaultSettings, ...JSON.parse(String(this.db.prepare('SELECT settings_json FROM projects WHERE id=?').get(row.project_id)!.settings_json)), ...scanSettings }
+          : (() => {
+            const c = (this.db.prepare('SELECT project,name FROM containers').all() as { project: string; name: string }[]).find(c => resourceKey(c) === legacy)!;
+            const read = (scope: string, key: string) => JSON.parse(String(this.db.prepare('SELECT settings_json FROM scan_settings WHERE scope=? AND key=?').get(scope, key)?.settings_json ?? '{}'));
+            return { ...defaultSettings, ...read('project', c.project), ...read('resource', legacy) };
+          })();
+        this.db.prepare('UPDATE resources SET settings_json=?,settings_mode=? WHERE id=?').run(JSON.stringify(effective), row.project_id && scope === 'resource' && Object.keys(scanSettings).length === 0 ? 'inherit' : 'pinned', row.id);
+        if (displayName !== undefined && scope === 'resource') {
+          const original = JSON.parse(legacy)[1];
+          this.db.prepare('UPDATE resources SET name=? WHERE id=?').run(displayName.trim() || original, row.id);
+        }
+      }
       if (displayName !== undefined) {
         const name = displayName.trim();
         if (name) this.db.prepare('INSERT INTO display_names VALUES (?,?,?) ON CONFLICT(scope,key) DO UPDATE SET name=excluded.name').run(scope, key, name);
@@ -277,6 +346,11 @@ export class Store {
   complete(id: string, report: Report, sbom: string, platform: string | null, suggestions: Suggestion[], note: string) {
     this.transaction(() => {
       const scannedAt = Date.now();
+      if (!this.db.prepare('SELECT 1 FROM targets WHERE id=?').get(id)) throw new Error('Unknown scan target.');
+      const observationId = randomUUID();
+      this.db.prepare('INSERT INTO scan_observations VALUES (?,?,?,?,?,?,0)')
+        .run(observationId, id, scannedAt, JSON.stringify(report), sbom, platform);
+      linkScanResources(this.db, observationId, id);
       this.recordDiscoveries(id, report, scannedAt);
       const previous = this.report(id);
       if (previous && previous.coverage !== report.coverage) {
@@ -348,7 +422,7 @@ export class Store {
   dashboard(intervalHours = 168): Dashboard {
     const names = this.displayNames('resource');
     return { projectNames: this.displayNames('project'), targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
-      containers: (this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[]).map(c => ({ ...c, displayName: names[resourceKey(c)] ?? '' })),
+      containers: (this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[]).map(c => ({ ...c, sourceRepository: JSON.parse(this.getMeta('containerSourceLabels') || '{}')[c.id], displayName: names[resourceKey(c)] ?? '' })),
       inventoryAt: Number(this.getMeta('inventoryAt')) || null, inventoryError: this.getMeta('inventoryError') || null, intervalHours };
   }
 }

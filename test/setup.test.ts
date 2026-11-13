@@ -14,7 +14,9 @@ for (const terminal of [false, true]) test(`setup shows prompts, protects secret
     await cp('scripts/setup.mjs', join(directory, 'scripts/setup.mjs'));
     await cp('src/server/config.ts', join(directory, 'src/server/config.ts'));
     const args = terminal ? ['--input-type=module', '--eval', "Object.defineProperty(process.stdin, 'isTTY', { value: true }); await import('./scripts/setup.mjs');"] : ['scripts/setup.mjs'];
-    const child = spawn(process.execPath, args, { cwd: directory, stdio: ['pipe', 'pipe', 'pipe'] });
+    // The TTY fixture needs cursor controls even when the test runner uses TERM=dumb.
+    const env = { ...process.env, TERM: terminal ? 'xterm' : 'dumb' };
+    const child = spawn(process.execPath, args, { cwd: directory, env, stdio: ['pipe', 'pipe', 'pipe'] });
     const steps = [
       ['Public HTTPS URL', 'https://security.example.test'],
       ['GitHub OAuth client ID:', 'client-id'],

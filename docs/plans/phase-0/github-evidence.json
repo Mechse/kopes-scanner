@@ -1,0 +1,58 @@
+{
+  "repository": "ADT-App-Dev-Team/kopes.dev",
+  "private": true,
+  "credentialNote": "Existing gh login has admin access; does NOT validate minimum GitHub App permissions.",
+  "headIsFullSha": true,
+  "treeTruncated": false,
+  "dependencyInputCount": 2,
+  "files": [
+    {
+      "kind": "package.json",
+      "bytes": 673,
+      "shaMatchesTree": true,
+      "sha256": "d82d6fd57895dd1d5f377898aa34e00da51b0e8d54775bef411604e59493905d"
+    },
+    {
+      "kind": "pnpm-lock.yaml",
+      "bytes": 138275,
+      "shaMatchesTree": true,
+      "sha256": "e287e01d18d66da6d913180df7c16038ff156b30aec01b5801ec17e2c8ad9bc8"
+    }
+  ],
+  "associatedPullCount": 0,
+  "samplePulls": [],
+  "operations": [
+    {
+      "operation": "repos/{repo}",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/branches/main",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/commits/c922845bd9902cba2b73a89409cd847d85893170",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/git/trees/2b858ed17decedfc0a728396ce6801a65a7b0fd9",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/contents/package.json",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/contents/pnpm-lock.yaml",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/commits/c922845bd9902cba2b73a89409cd847d85893170/pulls",
+      "ok": true
+    },
+    {
+      "operation": "repos/{repo}/pulls",
+      "ok": true
+    }
+  ]
+}

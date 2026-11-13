@@ -1,0 +1,17 @@
+{
+  "name": "advanced-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "shared": "workspace:*",
+    "old-lodash": "npm:lodash@4.17.20",
+    "peer-user": "1.0.0"
+  },
+  "scripts": {
+    "postinstall": "touch /tmp/SHOULD_NOT_EXIST"
+  }
+}

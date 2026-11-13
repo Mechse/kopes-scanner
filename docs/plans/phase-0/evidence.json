@@ -1,0 +1,946 @@
+{
+  "trivy": "0.76.1",
+  "database": {
+    "Version": 2,
+    "NextUpdate": "2026-11-10T13:58:27.621115641Z",
+    "UpdatedAt": "2026-11-09T13:58:27.621115901Z",
+    "DownloadedAt": "2026-11-09T18:17:31.880186294Z"
+  },
+  "cases": [
+    {
+      "case": "kopes-pnpm",
+      "mode": "default",
+      "exit": 0,
+      "packages": 263,
+      "results": 1,
+      "edges": 934,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "kopes-pnpm",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 292,
+      "results": 1,
+      "edges": 976,
+      "devPackages": 29,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "kopes-pnpm",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 293,
+      "bomEdges": 1002
+    },
+    {
+      "case": "kopes-pnpm",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 292,
+      "results": 1,
+      "edges": 976,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "malformed-lock",
+      "mode": "default",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "malformed-lock",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "malformed-lock",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "malformed-lock",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "missing-lock",
+      "mode": "default",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "missing-lock",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "missing-lock",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "missing-lock",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v2",
+      "mode": "default",
+      "exit": 0,
+      "packages": 3,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v2",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v2",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 5,
+      "bomEdges": 6
+    },
+    {
+      "case": "npm-v2",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v3",
+      "mode": "default",
+      "exit": 0,
+      "packages": 3,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v3",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-v3",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 5,
+      "bomEdges": 6
+    },
+    {
+      "case": "npm-v3",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-workspace",
+      "mode": "default",
+      "exit": 0,
+      "packages": 6,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 0,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-workspace",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 7,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 1,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "npm-workspace",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 8,
+      "bomEdges": 9
+    },
+    {
+      "case": "npm-workspace",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 7,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 0,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-v9",
+      "mode": "default",
+      "exit": 0,
+      "packages": 3,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-v9",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-v9",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 5,
+      "bomEdges": 6
+    },
+    {
+      "case": "pnpm-v9",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-workspace",
+      "mode": "default",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-workspace",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 1,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "pnpm-workspace",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 6,
+      "bomEdges": 7
+    },
+    {
+      "case": "pnpm-workspace",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 6,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "stale-lock",
+      "mode": "default",
+      "exit": 0,
+      "packages": 3,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "stale-lock",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "stale-lock",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 5,
+      "bomEdges": 6
+    },
+    {
+      "case": "stale-lock",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 2,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-berry",
+      "mode": "default",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 4,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-berry",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-berry",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 6,
+      "bomEdges": 7
+    },
+    {
+      "case": "yarn-berry",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-classic",
+      "mode": "default",
+      "exit": 0,
+      "packages": 4,
+      "results": 1,
+      "edges": 4,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-classic",
+      "mode": "dev",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 1,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    },
+    {
+      "case": "yarn-classic",
+      "mode": "sbom",
+      "exit": 0,
+      "packages": 0,
+      "results": 0,
+      "edges": 0,
+      "devPackages": 0,
+      "vulns": 0,
+      "components": 6,
+      "bomEdges": 7
+    },
+    {
+      "case": "yarn-classic",
+      "mode": "roundtrip",
+      "exit": 0,
+      "packages": 5,
+      "results": 1,
+      "edges": 5,
+      "devPackages": 0,
+      "vulns": 4,
+      "components": 0,
+      "bomEdges": 0
+    }
+  ],
+  "checks": [
+    "npm-v2: parent-a introduces lodash",
+    "npm-v2: parent-b introduces lodash",
+    "npm-v2: known advisory found",
+    "npm-v2: dev dependency included",
+    "npm-v2: dev excluded by default",
+    "npm-v2: SBOM roundtrip loses Dev flags",
+    "npm-v3: parent-a introduces lodash",
+    "npm-v3: parent-b introduces lodash",
+    "npm-v3: known advisory found",
+    "npm-v3: dev dependency included",
+    "npm-v3: dev excluded by default",
+    "npm-v3: SBOM roundtrip loses Dev flags",
+    "pnpm-v9: parent-a introduces lodash",
+    "pnpm-v9: parent-b introduces lodash",
+    "pnpm-v9: known advisory found",
+    "pnpm-v9: dev dependency included",
+    "pnpm-v9: dev excluded by default",
+    "pnpm-v9: SBOM roundtrip loses Dev flags",
+    "pnpm-workspace: parent-a introduces lodash",
+    "pnpm-workspace: parent-b introduces lodash",
+    "pnpm-workspace: known advisory found",
+    "pnpm-workspace: dev dependency included",
+    "pnpm-workspace: dev excluded by default",
+    "pnpm-workspace: SBOM roundtrip loses Dev flags",
+    "yarn-classic: parent-a introduces lodash",
+    "yarn-classic: parent-b introduces lodash",
+    "yarn-classic: known advisory found",
+    "yarn-classic: dev dependency included",
+    "yarn-classic: dev excluded by default",
+    "yarn-classic: SBOM roundtrip loses Dev flags",
+    "yarn-berry: parent-a introduces lodash",
+    "yarn-berry: parent-b introduces lodash",
+    "yarn-berry: known advisory found",
+    "yarn-berry: dev dependency included",
+    "yarn-berry: dev excluded by default",
+    "yarn-berry: SBOM roundtrip loses Dev flags",
+    "npm-workspace: distinct lodash versions preserved",
+    "pnpm-workspace: distinct lodash versions preserved",
+    "missing-lock: no inventory despite successful process",
+    "malformed-lock: no inventory despite successful process",
+    "stale manifest does not invalidate Trivy lockfile result",
+    "pnpm workspace roots absent from analyzer graph",
+    "real pnpm inventory includes dev packages"
+  ],
+  "inputs": {
+    "fixtures/kopes-pnpm/package.json": "31457e08b017437022e7f78efbac1aba24b47b28511386dddf5b1e785b947c68",
+    "fixtures/kopes-pnpm/pnpm-lock.yaml": "a98fc93ba403b53cb6677ff17933b2ff0f4378fb1842630e208882cdd2611839",
+    "fixtures/malformed-lock/package-lock.json": "4b6825653394ddd4626331ea17c040e1d8ce6f85cd756f4f4f18ca64c6b7d100",
+    "fixtures/malformed-lock/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/missing-lock/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/npm-v2/package-lock.json": "750399c7183a3fff23b328d7159753fa8b5208bd7184490a2bf20df2086bf106",
+    "fixtures/npm-v2/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/npm-v3/package-lock.json": "dfcfd0bee7279d8bf895ffd41df58056e831a5dd400d1b62e501d0b9d7c6f4c9",
+    "fixtures/npm-v3/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/npm-workspace/apps/web/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/npm-workspace/apps/worker/package.json": "48ed2746feac63682a20708bfe2394045208cd53b25207a41dfe69ff4ae77775",
+    "fixtures/npm-workspace/package-lock.json": "e6d833ab6cc76b037911387e63a2a3831d3917602d25ac21686fd8fabf0b1234",
+    "fixtures/npm-workspace/package.json": "31b31c9c700e3d15e95ab48101d3327f0bfe19980daa9789cabc81c3508f40a6",
+    "fixtures/pnpm-v9/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/pnpm-v9/pnpm-lock.yaml": "3eb17d673011ba7aac2a8dee8c816d5042588338ef022ec443640b75538ade9b",
+    "fixtures/pnpm-workspace/apps/web/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/pnpm-workspace/apps/worker/package.json": "48ed2746feac63682a20708bfe2394045208cd53b25207a41dfe69ff4ae77775",
+    "fixtures/pnpm-workspace/package.json": "337874dde8dcaf6d3acd108fe94844b1845921b808075241b0bcd5b7d016dc65",
+    "fixtures/pnpm-workspace/pnpm-lock.yaml": "59992e684966e40c106c7326228ba0a9aa3f4db469bfbc86568ea4462ef755cc",
+    "fixtures/pnpm-workspace/pnpm-workspace.yaml": "59d8c363d3edb29e184d75ac9292ac98505e841bb3865ab3ae6858f8937a3e3f",
+    "fixtures/stale-lock/package-lock.json": "dfcfd0bee7279d8bf895ffd41df58056e831a5dd400d1b62e501d0b9d7c6f4c9",
+    "fixtures/stale-lock/package.json": "34a7a6cbb87e6e422481b976dbc019198375c192fc8c85f89627fc79b2e85112",
+    "fixtures/yarn-berry/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/yarn-berry/yarn.lock": "061c2fd0de4a2af0d27f9631d6788b81e09caa6429631f9aa66b68fa3f6e9b16",
+    "fixtures/yarn-classic/package.json": "c9c754515a044b42b4072db53fc68f3fdb3cee2578b92c01eab6e62127653337",
+    "fixtures/yarn-classic/yarn.lock": "ab77cb0a130b6d71d84728a4c08fbdd71ca083337a961c3f8bf74a0113c75f0b"
+  },
+  "graphSamples": {
+    "npm-v3": [
+      {
+        "ID": "left-pad@1.3.0",
+        "Name": "left-pad",
+        "Version": "1.3.0",
+        "Dev": true,
+        "Relationship": "direct",
+        "Locations": [
+          {
+            "StartLine": 37,
+            "EndLine": 40
+          }
+        ]
+      },
+      {
+        "ID": "parent-a@1.0.0",
+        "Name": "parent-a",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 22,
+            "EndLine": 27
+          }
+        ]
+      },
+      {
+        "ID": "parent-b@1.0.0",
+        "Name": "parent-b",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 28,
+            "EndLine": 33
+          }
+        ]
+      },
+      {
+        "ID": "lodash@4.17.20",
+        "Name": "lodash",
+        "Version": "4.17.20",
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 34,
+            "EndLine": 36
+          }
+        ]
+      }
+    ],
+    "npm-workspace": [
+      {
+        "ID": "phase0-fixture@1.0.0",
+        "Name": "phase0-fixture",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "parent-a@1.0.0",
+          "parent-b@1.0.0"
+        ],
+        "Locations": [
+          {
+            "StartLine": 32,
+            "EndLine": 46
+          }
+        ]
+      },
+      {
+        "ID": "worker@1.0.0",
+        "Name": "worker",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.21"
+        ],
+        "Locations": [
+          {
+            "StartLine": 47,
+            "EndLine": 53
+          }
+        ]
+      },
+      {
+        "ID": "left-pad@1.3.0",
+        "Name": "left-pad",
+        "Version": "1.3.0",
+        "Dev": true,
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 28,
+            "EndLine": 31
+          }
+        ]
+      },
+      {
+        "ID": "lodash@4.17.20",
+        "Name": "lodash",
+        "Version": "4.17.20",
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 25,
+            "EndLine": 27
+          }
+        ]
+      },
+      {
+        "ID": "lodash@4.17.21",
+        "Name": "lodash",
+        "Version": "4.17.21",
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 62,
+            "EndLine": 64
+          }
+        ]
+      },
+      {
+        "ID": "parent-a@1.0.0",
+        "Name": "parent-a",
+        "Version": "1.0.0",
+        "Relationship": "indirect",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 13,
+            "EndLine": 18
+          }
+        ]
+      },
+      {
+        "ID": "parent-b@1.0.0",
+        "Name": "parent-b",
+        "Version": "1.0.0",
+        "Relationship": "indirect",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 19,
+            "EndLine": 24
+          }
+        ]
+      }
+    ],
+    "pnpm-workspace": [
+      {
+        "ID": "left-pad@1.3.0",
+        "Name": "left-pad",
+        "Version": "1.3.0",
+        "Dev": true,
+        "Relationship": "direct"
+      },
+      {
+        "ID": "lodash@4.17.21",
+        "Name": "lodash",
+        "Version": "4.17.21",
+        "Relationship": "direct"
+      },
+      {
+        "ID": "parent-a@1.0.0",
+        "Name": "parent-a",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ]
+      },
+      {
+        "ID": "parent-b@1.0.0",
+        "Name": "parent-b",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ]
+      },
+      {
+        "ID": "lodash@4.17.20",
+        "Name": "lodash",
+        "Version": "4.17.20",
+        "Relationship": "indirect"
+      }
+    ],
+    "yarn-classic": [
+      {
+        "ID": "phase0-fixture@1.0.0",
+        "Name": "phase0-fixture",
+        "Version": "1.0.0",
+        "Relationship": "root",
+        "DependsOn": [
+          "left-pad@1.3.0",
+          "parent-a@1.0.0",
+          "parent-b@1.0.0"
+        ]
+      },
+      {
+        "ID": "left-pad@1.3.0",
+        "Name": "left-pad",
+        "Version": "1.3.0",
+        "Dev": true,
+        "Relationship": "direct",
+        "Locations": [
+          {
+            "StartLine": 16,
+            "EndLine": 17
+          }
+        ]
+      },
+      {
+        "ID": "parent-a@1.0.0",
+        "Name": "parent-a",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 3,
+            "EndLine": 6
+          }
+        ]
+      },
+      {
+        "ID": "parent-b@1.0.0",
+        "Name": "parent-b",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 8,
+            "EndLine": 11
+          }
+        ]
+      },
+      {
+        "ID": "lodash@4.17.20",
+        "Name": "lodash",
+        "Version": "4.17.20",
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 13,
+            "EndLine": 14
+          }
+        ]
+      }
+    ],
+    "yarn-berry": [
+      {
+        "ID": "phase0-fixture@1.0.0",
+        "Name": "phase0-fixture",
+        "Version": "1.0.0",
+        "Relationship": "root",
+        "DependsOn": [
+          "left-pad@1.3.0",
+          "parent-a@1.0.0",
+          "parent-b@1.0.0"
+        ]
+      },
+      {
+        "ID": "left-pad@1.3.0",
+        "Name": "left-pad",
+        "Version": "1.3.0",
+        "Dev": true,
+        "Relationship": "direct",
+        "Locations": [
+          {
+            "StartLine": 40,
+            "EndLine": 44
+          }
+        ]
+      },
+      {
+        "ID": "parent-a@1.0.0",
+        "Name": "parent-a",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 18,
+            "EndLine": 24
+          }
+        ]
+      },
+      {
+        "ID": "parent-b@1.0.0",
+        "Name": "parent-b",
+        "Version": "1.0.0",
+        "Relationship": "direct",
+        "DependsOn": [
+          "lodash@4.17.20"
+        ],
+        "Locations": [
+          {
+            "StartLine": 26,
+            "EndLine": 32
+          }
+        ]
+      },
+      {
+        "ID": "lodash@4.17.20",
+        "Name": "lodash",
+        "Version": "4.17.20",
+        "Relationship": "indirect",
+        "Locations": [
+          {
+            "StartLine": 34,
+            "EndLine": 38
+          }
+        ]
+      }
+    ]
+  }
+}

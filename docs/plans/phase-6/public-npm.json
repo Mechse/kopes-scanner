@@ -1,0 +1,15 @@
+{
+  "observedAt": "2026-11-09T20:03:40.927Z",
+  "provider": "github",
+  "repository": "nestjs/typescript-starter",
+  "providerId": "83135958",
+  "commit": "a191537e0c93c3912189797499239e5ad8519f8c",
+  "authentication": "none",
+  "inputPaths": [
+    "package-lock.json",
+    "package.json"
+  ],
+  "bundleHash": "b527ca35c8a922ee52d1aa1d20c647cc1aa0c01ce588c875b9327c2ed7202ac3",
+  "privateAccessValidated": false,
+  "selfHostedValidated": false
+}

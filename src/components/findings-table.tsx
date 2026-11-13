@@ -1,3 +1,6 @@
+import { OriginBadge } from './origin-badge';
+import type { RepositoryFilters } from '../lib/repository-findings';
+import { DetectionBadge } from './finding-evidence';
 import { severityColors } from "./severity-colors";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -5,11 +8,14 @@ import { severities, type Finding, type Severity } from "../lib/model";
 import { Link } from "@tanstack/react-router";
 
 type TableProps = {
-  findings: { finding: Finding; index: number }[];
+  showOrigins?: boolean;
+  repositoryId?: string;
+  repositoryFilters?: RepositoryFilters;
+  findings: { finding: Finding; index: number; sourceOnly?: boolean; sourceNode?: string }[];
   findingSearch: (index: number) => { finding: number; scan?: number };
 };
 
-function ScoreIndicator({ cvss }: Pick<Finding, "cvss">) {
+export function ScoreIndicator({ cvss }: Pick<Finding, "cvss">) {
   const label = cvss
     ? `CVSS v${cvss.version} score ${cvss.score.toFixed(1)} of 10 (${cvss.source})`
     : "CVSS score unavailable";
@@ -44,6 +50,9 @@ function SeverityGroup({
   severity,
   findings,
   findingSearch,
+  repositoryId,
+  repositoryFilters,
+  showOrigins,
 }: TableProps & { severity: Severity }) {
   const [expanded, setExpanded] = useState(true);
   const [limit, setLimit] = useState(50);
@@ -70,16 +79,15 @@ function SeverityGroup({
         </th>
       </tr>
       {expanded &&
-        findings.slice(0, limit).map(({ finding: f, index }) => (
+        findings.slice(0, limit).map(({ finding: f, index, sourceOnly, sourceNode }) => (
           <tr className="finding-row" key={index}>
             <td>
               <Link
-                to="/"
-                search={findingSearch(index)}
+                {...(sourceOnly ? { to: '/issues/$issue' as const, params: { issue: f.id }, search: repositoryId ? { ...repositoryFilters, repository: repositoryId, package: f.package, version: f.installed, node: sourceNode } : {} } : { to: '/' as const, search: findingSearch(index) })}
                 state={{ fromFindings: true }}
                 className="finding-summary"
               >
-                <span className="finding-mobile-package">{f.package}</span>
+                <span className="finding-mobile-package"><span className="flex flex-wrap items-center gap-1"><DetectionBadge detection={f.detection ?? 'unknown'} packageName={f.package} />{showOrigins && !sourceOnly && <OriginBadge finding={f} />}</span></span>
                 <span className="finding-mobile-status">
                   <span className={severityColors[severity]}>{label}</span>
                   <span>{f.fixed ? "Fix available" : "No fix available"}</span>
@@ -95,9 +103,7 @@ function SeverityGroup({
               </Link>
             </td>
             <td>
-              <span className="finding-chip" title={f.package}>
-                {f.package}
-              </span>
+              <span className="flex flex-wrap items-center justify-end gap-1"><DetectionBadge detection={f.detection ?? 'unknown'} packageName={f.package} />{showOrigins && !sourceOnly && <OriginBadge finding={f} />}</span>
             </td>
           </tr>
         ))}
@@ -119,9 +125,10 @@ function SeverityGroup({
   );
 }
 
-export function FindingsTable({ findings, findingSearch }: TableProps) {
+export function FindingsTable({ findings, findingSearch, repositoryId, repositoryFilters, showOrigins }: TableProps) {
   return (
     <div className="findings-list">
+      {!findings.length && <p role="status">No findings match this detection source.</p>}
       <table>
         <caption className="sr-only">Findings grouped by severity</caption>
         <thead className="sr-only">
@@ -137,6 +144,9 @@ export function FindingsTable({ findings, findingSearch }: TableProps) {
               key={severity}
               severity={severity}
               findings={group}
+              showOrigins={showOrigins}
+              repositoryFilters={repositoryFilters}
+              repositoryId={repositoryId}
               findingSearch={findingSearch}
             />
           ) : null;

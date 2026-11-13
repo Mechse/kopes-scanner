@@ -11,11 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HealthzRouteImport } from './routes/healthz'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as RepositoriesRouteImport } from './routes/repositories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IssuesIssueRouteImport } from './routes/issues.$issue'
+import { Route as RepositoriesRepositoryRouteImport } from './routes/repositories_.$repository'
 import { Route as SettingsUsersRouteImport } from './routes/settings_.users'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
+import { Route as ApiSourceHookSplatRouteImport } from './routes/api.source-hook.$'
+import { Route as RepositoriesRepositoryPackagesPackageRouteImport } from './routes/repositories_.$repository_.packages.$package'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,6 +32,16 @@ const HealthzRoute = HealthzRouteImport.update({
   path: '/healthz',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepositoriesRoute = RepositoriesRouteImport.update({
+  id: '/repositories',
+  path: '/repositories',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -35,6 +50,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const IssuesIssueRoute = IssuesIssueRouteImport.update({
   id: '/issues/$issue',
   path: '/issues/$issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepositoriesRepositoryRoute = RepositoriesRepositoryRouteImport.update({
+  id: '/repositories_/$repository',
+  path: '/repositories/$repository',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsUsersRoute = SettingsUsersRouteImport.update({
@@ -52,73 +72,119 @@ const ApiDataSplatRoute = ApiDataSplatRouteImport.update({
   path: '/api/data/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSourceHookSplatRoute = ApiSourceHookSplatRouteImport.update({
+  id: '/api/source-hook/$',
+  path: '/api/source-hook/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepositoriesRepositoryPackagesPackageRoute =
+  RepositoriesRepositoryPackagesPackageRouteImport.update({
+    id: '/repositories_/$repository_/packages/$package',
+    path: '/repositories/$repository/packages/$package',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/projects': typeof ProjectsRoute
+  '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/repositories/$repository': typeof RepositoriesRepositoryRoute
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/projects': typeof ProjectsRoute
+  '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/repositories/$repository': typeof RepositoriesRepositoryRoute
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/healthz': typeof HealthzRoute
+  '/projects': typeof ProjectsRoute
+  '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
+  '/repositories_/$repository': typeof RepositoriesRepositoryRoute
   '/settings_/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/repositories_/$repository_/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/healthz'
+    | '/projects'
+    | '/repositories'
     | '/settings'
     | '/issues/$issue'
+    | '/repositories/$repository'
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/source-hook/$'
+    | '/repositories/$repository/packages/$package'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/healthz'
+    | '/projects'
+    | '/repositories'
     | '/settings'
     | '/issues/$issue'
+    | '/repositories/$repository'
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/source-hook/$'
+    | '/repositories/$repository/packages/$package'
   id:
     | '__root__'
     | '/'
     | '/healthz'
+    | '/projects'
+    | '/repositories'
     | '/settings'
     | '/issues/$issue'
+    | '/repositories_/$repository'
     | '/settings_/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/source-hook/$'
+    | '/repositories_/$repository_/packages/$package'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthzRoute: typeof HealthzRoute
+  ProjectsRoute: typeof ProjectsRoute
+  RepositoriesRoute: typeof RepositoriesRoute
   SettingsRoute: typeof SettingsRoute
   IssuesIssueRoute: typeof IssuesIssueRoute
+  RepositoriesRepositoryRoute: typeof RepositoriesRepositoryRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataSplatRoute: typeof ApiDataSplatRoute
+  ApiSourceHookSplatRoute: typeof ApiSourceHookSplatRoute
+  RepositoriesRepositoryPackagesPackageRoute: typeof RepositoriesRepositoryPackagesPackageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,6 +203,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthzRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repositories': {
+      id: '/repositories'
+      path: '/repositories'
+      fullPath: '/repositories'
+      preLoaderRoute: typeof RepositoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -149,6 +229,13 @@ declare module '@tanstack/react-router' {
       path: '/issues/$issue'
       fullPath: '/issues/$issue'
       preLoaderRoute: typeof IssuesIssueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repositories_/$repository': {
+      id: '/repositories_/$repository'
+      path: '/repositories/$repository'
+      fullPath: '/repositories/$repository'
+      preLoaderRoute: typeof RepositoriesRepositoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings_/users': {
@@ -172,17 +259,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDataSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/source-hook/$': {
+      id: '/api/source-hook/$'
+      path: '/api/source-hook/$'
+      fullPath: '/api/source-hook/$'
+      preLoaderRoute: typeof ApiSourceHookSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repositories_/$repository_/packages/$package': {
+      id: '/repositories_/$repository_/packages/$package'
+      path: '/repositories/$repository/packages/$package'
+      fullPath: '/repositories/$repository/packages/$package'
+      preLoaderRoute: typeof RepositoriesRepositoryPackagesPackageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthzRoute: HealthzRoute,
+  ProjectsRoute: ProjectsRoute,
+  RepositoriesRoute: RepositoriesRoute,
   SettingsRoute: SettingsRoute,
   IssuesIssueRoute: IssuesIssueRoute,
+  RepositoriesRepositoryRoute: RepositoriesRepositoryRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataSplatRoute: ApiDataSplatRoute,
+  ApiSourceHookSplatRoute: ApiSourceHookSplatRoute,
+  RepositoriesRepositoryPackagesPackageRoute:
+    RepositoriesRepositoryPackagesPackageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

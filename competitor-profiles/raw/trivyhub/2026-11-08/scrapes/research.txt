@@ -1,0 +1,767 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+Dockhand - Self-hosted Docker management UI (https://dockhand.pro/)
+citeturn2view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://dockhand.pro/","lineno":null}); Total lines: 811
+L0:   * 【0†Quick start】
+L1:   * 【1†Features】
+L2:   * 【2†Screenshots】
+L3:   * 【3†Free vs Enterprise】
+L4:   * 【4†Security】
+L5:   * 【5†Testimonials】
+L6:   * 【6†Pricing】
+L7:   * 【7†Roadmap】
+L8:   * 【8†Docs】
+L9: 
+L10: 【0†Get started】
+L11: 
+L12: # Modern Docker management for everyone.
+L13: 
+L14: A powerful, intuitive Docker platform. Free for homelabs, ready for enterprise.
+L15: We think you'll like it here.
+L16: 
+L17: Homelab Small business Enterprise
+L18: ## Perfect for your homelab
+L19: 
+L20: SQLite by default, runs on a Raspberry Pi, zero telemetry, free forever. Self-host everything without the complexity.
+L21: 
+L22: Runs on RPi 4 SQLite - no database setup Zero telemetry Free forever
+L23: 
+L24: 【0†Get started free】 【2†Screenshots】 【3†See what's included】
+L25: ## Built for growing teams
+L26: 
+L27: OIDC/SSO included free, container activity logging, Git-based deployments, premium support. Everything your team needs without the enterprise price tag.
+L28: 
+L29: Free SSO/OIDC Git stack deployment Container activity log Multi-environment
+L30: 
+L31: 【0†Get started free】 【2†Screenshots】 【3†See what's included】
+L32: 
+L33: 【9†Buy license - $499/host/yr†buy.stripe.com】 [Button: Contact us]
+L34: ## Enterprise-grade control
+L35: 
+L36: RBAC, LDAP/AD integration, compliance-grade audit logging, and priority support. Everything you need to satisfy compliance requirements.
+L37: 
+L38: Role-based access control LDAP/Active Directory Audit logging (compliance) Priority support
+L39: 
+L40: 【0†Get started free】 【2†Screenshots】 【3†See what's included】
+L41: 
+L42: 【10†Buy license - $1,499/host/yr†buy.stripe.com】 [Button: Contact us]
+L43: 
+L44: Quick start
+L45: ## Up and running in 30 seconds
+L46: 
+L47: One command. No config files. No setup wizards, no 47-page README.
+L48: 
+L49: Terminal [Button: Copy]
+L50: 
+L51:     `docker run -d \
+L52:       --name dockhand \
+L53:       --restart unless-stopped \
+L54:       -p 3000:3000 \
+L55:       -v /var/run/docker.sock:/var/run/docker.sock \
+L56:       -v dockhand_data:/app/data \
+L57:       fnsys/dockhand:latest`
+L58: Then open 【11†http://localhost:3000†localhost】. Or put it behind Traefik, Nginx, Caddy, a Kubernetes ingress, three load balancers, and a VPN tunnel. We don't judge.
+L59: 
+L60: Prefer Docker Compose?
+L61: docker-compose.yml [Button: Copy]
+L62: 
+L63:     `services:
+L64:       dockhand:
+L65:         image: fnsys/dockhand:latest
+L66:         container_name: dockhand
+L67:         restart: unless-stopped
+L68:         ports:
+L69:           - 3000:3000
+L70:         volumes:
+L71:           - /var/run/docker.sock:/var/run/docker.sock
+L72:           - dockhand_data:/app/data
+L73: 
+L74:     volumes:
+L75:       dockhand_data:`
+L76: 
+L77: Need PostgreSQL?
+L78: docker-compose.yml [Button: Copy]
+L79: 
+L80:     `services:
+L81:       postgres:
+L82:         image: postgres:16-alpine
+L83:         restart: unless-stopped
+L84:         environment:
+L85:           POSTGRES_USER: dockhand
+L86:           POSTGRES_PASSWORD: changeme
+L87:           POSTGRES_DB: dockhand
+L88:         volumes:
+L89:           - postgres_data:/var/lib/postgresql/data
+L90: 
+L91:       dockhand:
+L92:         image: fnsys/dockhand:latest
+L93:         ports:
+L94:           - 3000:3000
+L95:         environment:
+L96:           DATABASE_URL: postgres://dockhand:changeme@postgres:5432/dockhand
+L97:         volumes:
+L98:           - /var/run/docker.sock:/var/run/docker.sock
+L99:           - dockhand_data:/app/data
+L100:         depends_on:
+L101:           - postgres
+L102:         restart: unless-stopped
+L103: 
+L104:     volumes:
+L105:       postgres_data:
+L106:       dockhand_data:`
+L107: Reverse proxy, remote hosts, PostgreSQL and every setting are covered in the 【8†user manual】.
+L108: 
+L109: Features
+L110: ## Everything you need to manage Docker in one place
+L111: 
+L112: From simple container operations to complex multi-environment deployments.
+L113: Even that one container you forgot about three months ago.
+L114: 
+L115: ### Container operations
+L116: 
+L117:   * Start, stop, restart, remove containers
+L118:   * Create containers with advanced configuration
+L119:   * Update CPU, memory, and restart policy in place - no restart
+L120:   * Attach and detach networks on running containers
+L121:   * Interactive web terminal (no SSH needed)
+L122:   * Browse, edit, and transfer files
+--------------------------------------------------------------------------------
+GitHub - trivyhub/trivyhub · GitHub (https://github.com/trivyhub/trivyhub)
+citeturn2view1 [wordlim: 200] Crawled: last week; Content type: text/html; Source: open({"ref_id":"https://github.com/trivyhub/trivyhub","lineno":null}); Total lines: 395
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHubRepository hosting, code review, and collaboration】
+L6:       * 【2†CopilotAI coding agent for tasks, projects and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†ActionsCI/CD and automation】
+L10:       * 【4†Code QualityQuality analysis, fixes, and enforcement】
+L11:       * 【5†CodespacesCloud development environments】
+L12: 
+L13:     * Secure
+L14:       * 【6†Code SecurityVulnerability detection and remediation】
+L15:       * 【7†Secret ProtectionSecret scanning and leak prevention】
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29: 
+L30:     * Explore
+L31:       * 【15†Trending repos】
+L32:       * 【16†GitHub Sponsors】
+L33:       * 【17†Events】
+L34:     *       * 【18†ChangelogYour source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43: 
+L44:     * By Industry
+L45:       * 【23†Healthcare】
+L46:       * 【24†Financial services】
+L47:       * 【25†Manufacturing】
+L48:       * 【26†Government】
+L49:       * 【27†See all industries】
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced SecurityEnterprise-grade code security】
+L58:       * 【33†Copilot for businessEnterprise-grade AI features】
+L59:       * 【34†Premium SupportEnterprise-grade 24/7 support】
+L60: 
+L61:   * Resources
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【17†Events & webinars】
+L67:       * 【37†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【38†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【39†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【40†About】
+L78:       * 【41†Partners】
+L79:       * 【18†Changelog†github.blog】
+L80:     *       * 【42†GitHub UniverseThe event for developers, by developers — talks, workshops, and what’s next for GitHub.†githubuniverse.com】
+L81: 
+L82:   * 【43†Pricing】
+L83: 
+L84: Search`/`
+L85: 
+L86: 【44†Sign in】
+L87: 
+L88: 【45†Sign up】
+L89: 
+L90: Appearance settings
+L91: 
+L92: You signed in with another tab or window. Reload to refresh your session. You signed out in another tab or window. Reload to refresh your session. You switched accounts on another tab or window. Reload to refresh your session. Dismiss alert
+L93: 
+L94:   1. 【46†trivyhub】
+L95:   2. 【47†trivyhub】
+L96: ## Repository navigation
+L97: 
+L98:   *   * 【47†Code】
+L99:   * 【48†Issues1 (1)】
+L100:   * 【49†Pull requests1 (1)】
+L101:   * 【50†Actions】
+L102:   * 【51†Projects】
+L103:   * 【52†Security and quality】
+L104:   * 【53†Insights】
+L105: 
+L106: More items
+L107: 
+L108: 【54†Image: trivyhub†avatars.githubusercontent.com】
+L109: 
+L110: 【47†trivyhub】
+L111: 
+L112: Public
+L113: 
+L114:   * 【55†Notifications】You must be signed in to change notification settings
+L115:   * 【55†Fork3 (3)】
+L116:   * 【55†Star3 (3)】You must be signed in to star a repository
+L117: 
+L118: ## About
+L119: 
+L120: No description, website, or topics provided.
+L121: ### Resources
+L122: 
+L123: 【56†Readme】
+L124: 
+L125: 【57†Activity】
+L126: 
+L127: 【58†Custom properties】
+L128: 
+L129: ### Stars
+L130: 
+L131: 3 stars
+L132: 
+L133: ### Watchers
+L134: 
+L135: 0 watching
+L136: 
+L137: ### Forks
+L138: 
+L139: 【59†3 forks】
+L140: 
+L141: 【60†Report repository】
+L142: 
+L143: main
+L144: 
+L145: 【61†Branches】【62†Tags】
+L146: 
+L147: [Input: Go to file]
+L148: 
+L149: Go to file
+L150: 
+L151: Code
+L152: 
+L153: Open more actions menu
+L154: 
+L155: ## Latest commit
+L156: 
+L157: 
+L158: 
+L159: ## History
+L160: 
+L161: 56 Commits
+L162: ## Folders and files
+L163: Name  | Name  | Last commit message  | Last commit date
+L164: --- | --- | --- | ---
+L165: 【63†.github/workflows】  | 【63†.github/workflows】  |    |
+L166: 【64†.vscode】  | 【64†.vscode】  |    |
+L167: 【65†app】  | 【65†app】  |    |
+L168: 【66†components】  | 【66†components】  |    |
+L169: 【67†helm/trivyhub】  | 【67†helm/trivyhub】  |    |
+L170: 【68†lib】  | 【68†lib】  |    |
+L171: 【69†prisma】  | 【69†prisma】  |    |
+L172: 【70†public】  | 【70†public】  |    |
+L173: 【71†.gitignore】  | 【71†.gitignore】  |    |
+L174: 【72†.prettierignore】  | 【72†.prettierignore】  |    |
+--------------------------------------------------------------------------------
+GitHub - PatchMon/PatchMon: Linux Patch Management & Automation Platform · GitHub (https://github.com/PatchMon/PatchMon)
+citeturn2view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/PatchMon/PatchMon","lineno":null}); Total lines: 488
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29:     * Explore
+L30:       * 【15†Trending repos】
+L31:       * 【16†GitHub Sponsors】
+L32:       * 【17†Developer articles】
+L33: 
+L34:     *       * 【18†Changelog Your source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43:     * By Industry
+L44:       * 【23†Healthcare】
+L45:       * 【24†Financial services】
+L46:       * 【25†Manufacturing】
+L47:       * 【26†Government】
+L48:       * 【27†See all industries】
+L49: 
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced Security Enterprise-grade code security】
+L58:       * 【33†Copilot for business Enterprise-grade AI features】
+L59:       * 【34†Premium Support Enterprise-grade 24/7 support】
+L60:   * Resources
+L61: 
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【37†Events & webinars】
+L67:       * 【38†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【39†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【40†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【41†About】
+L78:       * 【42†Partners】
+L79:       * 【18†Changelog†github.blog】
+L80:     *       * 【43†GitHub Universe The event for developers, by developers — talks, workshops, and what’s next for GitHub.†githubuniverse.com】
+L81: 
+L82:   * 【44†Pricing】
+L83: 
+L84: Search`/`
+L85: 
+L86: 【45†Sign in】
+L87: 
+L88: 【46†Sign up】
+L89: 
+L90: Appearance settings
+L91: 
+L92: You signed in with another tab or window. Reload to refresh your session. You signed out in another tab or window. Reload to refresh your session. You switched accounts on another tab or window. Reload to refresh your session. Dismiss alert
+L93: 
+L94:   1. 【47†PatchMon】
+L95:   2. 【48†PatchMon】
+L96: ## Repository navigation
+L97: 
+L98:   *   * 【48†Code】
+L99:   * 【49†Issues 12 (12)】
+L100:   * 【50†Pull requests 34 (34)】
+L101:   * 【51†Discussions】
+L102:   * 【52†Actions】
+L103:   * 【53†Projects】
+L104:   * 【54†Security and quality 10 (10)】
+L105:   * 【55†Insights】
+L106: 
+L107: More items
+L108: 
+L109: 【56†Image: PatchMon†avatars.githubusercontent.com】
+L110: 
+L111: 【48†PatchMon】
+L112: 
+L113: Public
+L114: 
+L115:   * Sponsor
+L116:   * 【57†Notifications】You must be signed in to change notification settings
+L117:   * 【57†Fork 208 (208)】
+L118:   * 【57†Star 3.6k (3.6k)】You must be signed in to star a repository
+L119: ## About
+L120: 
+L121: Linux Patch Management & Automation Platform
+L122: 
+L123: 【58†patchmon.net†patchmon.net】
+L124: 
+L125: ### Topics
+L126: 
+L127: 【59†apt】【60†apt-get】【61†centos】【62†cis-benchmark】【63†cve】【64†cve-scanning】【65†debian】【66†dnf】【67†docker】【68†linux】【69†open-source】【70†openscap】【71†patching】【72†redhat】【73†ubuntu】【74†updates】【75†yum】
+L128: 
+L129: ### Resources
+L130: 
+L131: 【76†Readme】
+L132: 
+L133: 【77†AGPL-3.0 license】
+L134: 
+L135: ### Contributing
+L136: 
+L137: 【78†Contributing】
+L138: 
+L139: ### Security policy
+L140: 
+L141: 【79†Security policy】
+L142: 
+L143: 【80†Activity】
+L144: 
+L145: 【81†Custom properties】
+L146: 
+L147: ### Stars
+L148: 
+L149: 3.6k stars
+L150: ### Watchers
+L151: 
+L152: 23 watching
+L153: 
+L154: ### Forks
+L155: 
+--------------------------------------------------------------------------------
+Pricing | Docker (https://www.docker.com/pricing/)
+citeturn2view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://www.docker.com/pricing/","lineno":null}); Total lines: 586
+L0: 【0†iframe†www.googletagmanager.com】
+L1: 
+L2:   * 【1†Products】
+L3: 
+L4: AI and Agents
+L5: 
+L6:     * 【2†Docker Sandboxes New Isolated environments for coding agents】
+L7:     * 【3†AI Governance New Govern agents and Claws across every team】
+L8:     * 【4†MCP Enterprise Gateway Connect and manage MCP tools】
+L9:     * 【5†Gordon Your AI Agent across Docker】
+L10:     * 【6†Docker Model Runner Local-first LLM inference made easy】
+L11: 
+L12: Application Security
+L13:     * 【7†Docker Hardened Images Ship with secure, enterprise-ready images】
+L14:     * 【8†Docker Scout Simplify the software supply chain】
+L15: 
+L16: Application Development
+L17: 
+L18:     * 【9†Docker Desktop Containerize your applications】
+L19:     * 【10†Docker Hub Discover and share container images】
+L20:     * 【11†Docker Offload Break free of local constraints】
+L21: 
+L22:   * 【12†Support】
+L23: 
+L24: Developers
+L25:     * 【13†Documentation Find guides for Docker products†docs.docker.com】
+L26:     * 【14†Getting Started Learn the Docker basics】
+L27:     * 【15†Resources Search a library of helpful materials】
+L28:     * 【16†Training Skill up your Docker knowledge】
+L29:     * 【17†Extensions SDK Create and share your own extensions】
+L30:     * 【18†Community Connect with other Docker developers】
+L31:     * 【19†Open Source Explore open source projects】
+L32:     * 【20†Preview Program Help shape the future of Docker】
+L33:     * 【21†Customer Stories Get inspired with customer stories】
+L34:     * 【22†Onboarding Get started with Docker Onboarding】
+L35: 【23†Get the latest Docker news】
+L36: 
+L37:   * 【24†Pricing】
+L38: 
+L39: 【25†Yearly】
+L40: 
+L41: 【25†Monthly】
+L42: 
+L43: Docker Personal
+L44: 
+L45: $0
+L46: 
+L47: $0
+L48: 
+L49: For individual developers who need the essential tools to build and deploy containers.
+L50: 
+L51: 【26†Get started†app.docker.com】
+L52: 
+L53: 【26†Get started†app.docker.com】
+L54: 
+L55: Docker Pro
+L56: 
+L57: $11
+L58: 
+L59: $9
+L60: 
+L61: per user/month
+L62: 
+L63: For individual professionals who require more advanced features and additional resources.
+L64: 
+L65: 【27†Buy now†app.docker.com】
+L66: 
+L67: 【28†Buy now†app.docker.com】
+L68: 
+L69: MOST POPULAR
+L70: 
+L71: Docker Team
+L72: 
+L73: $16
+L74: 
+L75: $15
+L76: 
+L77: per user/month
+L78: For small teams that need collaborative tools to make working together more efficient.
+L79: 
+L80: 【29†Buy now†app.docker.com】
+L81: 
+L82: 【30†Buy now†app.docker.com】
+L83: 
+L84: 【31†Docker Business】
+L85: 
+L86: $24
+L87: 
+L88: $24
+L89: 
+L90: per user/month
+L91: 
+L92: For enterprises desiring robust security, control, and compliance features.
+L93: 
+L94: 【32†Buy now†app.docker.com】
+L95: 
+L96: 【32†Buy now†app.docker.com】
+L97: 
+L98: 【33†Contact sales】
+L99: 
+L100: 【33†Contact sales】
+L101: 
+L102: 【34†Image】
+L103: 
+L104: Docker Hardened Images (DHI)
+L105: 
+L106: Secure, minimal container images for every team, free with enterprise features, if needed.
+L107: 【35†Start Free Trial】
+L108: 
+L109:   * 【36†Blog】
+L110:   * 【13†Docs†docs.docker.com】
+L111: 
+L112: [Input: ]
+L113: 
+L114: 【37†Sign In†app.docker.com】 【38†Contact Sales】
+L115: 
+L116: [Button: Toggle menu ]
+L117: 
+L118: 【39†Image: - gray】
+L119: #
+L120: Find Your Perfect Docker Plan
+L121: 
+L122: Compare tailored plans designed for individual developers, growing teams, and large enterprises
+L123: 
+L124: 【34†Image: - incred bgs】
+L125: 
+L126: Docker Hardened Images, now accessible to everyone
+L127: 
+L128: 【40†Compare plans】 【35†Get Demo】
+L129: 
+L130: 【25†Yearly】
+L131: 
+L132: 【25†Monthly】
+L133: 
+L134: ## Docker Personal
+L135: 
+L136: ### $0
+L137: 
+L138: ### $0
+L139: 
+L140: For individual developers who need the essential tools to build and deploy containers.
+L141: 
+L142: 【26†Get started†app.docker.com】
+L143: 
+L144: 【26†Get started†app.docker.com】
+L145: 
+L146: #### Includes:
+L147: 
+L148: #### Docker Desktop
+L149: #### Docker Engine + Kubernetes
+L150: 
+L151: #### Docker Hub
+L152: 
+L153: #### Docker Scout
+L154: 
+L155: #### Docker Debug
+L156: 
+L157: #### Included usage:
+L158: 
+L159: #### 1 user
+L160: 
+L161: #### 1 Docker Scout-enabled repo*
+L162: 
+L163: #### 100 Docker Hub pulls/hr*
+L164: 
+L165: #### 1 private Docker Hub repo
+L166: 
+L167: ## Docker Pro
+L168: 
+L169: ### $11
+L170: 
+L171: ### $9
+L172: 
+L173: per user/month
+L174: 
+L175: For individual professionals who require more advanced features and additional resources.
+L176: 
+L177: 【27†Buy now†app.docker.com】
+L178: 
+L179: 【28†Buy now†app.docker.com】
+L180: 
+L181: #### Includes:
+L182: 
+L183: #### Testcontainers Cloud
+L184: 
+L185: #### Synchronized File Shares
+L186: #### Visibility into Docker Scout health scores
+L187: 
+L188: #### 5 business day support response
+L189: 
+L190: #### Included usage:
+L191: 
+L192: #### 1 user
+L193: 
+L194: #### 2 Docker Scout-enabled repos
+L195: 
+L196: #### Unlimited Docker Hub pull rate
+L197: 
+L198: #### 100 Testcontainers Cloud runtime minutes**
+L199: 
+L200: MOST POPULAR
+L201: 
+L202: ## Docker Team
+L203: 
+L204: ### $16
+L205: 
+L206: ### $15
+L207: 
+L208: per user/month
+L209: 
+L210: For small teams that need collaborative tools to make working together more efficient.
+L211: 
+L212: 【29†Buy now†app.docker.com】
+L213: 
+L214: 【30†Buy now†app.docker.com】
+L215: 
+L216: #### Includes:
+L217: 
+L218: #### Add users in bulk
+L219: 
+L220: #### Audit logs
+--------------------------------------------------------------------------------
+Snyk Plans and Pricing | Try for Free or from $25/month | Get a Custom Quote | Snyk (https://snyk.io/plans/)
+citeturn2view4 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://snyk.io/plans/","lineno":null}); Total lines: 311
+L0: 【0†Skip to main content】
+L1: 
+L2:   * Platform
+L3:   * Resources
+L4:   * Company
+L5:   * 【1†Pricing】
+L6: 
+L7: EN Select your language[Select]
+L8: 
+L9: [Button: Login]
+L10: 
+L11: [Button: Free and Team Plan Customers]
+L12: 
+L13:   * 【2†Snyk app.snyk.io†app.snyk.io】
+L14: 
+L15: [Button: Enterprise Plan Customers]
+L16:   * 【2†🇺🇸Snyk US - 1 app.snyk.io†app.snyk.io】
+L17:   * 【3†🇺🇸Snyk US - 2 app.us.snyk.io†app.us.snyk.io】
+L18:   * 【4†🇪🇺Snyk EU app.eu.snyk.io†app.eu.snyk.io】
+L19:   * 【5†🇦🇺Snyk AU app.au.snyk.io†app.au.snyk.io】
+L20: The region where your data is hosted follows local agreements, and it may not align with your own location. 【6†Find out more†docs.snyk.io】.
+L21: 
+L22: [Button: Snyk API & Web - All Customers]
+L23: 
+L24:   * 【7†Snyk API & Web (DAST)plus.probely.app†plus.probely.app】
+L25: 
+L26: 【8†Sign up†app.snyk.io】【9†Book a live demo】
+L27: 【10†Explore】【11†Integrations】【12†DeepCode AI】【13†Evo Overview Security and governance for AI Agents】【14†Evo Agentic Development Security Secure software in the age of AI agents】【15†Evo AI-SPM Makes AI visible, governable and enforceable】【16†Evo Continuous Offensive Security Find what attackers find, before they find it】【17†Evo Agentic AppSec Security agents that run your AppSec program】【18†Snyk Code Secure your code as it's written】【19†Snyk Open Source Avoid vulnerable dependencies】【20†Snyk Container Keep your base images secure】【21†Snyk IaC Fix IaC misconfigurations in-code】【22†Snyk API & Web (DAST) Find and test APIs and web apps】【23†Snyk Secrets Stop hardcoded secrets before commit】【24†Secure AI-Generated Code AI writes, Snyk secures】【25†Application Security Build secure, stay secure】【26†Software Supply Chain Security Mitigate supply chain risk】【27†Zero-Day Vulns Fix the first day with Snyk】【28†Risk based prioritization Focus on what matters】【29†Resource Library Browse our extensive database】【30†Customer Resources The one stop shop for customers】【31†Snyk in 30 Resource Hub Live and on-demand sessions】【32†Code Checker Write better code for free】【33†Security Intelligence Comprehensive vulnerability data】【34†Snyk Blog】【35†Snyk's Podcasts】【36†Snyk’s YouTube†www.youtube.com】【37†AI Glossary】【38†Snyk Labs Research on AI, vulnerabilities, and DevSecOps†labs.snyk.io】【39†Snyk Learn Security education from Snyk†learn.snyk.io】【40†Snyk User Docs Get started with Snyk†docs.snyk.io】【41†Snyk Support How can we help?†support.snyk.io】【42†Snyk Vuln Database Find new vulnerabilities†security.snyk.io】【43†Snyk Updates Stay in the loop†updates.snyk.io】【44†Snyk Partner Solutions Directory Explore Snyk Partner Integrations†partners.snyk.io】【45†AI Security Engineers Join the community to help build secure AI†www.aiseceng.io】【46†Read more】【47†Events & Webinars】【48†Ambassadors】【49†VulnVortex†www.vulnvortex.com】【50†Subscribe to our newsletter】【51†Our Services Maximize your AppSec ROI】【52†Our Customers We help customers save time and money】【53†Our Partners Bringing business class security with partners】【54†Case Studies Check out our customer stories and stats】【55†Newsroom See the latest press releases】【56†Contact Us Get in touch with any feedback or questions】【57†Careers Join Snyk today】【58†Leadership Meet our leaders】【59†Read more】
+L28: # AI Security that scales with how you build
+L29: 
+L30: Simple flat-rate access for small teams. Flexible credit-based platform for enterprise: buy credits, access any capability.
+L31: 
+L32: Small teams
+L33: 
+L34: Enterprise
+L35: 
+L36: ## Snyk Free & Team subscription
+L37: 
+L38: ## Free
+L39: 
+L40: For individual developers and small teams looking to stay secure as they build.
+L41: 
+L42: Join for free
+L43: ## $0 / month
+L44: 
+L45: billed monthly
+L46: 
+L47: 【60†Start free†app.snyk.io】
+L48: 
+L49: 
+L50: 
+L51: Access to SCA, SAST, IaC & Container
+L52: 
+L53: Real-time code scanning
+L54: 
+L55: Integrations with IDE, CLI, and source code managers
+L56: 
+L57: ## Team
+L58: 
+L59: For development teams of up to 10 developers looking to build AI trust and security into their development process.
+L60: 
+L61: Starting at
+L62: 
+L63: ## $25 / month
+L64: 
+L65: billed monthly
+L66: 
+L67: 【61†Buy now】
+L68: 
+L69: Free plan, plus:
+L70: 
+L71: Increased test limits per product
+L72: 
+L73: Jira integration
+L74: 
+L75: Next business day support
+

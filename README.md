@@ -538,3 +538,32 @@ recreation and image upgrades as long as the project and container name remain
 the same. Notification channels and responsibility settings are deferred.
 
 `SCAN_INTERVAL_HOURS` is no longer used; configure schedules in the application.
+
+## Independent repository analysis
+
+Open **Repositories** in the sidebar to add a public GitHub repository and inspect
+its **Vulnerabilities**. The list includes advisories with or without CVE IDs,
+affected packages, installed/fixed versions, dependency paths, severity, and
+production/development scope filters. A dependency can have both scopes; incomplete
+paths are labeled unknown. Current lockfile support is npm v2/v3 and pnpm v9.
+
+With the source connection and scanning pilots enabled and the isolated source
+worker running, default branches are checked every 15 minutes. New commits trigger
+analysis; unchanged dependencies are rematched daily. **Scan now** requests an
+immediate scan. Each completed scan shows its timestamp and commit.
+
+Repositories no longer connect to containers. The migration removes existing
+container associations and discovery records, cancels pending deployed-commit
+jobs, and retains repositories, scan history, and project access permissions.
+Container scans do not queue repository scans. Project access on repository
+settings controls visibility; repositories without a project remain administrator-only.
+
+Repository Python scans collect `requirements.txt`, `requirements-*.txt`, `requirements_*.txt`, `Pipfile.lock`, `poetry.lock`,
+`uv.lock`, and `pylock.toml` (including `pylock.<name>.toml`), with companion
+`pyproject.toml`/`Pipfile` metadata. Trivy reads these files statically in the
+isolated worker; Kopes never installs dependencies or executes repository code.
+Python findings retain their file and package identity. Coverage stays partial:
+unpinned/local dependencies, omitted transitive dependencies, dependency paths,
+and production/development scope are not established by this adapter. Container
+OS packages remain part of container scans. Repositories without recognized,
+resolved inputs show “Repository not assessed” rather than implying a clean scan.

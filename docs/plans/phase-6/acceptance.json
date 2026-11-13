@@ -1,0 +1,66 @@
+{
+  "observedAt": "2026-11-09T20:30:13.944295+00:00",
+  "scope": "Local working-tree acceptance for Phases 1\u20136; Phase 7 excluded",
+  "baseCommit": "5d88d075d8be2e0e3b990099584f2acf39a1707f",
+  "releaseApproved": false,
+  "productionDeployed": false,
+  "productionDatabaseMigrated": false,
+  "providerSettingsChanged": false,
+  "checks": {
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "workerImageBuild": "passed",
+    "regression": {
+      "tests": 130,
+      "pass": 129,
+      "fail": 0,
+      "skipped": 1
+    },
+    "skippedGate": "HAProxy socket-proxy integration: HAPROXY_TEST_BIN is unavailable; not counted as passed",
+    "productionSmoke": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0
+    },
+    "browser": "project create/assign/rename/reload plus populated source/remediation/history; desktop and mobile passed",
+    "migration": "read-only local v2 online backup -> disposable v9 copy; legacy tables preserved and backup restore verified",
+    "packagedWorker": {
+      "cases": 13,
+      "imageId": "sha256:ed1562274104601bc562dab34501cdc14bbdf7bac53fff1cb662eb41961cf05f",
+      "rematchPreservesGraphAndScope": true,
+      "restartRecovery": true,
+      "cancellationSeconds": 0.15,
+      "cancelledResultNotPublished": true,
+      "peakMemoryBytes": 1073741824,
+      "oomKills": 0
+    },
+    "gitDiffCheck": "passed"
+  },
+  "measuredPublicProviders": [
+    "GitHub public repository identity/head/dependency inputs using actual adapter",
+    "GitLab.com public identity/head using actual adapter; immutable manifest and MR-list reads in Phase 0 public probe"
+  ],
+  "openGates": [
+    "Private GitHub App and GitLab minimum permissions, expiry/revocation, hooks and installation lifecycle",
+    "Versioned self-hosted GitLab origin/CA/private-network/endpoint matrix",
+    "Live Coolify deployment -> immutable image -> runtime package coverage",
+    "Private multi-repository end-to-end pilot and live account browser walkthrough",
+    "Sustained target-footprint resource/retention/restart/cancellation pressure and production restore rehearsal",
+    "Package-manager-generated advanced context matrix; Yarn unsupported",
+    "HAProxy socket-proxy integration"
+  ],
+  "deliberateLimitations": [
+    "Supplied GitHub App installation tokens require administrator renewal; automatic issuance/renewal is absent",
+    "Runtime verification/reopening rules tested in isolation; automatic publication withheld",
+    "No historical-evidence pruning; conservative source admission limits and monitoring"
+  ],
+  "evidenceLogHashes": {
+    "regression": "e9553b108dba3bed0bac2e1fd0a98b52c2f73f7c15b1af2095d1ce2ce39f6ded",
+    "productionSmoke": "79000280beee24d73b03eff9f8dcf1620f2132520d86a3e9ef74cb5123558b6b",
+    "build": "5a974c050f9bb98063adcda34c56a2f7029b34efe874905cfd30e880e20fbcd3",
+    "browser": "625ee2356a5987b5d855c87fb21fc1970aaee69a8e257985b3e6783e3b4f165a",
+    "worker": "87c8d13ca915d6024db1307fc4d9cdd4fca1c5bfa7813d7084ac153c939ec0ae",
+    "workerBuild": "aaae9ecf56839bef4be6846d3b9f9e43d480dd6bf8307559f8e39a380ca29842"
+  }
+}

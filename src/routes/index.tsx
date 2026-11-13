@@ -1,3 +1,16 @@
+import { containerCoverageAreas } from '../lib/assessment-coverage';
+import { FindingsSummary } from '../components/findings-summary';
+import { freshness } from '../lib/coverage-explanation';
+import { baseImageOptions, matchesBaseImage, parseBaseImage } from '../lib/base-image-filter';
+import { BaseImageFilter } from '../components/base-image-filter';
+import { origins, originOf, type Origin } from '../lib/finding-origin';
+import { PackageInventoryPanel } from '../components/package-inventory-panel';
+import { ScanPanelSummary } from '../components/resource-panel-layout';
+import { detectionLabels, matchesDetection, type Detection } from '../lib/finding-evidence';
+import { unifiedFindings } from '../lib/unified-findings';
+import type { SourceEvidence } from '../lib/finding-evidence';
+import { RepositoryWorkspace, useRepositories } from '../components/repositories';
+import { ProjectManagement } from '../components/project-management';
 import { resourceName } from '../lib/display-name';
 import { ContentSkeleton, BusyIndicator, LoadingStatus } from "../components/ui/loading";
 import { SearchToolbar } from "../components/search-toolbar";
@@ -7,10 +20,10 @@ import {
   useLocation,
   useRouter,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  ArrowRight,
+  TriangleAlert,
   Ellipsis,
   SlidersHorizontal,
   Download,
@@ -19,8 +32,6 @@ import {
   ScanLine,
   Check,
   Package,
-  Server,
-  Activity,
 } from "lucide-react";
 import { FindingsSearch } from "../components/findings-search";
 import { FindingOverview } from "../components/finding-overview";
@@ -28,14 +39,14 @@ import { FindingsTable } from "../components/findings-table";
 import { ScanSettingsLink } from "../components/scan-settings";
 import { ResourceDetailsHeader } from "../components/resource-details-header";
 import { ProjectsInventory } from "../components/apps-inventory";
-import { IssueTimeline } from "../components/issue-timeline";
+import { ScopedActivity } from "../components/scoped-activity";
 import { Pulse } from "../components/pulse";
 import { useWorkspace, WorkspaceBar } from "../components/app-shell";
 import { api, useResource } from "../lib/use-resource";
 import { Select, Checkbox } from "../components/ui/filters";
 import { Button } from "../components/ui/button";
 import { Tooltip } from "../components/ui/tooltip";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu, Popover } from "radix-ui";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import {
   garageRelease,
@@ -43,16 +54,24 @@ import {
   type Report,
   type Target,
 } from "../lib/model";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Location = {
-  view?: "apps" | "activity";
-  log?: boolean;
+  managedId?: string;
+  projectSettings?: boolean;
+  resource?: string;
+  view?: "apps";
+  tab?: "activity";
+  events?: "all" | "findings" | "scans";
+  activityResource?: string;
   target?: string;
   app?: string;
   project?: string;
   match?: string;
   severity?: string;
+  source?: Detection;
+  origin?: Origin;
+  baseImage?: string;
   fixable?: boolean;
   finding?: number;
   scan?: number;
@@ -65,15 +84,23 @@ declare module "@tanstack/react-router" {
 }
 export const Route = createFileRoute("/")({
   validateSearch: (input: Record<string, unknown>): Location => ({
+    projectSettings: input.projectSettings === true || undefined,
+    managedId: typeof input.managedId === 'string' ? input.managedId : undefined,
+    resource: typeof input.resource === 'string' ? input.resource : undefined,
     view:
       input.view === "apps" || input.view === "activity"
-        ? input.view
+        ? "apps"
         : undefined,
     project: typeof input.project === "string" ? input.project : undefined,
-    log: input.log === true || undefined,
+    tab: input.tab === "activity" || (input.view === "activity" && (typeof input.project === "string" || typeof input.target === "string")) ? "activity" : undefined,
+    events: input.events === "findings" || input.events === "scans" || input.events === "all" ? input.events : input.log === true ? "scans" : undefined,
+    activityResource: typeof input.activityResource === "string" ? input.activityResource : undefined,
     target: typeof input.target === "string" ? input.target : undefined,
     app: typeof input.app === "string" ? input.app : undefined,
     severity: severities.find((level) => level === input.severity),
+    source: typeof input.source === 'string' && Object.hasOwn(detectionLabels, input.source) ? input.source as Detection : undefined,
+    baseImage: parseBaseImage(input.baseImage),
+    origin: origins.find(origin => origin === input.origin),
     fixable: input.fixable === true || undefined,
     finding:
       typeof input.finding === "number" && Number.isSafeInteger(input.finding)
@@ -86,63 +113,30 @@ export const Route = createFileRoute("/")({
 });
 const date = (value: number | null) =>
   value ? new Date(value).toLocaleString() : "Not scanned yet";
-function Row({
-  target,
-  app,
-  match,
-  children,
-}: {
-  target: Target;
-  app?: string;
-  match?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      className="flex min-w-0 items-center gap-3 border-b border-border p-3 hover:bg-background aria-[current=page]:bg-background [&_small]:block [&_small]:text-xs [&_small]:text-muted-foreground [&_strong]:font-[550] [&_svg]:flex-none [&_svg]:text-muted-foreground [&>div]:min-w-0 [&>div]:flex-1 [&>div]:wrap-anywhere"
-      to="/"
-      search={{ view: "apps", target: target.id, app, match }}
-    >
-      {target.kind === "host" ? <Server size={16} /> : <Package size={16} />}
-      <div>{children}</div>
-      <ArrowRight size={17} aria-hidden="true" />
-    </Link>
-  );
-}
 const noticeClass =
   "mt-3 mb-5 rounded-sm border border-border bg-sunken px-4 py-3 text-[13px] wrap-anywhere";
 
-function Workspace() {
-  const { view, target: id, app, log, project } = Route.useSearch();
+function Workspace() { return <RepositoryWorkspace><WorkspaceContent/></RepositoryWorkspace>; }
+function WorkspaceContent() {
+  const search = Route.useSearch();
+  const { view, target: id, app, tab, project, managedId, resource, projectSettings } = search;
+  const repos = useRepositories();
+  const managedProject = repos.data?.projects.find(p => p.id === managedId);
+  const managedContainerIds = repos.data?.resources.filter(r => r.project_id === managedId).flatMap(r => r.containerIds) ?? [];
   const { inventory, revision, refresh } = useWorkspace();
   const data = inventory?.data;
   const target = data?.targets.find((t) => t.id === id);
-  const activity = useResource<
-    {
-      seq: number;
-      target: string;
-      name: string;
-      time: number;
-      message: string;
-    }[]
-  >(view === "activity" && log ? "activity" : "", revision, 2500);
   const targetName = (t: Target) =>
-    data?.containers
-      .filter((c) => c.target_id === t.id)
-      .map((c) => resourceName(c))
-      .join(", ") || resourceName(t);
-  const outstanding = data?.targets.filter((t) => t.status !== "ready") ?? [];
+    data?.containers.filter(c => c.target_id === t.id).map(c => resourceName(c)).join(', ') || resourceName(t);
   const isReport = view === "apps" && !!id;
   const selectedApp = data?.containers.find(
     (c) => c.id === app && c.target_id === id,
   );
   const heading =
-    view === "activity"
-      ? "Activity"
-      : view === "apps"
+    view === "apps"
         ? id
           ? "Scan report"
-          : "Projects"
+          : "Containers"
         : "Pulse";
   return (
     <main
@@ -151,29 +145,43 @@ function Workspace() {
     >
       <WorkspaceBar
         section={heading}
+        actions={view === "apps" || inventory?.error || data?.inventoryError ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {(inventory?.error || data?.inventoryError) && (
+              <Popover.Root>
+                <Popover.Trigger asChild>
+                  <Button variant="ghost" size="sm" className={`size-8 p-0 ${inventory?.error ? 'text-critical' : 'text-medium'}`} aria-label="Inventory warning" title="Inventory warning">
+                    <TriangleAlert aria-hidden="true" />
+                  </Button>
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content align="end" sideOffset={8} collisionPadding={16} className="z-50 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-raised p-4 text-sm shadow-lg" aria-label="Inventory status">
+                    <p className="mb-2 font-medium">{inventory?.error ? "Inventory could not refresh" : "Docker inventory unavailable"}</p>
+                    <p className="wrap-anywhere text-[13px] leading-5 text-muted-foreground">{inventory?.error || data?.inventoryError}</p>
+                    <Popover.Close asChild><Button variant="ghost" size="sm" className="mt-3">Close</Button></Popover.Close>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
+            )}
+          </div>
+        ) : undefined}
+        managedProject={view === "apps" && managedProject ? managedProject : undefined}
         project={view === "apps" ? selectedApp?.project ?? project : undefined}
-        report={
-          isReport
-            ? ((selectedApp ? resourceName(selectedApp) : undefined) ??
-              (target ? targetName(target) : "Scan target"))
-            : undefined
-        }
+        report={isReport ? ((selectedApp ? resourceName(selectedApp) : undefined) ?? (target ? targetName(target) : "Scan target")) : undefined}
       />
-      {inventory?.error && (
-        <p role="alert" className={`${noticeClass} text-critical`}>
-          {inventory.error}
-        </p>
-      )}
-      {data?.inventoryError && (
-        <p role="alert" className={`${noticeClass} text-critical`}>
-          {data.inventoryError}
-        </p>
-      )}
-      {!data && view !== "activity" ? (
+      {data && view === "apps" && !projectSettings && (id || project !== undefined || managedId) && <nav aria-label={id ? "Resource views" : "Container views"} className="-mx-4 flex gap-5 border-b border-border px-4">
+        {[{ label: id ? "Findings" : "Resources", tab: undefined }, { label: "Activity", tab: "activity" as const }].map(item => <Link key={item.label} to="/" search={{ ...search, tab: item.tab, finding: undefined }} aria-current={tab === item.tab ? 'page' : undefined} className={`border-b-2 py-3 text-sm ${tab === item.tab ? 'border-current font-medium' : 'border-transparent text-muted-foreground'}`}>{item.label}</Link>)}
+      </nav>}
+      {!data && inventory?.error && <p role="alert" className={`${noticeClass} text-critical`}>{inventory.error}</p>}
+      {!data ? (
         <>{!inventory?.error && <ContentSkeleton label={`Loading ${heading.toLowerCase()}…`} layout={isReport ? "detail" : view === "apps" ? "projects" : "feed"} />}</>
       ) : view === "apps" && data ? (
         <>
-          {!id && <ProjectsInventory key={project ?? "__overview"} data={data} project={project} />}
+          {!projectSettings && tab === 'activity' && (id || project !== undefined || managedId) ? <ScopedActivity key={JSON.stringify([managedId, project, id, app])} data={data} scope={{ project, target: id, app, containerIds: managedId ? managedContainerIds : undefined }} revision={revision} /> : <>
+          {managedId && projectSettings ? <ProjectManagement key={managedId} id={managedId} resource={resource}/> : !id && <>
+            <ProjectsInventory key={managedId ?? project ?? "__overview"} data={data} project={project} managedId={managedId} />
+
+          </>}
           {id && (
             <section className="min-w-0 bg-raised">
               {target ? (
@@ -184,74 +192,10 @@ function Workspace() {
                 />
               ) : (
                 <div className="py-6">
-                  <Link to="/" search={{ view: "apps", project }} className="mb-5 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-brand-ink"><ArrowLeft size={16} />{project !== undefined ? "Back to project" : "Back to projects"}</Link>
                   <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">This target is no longer in the inventory.</p>
                 </div>
               )}
             </section>
-          )}
-        </>
-      ) : view === "activity" ? (
-        <>
-          <nav aria-label="Activity views" className="-mx-4 mb-5 flex gap-5 border-b border-border px-4">
-            {[{ label: "Timeline", log: undefined }, { label: "Scan log", log: true }].map(tab => (
-              <Link key={tab.label} to="/" search={{ view: "activity", log: tab.log }}
-                aria-current={log === tab.log ? "page" : undefined}
-                className={`border-b-2 py-2 text-sm ${log === tab.log ? "border-current font-medium" : "border-transparent text-muted-foreground"}`}>
-                {tab.label}
-              </Link>
-            ))}
-          </nav>
-          {!log ? <IssueTimeline revision={revision} /> : <>
-          <h2>Scan status</h2>
-          {outstanding.map((t) => (
-            <Row key={t.id} target={t}>
-              <strong>{targetName(t)}</strong>
-              <small>
-                {t.status} {t.error}
-              </small>
-            </Row>
-          ))}
-          {!data ? !inventory?.error && <ContentSkeleton label="Loading scan status…" layout="scan-log" /> : !outstanding.length && <p>All targets have current assessments.</p>}
-          <h2>Recent scans</h2>
-          {activity?.error && <p role="alert">{activity.error}</p>}
-          {activity?.data ? (
-            activity.data.length ? (
-              activity.data.map((event) => (
-                <article
-                  className="grid grid-cols-[16px_1fr_auto] items-baseline gap-x-3 border-b border-border p-3 hover:bg-background [&_a:hover]:underline"
-                  key={event.seq}
-                >
-                  <Activity
-                    className="text-muted-foreground"
-                    size={16}
-                    aria-hidden="true"
-                  />
-                  <strong className="col-start-2 font-[550] wrap-anywhere">
-                    {data?.targets.some((t) => t.id === event.target) ? (
-                      <Link
-                        to="/"
-                        search={{ view: "apps", target: event.target }}
-                      >
-                        {event.name}
-                      </Link>
-                    ) : (
-                      event.name
-                    )}
-                  </strong>
-                  <p className="col-start-2 row-start-2 mt-0.5 text-[13px] text-muted-foreground">
-                    {event.message}
-                  </p>
-                  <small className="col-start-2 row-start-3 text-muted-foreground desktop:col-start-3 desktop:row-start-1">
-                    {date(event.time)}
-                  </small>
-                </article>
-              ))
-            ) : (
-              <p>New scan completions will appear here.</p>
-            )
-          ) : (
-            <>{!activity?.error && <ContentSkeleton label="Loading activity…" layout="scan-log" />}</>
           )}
           </>}
         </>
@@ -268,7 +212,8 @@ function TargetDetail({
   target: Target;
   refresh: () => void;
 }) {
-  const { inventory } = useWorkspace();
+  const { inventory, revision } = useWorkspace();
+  const repos = useRepositories();
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
   const [action, setAction] = useState("");
@@ -280,13 +225,16 @@ function TargetDetail({
     <ScanSettingsLink target={target.id} app={selectedApp?.id} project={selectedApp?.project} iconOnly />
   ) : null;
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const activeFilterCount = Number(search.severity !== undefined) + Number(Boolean(search.fixable));
+  const activeFilterCount = Number(search.severity !== undefined) + Number(Boolean(search.fixable)) + Number(search.source !== undefined) + Number(target.kind === 'image' && search.origin !== undefined) + Number(target.kind === 'image' && !!search.baseImage);
   const navigate = Route.useNavigate();
   const router = useRouter();
   const fromFindings = useLocation({
     select: (location) => location.state.fromFindings,
   });
-  const { match: query = "", severity = "ALL", fixable = false } = search;
+  const { match: query = "", severity = "ALL", source: requestedSource = "all", fixable = false } = search;
+  const baseImage = target.kind === 'image' ? search.baseImage : undefined;
+  const origin = target.kind === 'image' ? search.origin : undefined;
+  const source = requestedSource === 'codebase' || requestedSource === 'both' ? 'all' : requestedSource;
   function updateFilters(patch: Partial<Location>) {
     void navigate({
       search: (previous) => ({ ...previous, ...patch }),
@@ -315,12 +263,12 @@ function TargetDetail({
     setAction("Requesting scan…");
     try {
       const response = await fetch(
-        `/api/data/rescan?id=${encodeURIComponent(target.id)}`,
+        `/api/data/rescan?id=${encodeURIComponent(target.id)}${selectedApp ? `&app=${encodeURIComponent(selectedApp.id)}` : ''}`,
         {
           method: "POST",
         },
       );
-      setAction(response.ok ? "" : await response.text());
+      setAction(response.ok ? (await response.json()).message ?? "" : await response.text());
       if (response.ok) {
         setAcceptedAt(target.attempted_at);
         refresh();
@@ -333,8 +281,6 @@ function TargetDetail({
   }
   const [retry, setRetry] = useState(0);
   const [panel, setPanel] = useState<"scan" | "packages" | null>(null);
-  const [packageQuery, setPackageQuery] = useState("");
-  const [packagePage, setPackagePage] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     setError("");
@@ -347,7 +293,6 @@ function TargetDetail({
           if (controller.signal.aborted) return;
           setReport(r);
           setLoadedAt(target.scanned_at);
-          setPackagePage(0);
           setError("");
         })
         .catch((e) => {
@@ -355,12 +300,14 @@ function TargetDetail({
         });
     return () => controller.abort();
   }, [target.id, target.scanned_at, retry]);
-  const findings =
-    report?.findings
-      .map((finding, index) => ({ finding, index }))
+  const allFindings = unifiedFindings(report, [], target.id);
+  const baseOptions = baseImageOptions(report?.findings ?? []);
+  const baseFindings = unifiedFindings(report, [], target.id, f => matchesBaseImage(f, baseImage));
+  const filteredFindings = baseFindings
       .filter(
         ({ finding: f }) =>
           (severity === "ALL" || f.severity === severity) &&
+          matchesDetection(source, f.detection ?? 'unknown') &&
           (!fixable || f.fixed) &&
           `${f.id} ${f.package} ${f.title}`
             .toLowerCase()
@@ -372,20 +319,17 @@ function TargetDetail({
           (b.cvss?.score ?? -1) - (a.cvss?.score ?? -1) ||
           Number(Boolean(b.fixed)) - Number(Boolean(a.fixed)),
       ) ?? [];
-  const packages =
-    report?.packages.filter((p) =>
-      `${p.name} ${p.version}`
-        .toLowerCase()
-        .includes(packageQuery.toLowerCase()),
-    ) ?? [];
+  const availableOrigins = origins.filter(category => filteredFindings.some(row => !row.sourceOnly && originOf(row.finding).category === category));
+  const findings = filteredFindings.filter(row => !origin || !row.sourceOnly && originOf(row.finding).category === origin);
   const showingFinding = search.finding !== undefined;
   const position = findings.findIndex(
-    (entry) => entry.index === search.finding,
+    (entry) => entry.runtimeIndices.includes(search.finding ?? -1),
   );
   const current =
     search.scan === loadedAt && search.scan === target.scanned_at
-      ? report?.findings[search.finding ?? -1]
+      ? baseFindings.find(row => row.runtimeIndices.includes(search.finding ?? -1))?.finding
       : undefined;
+  const currentRow = baseFindings.find(row => row.runtimeIndices.includes(search.finding ?? -1));
   function findingSearch(index: number) {
     return { ...search, scan: loadedAt ?? undefined, finding: index };
   }
@@ -434,8 +378,7 @@ function TargetDetail({
                     <Button asChild size="sm" variant="ghost" className="size-8 p-0">
                       <Link
                         aria-label={`${label} finding`}
-                        to="/"
-                        search={findingSearch(entry.index)}
+                        {...(entry.sourceOnly ? { to: '/issues/$issue' as const, params: { issue: entry.finding.id } } : { to: '/' as const, search: findingSearch(entry.index) })}
                         replace
                         state={{ fromFindings }}
                       >
@@ -464,6 +407,7 @@ function TargetDetail({
               target={target}
               container={selectedApp}
               locked={Boolean(report?.coverage)}
+              resources={currentRow && currentRow.runtimeIndices.length > 1 ? <section className="my-8 text-sm"><h2 className="mb-3 text-lg">Container occurrences</h2><ul className="space-y-2">{currentRow.runtimeIndices.map(index => <li key={index}><code className="break-all">{report?.findings[index].path || 'Path not reported'}</code></li>)}</ul></section> : undefined}
             />
           ) : (
             !error && search.scan === target.scanned_at && !report && target.scanned_at
@@ -473,6 +417,12 @@ function TargetDetail({
         </section>
       )}
       <div hidden={showingFinding}>
+        {target.kind === 'image' && <FindingsSummary
+          findings={report?.findings}
+          coverageAreas={containerCoverageAreas(report)}
+          scannedAt={loadedAt ?? undefined}
+          footer={loadedAt ? `Container scan: ${new Date(loadedAt).toLocaleString()} · ${loadedAt === target.scanned_at ? freshness(loadedAt, inventory?.data?.intervalHours ?? 24) : 'Previous scan; updating report'}` : 'No completed container scan loaded'}
+        />}
         <SearchToolbar className="mb-0">
           <h2 className="sr-only">Findings</h2>
           <FindingsSearch
@@ -496,7 +446,7 @@ function TargetDetail({
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-medium">Filters</h2>
                   <Button variant="ghost" size="sm" disabled={activeFilterCount === 0}
-                    onClick={() => updateFilters({ severity: undefined, fixable: undefined })}>
+                    onClick={() => updateFilters({ severity: undefined, fixable: undefined, source: undefined, origin: undefined, baseImage: undefined })}>
                     Reset filters
                   </Button>
                 </div>
@@ -515,6 +465,21 @@ function TargetDetail({
                     onCheckedChange={(value) => updateFilters({ fixable: value === true || undefined })} />
                   Fix available
                 </label>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Detection source</p>
+                  <Select label="Detection source" value={source}
+                    options={['all', 'container', 'host', 'unknown']}
+                    display={value => value === 'all' ? 'All sources' : detectionLabels[value as Detection]}
+                    onValueChange={value => updateFilters({ source: value === 'all' ? undefined : value as Detection })} />
+                </div>
+                {target.kind === 'image' && <div className="space-y-2">
+                  <p className="text-sm font-medium">Origin</p>
+                  <Select label="Origin" value={origin ?? 'all'}
+                    options={['all', ...origins.filter(category => availableOrigins.includes(category) || category === origin)]}
+                    display={value => value === 'all' ? 'All origins' : value}
+                    onValueChange={value => updateFilters({ origin: value === 'all' ? undefined : value as Origin })} />
+                </div>}
+                {target.kind === 'image' && <BaseImageFilter value={baseImage} options={baseOptions} onChange={baseImage => updateFilters({ baseImage })} />}
                 <p className="text-xs text-muted-foreground">Filters apply immediately.</p>
               </div>
             </SheetContent>
@@ -533,23 +498,22 @@ function TargetDetail({
               <DropdownMenu.Content
                 align="end"
                 sideOffset={4}
-                className="z-30 rounded-md border border-border bg-raised p-1 text-sm shadow-md [&>[data-highlighted]]:bg-sunken [&>[data-highlighted]]:outline-none [&>[role=menuitem]]:rounded [&>[role=menuitem]]:px-3 [&>[role=menuitem]]:py-2"
+                className="dropdown-content"
               >
-                <DropdownMenu.Item onSelect={() => setDetailsOpen(true)}>
+                <DropdownMenu.Item className="dropdown-item" onSelect={() => setDetailsOpen(true)}>
                   Resource details
                 </DropdownMenu.Item>
                 {(selectedApp || target.kind === "host") && (
-                  <DropdownMenu.Item asChild>
+                  <DropdownMenu.Item className="dropdown-item" asChild>
                     <Link to="/settings" search={{ target: target.id, app: selectedApp?.id, project: selectedApp?.project }}>
                       Scan settings
                     </Link>
                   </DropdownMenu.Item>
                 )}
-                <DropdownMenu.Separator className="my-1 h-px bg-border" />
-                <DropdownMenu.Item onSelect={() => setPanel("scan")}>
+                <DropdownMenu.Item className="dropdown-item" onSelect={() => setPanel("scan")}>
                   Scan details and actions
                 </DropdownMenu.Item>
-                <DropdownMenu.Item onSelect={() => setPanel("packages")}>
+                <DropdownMenu.Item className="dropdown-item" onSelect={() => setPanel("packages")}>
                   Package inventory
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
@@ -575,54 +539,14 @@ function TargetDetail({
             <div className="p-5 pt-12">
               {panel === "scan" ? (
                 <>
-                  <div className="mt-3.5 mb-5 flex flex-col items-start justify-between gap-2 min-[1200px]:mt-0 desktop:flex-row desktop:gap-5 [&_p]:text-xs [&>div:first-child]:min-w-0">
-                    <div>
-                      <span
-                        data-status={target.status}
-                        className="inline-flex items-center gap-[5px] rounded border border-border px-[7px] py-[3px] text-[11px] text-muted-foreground capitalize before:size-1.5 before:rounded-full before:bg-current data-[status=error]:text-critical data-[status=ready]:border-transparent data-[status=ready]:bg-brand-tint data-[status=ready]:text-brand-ink"
-                      >
-                        {target.status}
-                      </span>
-                      <p className="text-muted-foreground">
-                        {target.summary?.os || "OS unidentified"}
-                        {target.platform ? ` · ${target.platform}` : ""}
-                        <br />
-                        {target.status === "unassessed"
-                          ? "Last scan attempt: "
-                          : "Last successful scan: "}
-                        {date(
-                          target.status === "unassessed"
-                            ? target.attempted_at
-                            : target.scanned_at,
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={scanBusy} aria-busy={scanBusy || undefined}
-                        onClick={requestScan}
-                      >
-                        <RefreshCw
-                          className={
-                            scanBusy ? "scan-action-icon" : ""
-                          }
-                        />
-                        {scanProgress || "Scan now"}
+                  <ScanPanelSummary status={target.status}
+                    description={<>{target.summary?.os || 'OS unidentified'}{target.platform ? ` · ${target.platform}` : ''}<br/>{target.status === 'unassessed' ? 'Last scan attempt: ' : 'Last successful scan: '}{date(target.status === 'unassessed' ? target.attempted_at : target.scanned_at)}</>}
+                    actions={<>
+                      <Button variant="outline" size="sm" disabled={scanBusy} aria-busy={scanBusy || undefined} onClick={requestScan}>
+                        <RefreshCw className={scanBusy ? 'scan-action-icon' : ''}/>{scanProgress || 'Scan now'}
                       </Button>
-                      {target.scanned_at && (
-                        <Button asChild variant="ghost" size="sm">
-                          <a
-                            href={`/api/data/sbom?id=${encodeURIComponent(target.id)}`}
-                          >
-                            <Download />
-                            {target.summary?.coverage ? "Source SBOM" : "SBOM"}
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                      {target.scanned_at && <Button asChild variant="ghost" size="sm"><a href={`/api/data/sbom?id=${encodeURIComponent(target.id)}`}><Download/>{target.summary?.coverage ? 'Source SBOM' : 'SBOM'}</a></Button>}
+                    </>}/>
                   {target.summary?.coverage === "release-source" && (
                     <section className={noticeClass} aria-label="Coverage">
                       <strong>
@@ -673,8 +597,10 @@ function TargetDetail({
                       </div>
                       {target.suggestions.map((s) => (
                         <article key={s.digest}>
+                          <p>{s.scope === 'base-image' ? 'Verified base-image comparison only. Rebuild and scan your application to measure its actual improvement.' : s.scope === 'image' ? 'Scanned image comparison. Compatibility still requires application testing.' : 'Historical comparison; scope and package coverage were not recorded.'}</p>
+                          {s.currentPackages !== undefined && <p>Package coverage: {s.currentPackages} → {s.candidatePackages} detected packages · {s.currentOs || 'OS unidentified'} → {s.candidateOs || 'OS unidentified'}. Counts are advisory/package pairs, not individual occurrences.</p>}
                           <div className="flex flex-wrap items-baseline gap-4 [&_code]:text-base [&_span]:text-[13px]">
-                            <code>{s.tag}</code>
+                            <code>{s.action ?? 'Upgrade'}: {s.tag}</code>
                             <span>
                               {s.removed} advisory/package pairs no longer
                               detected
@@ -682,7 +608,7 @@ function TargetDetail({
                           </div>
                           <p>
                             {s.introduced} newly detected · {s.remaining}{" "}
-                            remaining · checked {date(s.checkedAt)}
+                            remaining in total (including introduced) · checked {date(s.checkedAt)}
                           </p>
                           <details>
                             <summary>
@@ -692,8 +618,7 @@ function TargetDetail({
                               {s.reference}
                             </code>
                             <p>
-                              Platform: {s.platform}. Update your Compose image
-                              reference yourself after testing. A missing
+                              Platform: {s.platform}. {s.scope === 'base-image' ? 'Update the base reference in your build configuration, rebuild, test, and scan the resulting application image.' : 'Test the compared image before updating your deployment reference yourself.'} A missing
                               finding can also mean a package was removed or
                               coverage changed; this is not proof of
                               compatibility or complete remediation.
@@ -710,63 +635,8 @@ function TargetDetail({
                   )}
                 </>
               ) : (
-                <>
-                  <h2>Package inventory</h2>
-                  <input
-                    type="search"
-                    aria-label="Search packages"
-                    placeholder="Search packages…"
-                    className="my-3 w-full rounded border border-border px-2 py-1"
-                    value={packageQuery}
-                    onChange={(e) => {
-                      setPackageQuery(e.target.value);
-                      setPackagePage(0);
-                    }}
-                  />
-                  {report ? (
-                    <>
-                      <div className="overflow-x-auto rounded-sm border border-border mobile:[&_table]:min-w-[460px]">
-                        <table>
-                          <caption className="sr-only">
-                            Detected packages
-                          </caption>
-                          <thead>
-                            <tr>
-                              <th>Package</th>
-                              <th>Version</th>
-                              <th>Ecosystem</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {packages
-                              .slice(packagePage * 50, (packagePage + 1) * 50)
-                              .map((p, i) => (
-                                <tr key={`${p.name}-${i}`}>
-                                  <td className="font-mono tabular-nums">
-                                    {p.name}
-                                  </td>
-                                  <td>
-                                    <code>{p.version}</code>
-                                  </td>
-                                  <td>{p.type}</td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <Pagination
-                        count={packages.length}
-                        page={packagePage}
-                        setPage={setPackagePage}
-                      />
-                    </>
-                  ) : (
-                    <p className="max-w-[580px] px-4 py-12 text-left text-muted-foreground [&_h3]:mt-4 [&_h3]:mb-3 [&_h3]:text-foreground">
-                      Package inventory is available after the first successful
-                      scan.
-                    </p>
-                  )}
-                </>
+                <PackageInventoryPanel key={`${target.id}:${loadedAt}`} packages={report?.packages} loading={!!target.scanned_at && !report && !error} error={error}/>
+
               )}
             </div>
           </SheetContent>
@@ -809,9 +679,11 @@ function TargetDetail({
           <p className={`${noticeClass} text-critical`} role="alert">
             Scan failed: {target.error}{" "}
             {target.scanned_at &&
-              "Results below are from the last successful scan."}
+              "Results below are from the last successful scan."}{" "}
+            <Link to="/" search={{ ...search, tab: 'activity', events: 'scans', finding: undefined }} hash={`scan-status-${target.id}`} className="underline">View activity</Link>
           </p>
         )}
+        {report?.imageContext && <p className={noticeClass}>{report.imageContext}</p>}
         {target.summary?.eol && (
           <p className={`${noticeClass} text-critical`}>
             This OS is end-of-life. Vulnerability coverage and fixed versions
@@ -829,16 +701,17 @@ function TargetDetail({
             several minutes.
           </p>
         )}
-        {(target.status !== "unassessed" || target.scanned_at !== null) && (
+        {(target.status !== "unassessed" || target.scanned_at !== null || allFindings.length > 0) && (
           <div className="-mx-4">
-            {report ? (
+            {report || allFindings.length ? (
               findings.length ? (
                 <FindingsTable
-                  key={JSON.stringify([loadedAt, severity, fixable, query])}
+                  showOrigins={target.kind === 'image'}
+                  key={JSON.stringify([loadedAt, severity, source, origin, baseImage, fixable, query])}
                   findings={findings}
                   findingSearch={findingSearch}
                 />
-              ) : report.findings.length ? (
+              ) : allFindings.length ? (
                 <div className="px-4 py-12">
                   <h3>No findings match these filters.</h3>
                   <p className="mt-2 text-muted-foreground">
@@ -855,7 +728,7 @@ function TargetDetail({
                     <Check size={17} strokeWidth={2.5} />
                   </span>
                   <h3 className="text-xl leading-tight tracking-tight text-balance">
-                    No known vulnerabilities detected.
+                    No known vulnerabilities detected in completed scans.
                   </h3>
                   <p className="mt-2 max-w-[52ch] leading-relaxed text-pretty text-muted-foreground">
                     Results reflect the current vulnerability database and
@@ -917,44 +790,5 @@ function TargetDetail({
         )}
       </div>
     </>
-  );
-}
-function Pagination({
-  count,
-  page,
-  setPage,
-}: {
-  count: number;
-  page: number;
-  setPage: (page: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between pt-4 text-xs text-muted-foreground">
-      <span>
-        {count
-          ? `${page * 50 + 1}–${Math.min((page + 1) * 50, count)} of ${count}`
-          : "No packages match"}
-      </span>
-      <div>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={page === 0}
-          onClick={() => setPage(page - 1)}
-        >
-          <ChevronsLeft />
-          Previous
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={(page + 1) * 50 >= count}
-          onClick={() => setPage(page + 1)}
-        >
-          Next
-          <ChevronsRight />
-        </Button>
-      </div>
-    </div>
   );
 }

@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-11-09T18:59:11.618041+00:00",
+  "authentication": "none",
+  "limitations": [
+    "Public endpoint contracts only",
+    "No minimum permission or private repository validation",
+    "No self-hosted GitLab validation",
+    "No attribution or deployment verification"
+  ],
+  "github": {
+    "ok": true,
+    "providerRepositoryId": "139910229",
+    "public": true,
+    "commit": "ab930df82a63796a9390b9766f11e5c4c0fc9e1c",
+    "immutableManifestRead": true,
+    "blobId": "b1e37e484a1377dbd44241324eaa22cff20d366b",
+    "manifestBytes": 6860,
+    "pullMetadataRead": true,
+    "sampleCount": 1
+  },
+  "gitlabCom": {
+    "ok": true,
+    "providerRepositoryId": "278964",
+    "public": true,
+    "commit": "772a0a02a0ddfbbf74d5f9863210044a5f18ec75",
+    "immutableManifestRead": true,
+    "blobId": "11af6c45719a6c6bd8541f780dcf38ae697d8ecf",
+    "manifestBytes": 14596,
+    "mergeRequestMetadataRead": true,
+    "sampleCount": 1
+  }
+}

@@ -1,3 +1,5 @@
+import { cleanSourceSpool } from './source/storage';
+import { recoverSourceJobs, runSourceJob, sourceWorkerBusy } from './source/jobs';
 import { isMainThread } from 'node:worker_threads';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -22,6 +24,8 @@ async function initialize() {
   const { auth } = getAuth();
   await migrateAuth(auth);
   store.recover();
+  if(process.env.KOPES_SOURCE_SPOOL) await cleanSourceSpool(process.env.KOPES_SOURCE_SPOOL,true);
+  recoverSourceJobs(store);
   // Interrupted scans only contain scratch copies; completed SBOMs live transactionally in SQLite.
   for (const name of await readdir(config.dataDir)) if (name.startsWith('scan-')) await rm(join(config.dataDir, name), { recursive: true, force: true });
   const controller = new AbortController();
@@ -30,7 +34,10 @@ async function initialize() {
   async function reconcile() {
     if (syncing || signal.aborted) return;
     syncing = true;
-    try { store.syncInventory(await inventory(config.docker, coolifyLookup)); }
+    try {
+      store.syncInventory(await inventory(config.docker, coolifyLookup));
+
+    }
     catch { store.setMeta('inventoryError', 'Docker inventory unavailable. Showing the last successful inventory; check socket proxy connectivity.'); }
     finally { syncing = false; }
   }
@@ -55,16 +62,20 @@ async function initialize() {
     }
   }
   async function worker() {
+    let sourceTurn = false;
     while (!signal.aborted) {
+      if (await sourceWorkerBusy()) { await delay(500, undefined, { signal }).catch(() => {}); continue; }
+      if (sourceTurn) { sourceTurn = false; if (await runSourceJob(store, config, signal)) continue; }
       const target = store.next();
       if (target) {
+        sourceTurn = true;
         try { await scanTarget(config, store, target, signal); }
         catch (error) {
           // Do not persist scanner stderr: it can contain image metadata and local paths.
           const message = error instanceof Error && !('stderr' in error) ? error.message : 'Scan failed. Check registry access, available disk/memory, and scanner configuration.';
           store.fail(target.id, message.slice(0, 500), error instanceof NoPackageCoverage ? 'unassessed' : 'error');
         }
-      } else await delay(2_000, undefined, { signal }).catch(() => {});
+      } else if (!await runSourceJob(store, config, signal)) await delay(2_000, undefined, { signal }).catch(() => {});
     }
   }
   // Host scanning does not depend on a working Docker daemon.

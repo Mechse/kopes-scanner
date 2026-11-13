@@ -1,0 +1,290 @@
+{
+  "observedAt": "2026-11-09T20:29:29.207160+00:00",
+  "memoryStatAfterCases": {
+    "anon": 113106944,
+    "file": 614400,
+    "kernel": 2936832,
+    "file_mapped": 86016
+  },
+  "image": "kopes-source-worker:validation (Trivy 0.76.1)",
+  "imageId": "sha256:ed1562274104601bc562dab34501cdc14bbdf7bac53fff1cb662eb41961cf05f",
+  "packagedWorker": true,
+  "cases": [
+    {
+      "case": "npm-v2",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 4,
+      "edges": 5,
+      "findings": 4,
+      "warnings": []
+    },
+    {
+      "case": "npm-v3",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 4,
+      "edges": 5,
+      "findings": 4,
+      "warnings": []
+    },
+    {
+      "case": "npm-workspace",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 5,
+      "edges": 6,
+      "findings": 6,
+      "warnings": []
+    },
+    {
+      "case": "pnpm-v9",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 4,
+      "edges": 5,
+      "findings": 4,
+      "warnings": []
+    },
+    {
+      "case": "pnpm-workspace",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 5,
+      "edges": 6,
+      "findings": 6,
+      "warnings": []
+    },
+    {
+      "case": "missing-lock",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "unknown",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 0,
+      "edges": 0,
+      "findings": 0,
+      "warnings": [
+        "No supported lockfile found.",
+        "Manifest has no recognized lockfile workspace: package.json",
+        "Analyzer output is missing or unsupported."
+      ]
+    },
+    {
+      "case": "malformed-lock",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "unknown",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 0,
+      "edges": 0,
+      "findings": 0,
+      "warnings": [
+        "Unable to interpret package-lock.json; dependency coverage is unknown.",
+        "Manifest has no recognized lockfile workspace: package.json",
+        "Analyzer output is missing or unsupported."
+      ]
+    },
+    {
+      "case": "stale-lock",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "complete",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 4,
+      "edges": 4,
+      "findings": 4,
+      "warnings": [
+        "Dependency range not satisfied: parent-a in package-lock.json:.",
+        "Manifest/lockfile mismatch: package.json dependencies.parent-a",
+        "Stale lock dependency: package.json dependencies.parent-b"
+      ]
+    },
+    {
+      "case": "yarn-classic",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "unknown",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 0,
+      "edges": 0,
+      "findings": 0,
+      "warnings": [
+        "Yarn compatibility is not yet validated.",
+        "Manifest has no recognized lockfile workspace: package.json",
+        "Analyzer finding could not be attributed to a package instance."
+      ]
+    },
+    {
+      "case": "npm-links-aliases",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 3,
+      "edges": 5,
+      "findings": 8,
+      "warnings": []
+    },
+    {
+      "case": "pnpm-links-peers-aliases",
+      "ok": true,
+      "coverage": {
+        "inputs": "complete",
+        "inventory": "complete",
+        "graph": "complete",
+        "runtime": "unknown"
+      },
+      "nodes": 3,
+      "edges": 7,
+      "findings": 4,
+      "warnings": []
+    },
+    {
+      "case": "public-npm",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "complete",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 380,
+      "edges": 630,
+      "findings": 43,
+      "warnings": [
+        "Optional peer is not installed: @rspack/core in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: @swc/cli in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: @swc/core in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: fork-ts-checker-webpack-plugin in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: ts-loader in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: tsconfig-paths-webpack-plugin in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: webpack in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: webpack-node-externals in package-lock.json:node_modules/@nestjs/cli",
+        "Optional peer is not installed: class-transformer in package-lock.json:node_modules/@nestjs/common",
+        "Optional peer is not installed: class-validator in package-lock.json:node_modules/@nestjs/common",
+        "Optional peer is not installed: @nestjs/microservices in package-lock.json:node_modules/@nestjs/core",
+        "Optional peer is not installed: @nestjs/websockets in package-lock.json:node_modules/@nestjs/core",
+        "Optional peer is not installed: @nestjs/bull in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/bullmq in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/graphql in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/microservices in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/schedule in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/websockets in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: bull in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: bullmq in package-lock.json:node_modules/@nestjs/observe",
+        "Optional peer is not installed: @nestjs/microservices in package-lock.json:node_modules/@nestjs/testing",
+        "Optional peer is not installed: @vitest/browser in package-lock.json:node_modules/@vitest/coverage-v8",
+        "Optional peer is not installed: msw in package-lock.json:node_modules/@vitest/mocker",
+        "Optional peer is not installed: oxlint-tsgolint in package-lock.json:node_modules/oxlint",
+        "Optional peer is not installed: vite-plus in package-lock.json:node_modules/oxlint",
+        "Dependency range not satisfied: typescript in package-lock.json:node_modules/tsconfck",
+        "Optional peer is not installed: @vitejs/devtools in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: esbuild in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: jiti in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: less in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: sass in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: sass-embedded in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: stylus in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: sugarss in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: terser in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: tsx in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: yaml in package-lock.json:node_modules/vite",
+        "Optional peer is not installed: @edge-runtime/vm in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @opentelemetry/api in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @vitest/browser-playwright in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @vitest/browser-preview in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @vitest/browser-webdriverio in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @vitest/coverage-istanbul in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: @vitest/ui in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: happy-dom in package-lock.json:node_modules/vitest",
+        "Optional peer is not installed: jsdom in package-lock.json:node_modules/vitest"
+      ]
+    },
+    {
+      "case": "public-pnpm",
+      "ok": true,
+      "coverage": {
+        "inputs": "partial",
+        "inventory": "complete",
+        "graph": "partial",
+        "runtime": "unknown"
+      },
+      "nodes": 558,
+      "edges": 1111,
+      "findings": 16,
+      "warnings": [
+        "Peer constraints are declared by package.json; consumer installation context is unknown.",
+        "Manifest has no recognized lockfile workspace: examples/demo/package.json",
+        "Manifest has no recognized lockfile workspace: examples/starter/package.json"
+      ]
+    }
+  ],
+  "rematchPreservesGraphAndScope": true,
+  "workerRestartRetainsPendingInput": true,
+  "activeCancellationSeconds": 0.15,
+  "cancelledResultNotPublished": true,
+  "peakMemoryBytes": 1073741824,
+  "memoryEvents": {
+    "low": 0,
+    "high": 0,
+    "max": 2821,
+    "oom": 0,
+    "oom_kill": 0,
+    "oom_group_kill": 0
+  },
+  "databaseSha256": "df53926a9cc6a579932e4163f52e8a9441d09b0e7d7aab06e09c7dc7a0c72723",
+  "lifecycleMarkerAbsent": true,
+  "network": "none",
+  "hostMount": false,
+  "dockerMount": false,
+  "databaseMount": "read-only",
+  "credentialMount": false,
+  "durationSeconds": 15.49,
+  "limits": {
+    "memoryMiB": 1024,
+    "cpus": 1,
+    "pids": 64,
+    "scratchMiB": 256
+  }
+}

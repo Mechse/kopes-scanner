@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1
+# Keep the base labels tied to the exact image used by FROM.
+ARG NODE_BASE_NAME=node:24.17.0-bookworm-slim
+ARG NODE_BASE_DIGEST=sha256:862263c612aa437e3037674b85419622a9d93bff80aa1eee5398dfe686375532
 FROM aquasec/trivy:0.76.1 AS trivy
-FROM node:24.17.0-bookworm-slim
+FROM ${NODE_BASE_NAME}@${NODE_BASE_DIGEST}
 RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@10.8.0 \
@@ -14,3 +17,9 @@ COPY --chown=65532:65532 . ./
 ENV NODE_ENV=development DATA_DIR=/data HOST_ROOT=/host TMPDIR=/data/tmp
 EXPOSE 3100
 CMD ["node", "node_modules/vite/bin/vite.js", "dev", "--host", "0.0.0.0", "--port", "3100", "--strictPort"]
+
+# Declare label arguments after build steps to preserve their recorded commands.
+ARG NODE_BASE_NAME
+ARG NODE_BASE_DIGEST
+LABEL org.opencontainers.image.base.name="${NODE_BASE_NAME}" \
+      org.opencontainers.image.base.digest="${NODE_BASE_DIGEST}"

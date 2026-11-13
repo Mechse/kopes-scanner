@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
+import {Store} from '../src/server/store';
+import {ProjectStore} from '../src/server/project-store';
+import {handleSourceHook,hookSecret} from '../src/server/source/webhook';
+for(const provider of ['github','gitlab'])test(`${provider}: signatures, delivery deduplication, and authoritative polling`,async t=>{
+  const old=[process.env.KOPES_SOURCE_PILOT,process.env.KOPES_SOURCE_SCAN_PILOT];process.env.KOPES_SOURCE_PILOT='1';process.env.KOPES_SOURCE_SCAN_PILOT='1';
+  const s=new Store(':memory:');t.after(()=>{s.db.close();for(const [i,k] of ['KOPES_SOURCE_PILOT','KOPES_SOURCE_SCAN_PILOT'].entries())if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i];});
+  const p=new ProjectStore(s.db,{userId:'admin',administrator:true}).create('P');
+  s.db.prepare("INSERT INTO source_connections(id,provider,origin,credential) VALUES ('connection',?,'https://example.test','')").run(provider);
+  s.db.prepare("INSERT INTO source_repositories VALUES ('repo',?,'https://example.test','123','owner/name')").run(provider);
+  s.db.prepare("INSERT INTO source_bindings(id,project_id,repository_id,connection_id,branch,folder) VALUES ('binding',?,'repo','connection','main','')").run(p);
+  const raw=JSON.stringify({repository:{id:123},project:{id:123},ref:'refs/heads/main'}),secret=hookSecret('fixture','connection',1);
+  const headers: Record<string,string>=provider==='github'?{'x-hub-signature-256':'sha256='+createHmac('sha256',secret).update(raw).digest('hex'),'x-github-delivery':'delivery','x-github-event':'push'}:{'x-gitlab-token':secret,'x-gitlab-event-uuid':'delivery','x-gitlab-event':'Push Hook'};
+  const request=()=>new Request('https://scanner.test/api/source-hook/connection',{method:'POST',headers,body:raw});
+  assert.equal((await handleSourceHook(new Request('https://scanner.test',{method:'POST',body:raw}),s,'fixture','connection')).status,401);
+  assert.equal((await handleSourceHook(request(),s,'fixture','connection')).status,202);
+  assert.equal((await handleSourceHook(request(),s,'fixture','connection')).status,202);
+  assert.equal(s.db.prepare('SELECT count(*) AS n FROM source_jobs').get()!.n,1);
+  assert.equal(s.db.prepare('SELECT count(*) AS n FROM source_deliveries').get()!.n,1);
+  s.db.exec("UPDATE source_connections SET disconnected=1");assert.equal((await handleSourceHook(request(),s,'fixture','connection')).status,404);
+});

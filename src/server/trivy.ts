@@ -1,3 +1,4 @@
+import { readCvss } from '../lib/cvss';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, stat } from 'node:fs/promises';
@@ -22,20 +23,6 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 function text(value: unknown) { return typeof value === 'string' ? value : ''; }
-function readCvss(vulnerability: Record<string, unknown>): Finding['cvss'] {
-  const ratings = vulnerability.CVSS;
-  if (!ratings || typeof ratings !== 'object' || Array.isArray(ratings)) return;
-  const entries = Object.entries(ratings);
-  const priority = (source: string) => source === vulnerability.SeveritySource ? 0 : source === 'nvd' ? 1 : 2;
-  entries.sort(([a], [b]) => priority(a) - priority(b) || a.localeCompare(b));
-  for (const [source, rating] of entries) {
-    if (!rating || typeof rating !== 'object') continue;
-    for (const version of [4, 3, 2]) {
-      const score = rating[`V${version}Score`];
-      if (typeof score === 'number' && score >= 0 && score <= 10) return { score, version, source, ...(text(rating[`V${version}Vector`]) && { vector: text(rating[`V${version}Vector`]) }) };
-    }
-  }
-}
 export function parseReport(raw: string): Report {
   const input = record(JSON.parse(raw));
   if (input.SchemaVersion !== 2 || !Array.isArray(input.Results)) throw new Error('Unsupported or empty scan report; refusing to mark this target clean.');
@@ -59,8 +46,9 @@ export function parseReport(raw: string): Report {
       const finding: Finding = { id: text(v.VulnerabilityID), package: text(v.PkgName), installed: text(v.InstalledVersion), fixed: text(v.FixedVersion),
         description: text(v.Description), references: [text(v.PrimaryURL), ...(Array.isArray(v.References) ? v.References : [])].filter(safeUrl),
         published: text(v.PublishedDate), modified: text(v.LastModifiedDate), cwes: Array.isArray(v.CweIDs) ? v.CweIDs.filter((id): id is string => typeof id === 'string') : [],
-        ...(cvss && { cvss }), severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path };
-      const key = JSON.stringify([finding.id, finding.package, finding.installed, type, path]);
+        ...(v.Layer && typeof v.Layer === 'object' && typeof (v.Layer as Record<string, unknown>).DiffID === 'string' ? { layer: (v.Layer as Record<string, string>).DiffID } : {}),
+        ...(cvss && { cvss }), severity: severities.find(s => s === v.Severity) ?? 'UNKNOWN', title: text(v.Title), type, path: text(v.PkgPath) || path };
+      const key = JSON.stringify([finding.id, finding.package, finding.installed, type, finding.path]);
       if (!seen.has(key)) { findings.push(finding); seen.add(key); }
     }
   }

@@ -49,8 +49,41 @@
   tbody tr:last-child td { @apply border-b-0; }
 }
 
+/* A quiet glass surface over the shared sidebar and workspace backdrop. */
+@media (width > 700px) {
+  .workspace-frame {
+    background:
+      radial-gradient(ellipse at 12% 8%, color-mix(in srgb, var(--brand) 4%, transparent), transparent 52%),
+      radial-gradient(ellipse at 88% 100%, color-mix(in srgb, var(--ink-muted) 5%, transparent), transparent 60%),
+      var(--surface);
+  }
+  .workspace-frame > main {
+    background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(105%);
+    backdrop-filter: blur(18px) saturate(105%);
+    border-color: color-mix(in srgb, var(--border) 90%, var(--ink-muted));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 2%), 0 8px 32px rgb(0 0 0 / 5%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+.dropdown-content {
+  @apply z-50 rounded-md border border-border bg-raised p-1 text-sm text-foreground shadow-md;
+}
+.dropdown-item {
+  @apply flex min-h-8 w-full cursor-pointer select-none items-center gap-3 rounded px-3 py-1.5 text-left text-sm leading-5;
+}
+.dropdown-item[data-highlighted] {
+  @apply bg-sunken outline-none;
+}
+.dropdown-item[data-disabled] {
+  @apply pointer-events-none opacity-50;
+}
+@media (width <= 700px) {
+  .dropdown-item { min-height: 44px; }
 }
 
 .findings-search {
@@ -127,6 +160,9 @@
   text-align: left;
 }
 .finding-summary::after { content: ''; position: absolute; inset: 0; }
+@container (min-width: 641px) {
+  .package-summary { grid-template-columns: 32px minmax(0, 9ch) 14px minmax(0, 1fr); }
+}
 .finding-summary:focus-visible { outline: none; }
 .finding-summary:focus-visible::after, .finding-section button:focus-visible {
   outline: 2px solid var(--brand-ink);
@@ -342,7 +378,8 @@
   .finding-row .finding-summary { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
   .finding-row .finding-mobile-package { display: block; font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
   .finding-row .finding-mobile-status { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-muted); }
-  .finding-row .finding-summary :is(.finding-score, .finding-ring) { display: none; }
+  .finding-row .finding-summary .finding-ring { display: none; }
+  .finding-row .finding-summary .finding-score { align-self: flex-start; padding: 2px 6px; }
   .finding-row .finding-id { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
   .finding-row .finding-summary strong { font-weight: 400; color: var(--ink-muted); }
   .finding-row td:nth-child(2) { display: none; }

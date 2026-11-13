@@ -52,12 +52,12 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
   }
   return <div className="@container max-w-3xl py-6">
     <header className="mb-6">
-      <h1 className="mb-1 text-xl font-medium tracking-tight">{scope === 'project' ? 'Project settings' : 'Resource settings'}</h1>
+      <h1 className="mb-1 text-xl font-medium tracking-tight">{scope === 'project' ? 'Container settings' : 'Resource settings'}</h1>
       <p className="text-sm leading-6 wrap-anywhere">{name}</p>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
         {scope === 'project'
-          ? 'Defaults for resources in this project. Individual resources can override them.'
-          : `Use ${data?.project === null ? 'workspace' : 'project'} defaults or choose a value for this resource.`}
+          ? 'Defaults for resources in this container. Individual resources can override them.'
+          : `Use ${data?.project === null ? 'workspace' : 'container'} defaults or choose a value for this resource.`}
       </p>
     </header>
     {result?.error && <p role="alert" className="mb-4 rounded-md border border-critical/20 bg-critical/5 p-3 text-sm text-critical">{result.error}</p>}
@@ -79,7 +79,7 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
               <p id="rescan-help" className="mt-1 text-xs leading-5 text-muted-foreground">How often to check for new vulnerabilities.</p>
             </div>
             <select id="rescan-frequency" aria-describedby="rescan-help" className={fieldClass} value={inherited('rescanHours') ? 'inherit' : String(values.rescanHours)} onChange={event => update('rescanHours', event.target.value === 'inherit' ? undefined : Number(event.target.value))}>
-              {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Project'} default · {cadenceLabels[data.defaults.rescanHours]}</option>}
+              {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {cadenceLabels[data.defaults.rescanHours]}</option>}
               {Object.entries(cadenceLabels).sort(([a], [b]) => Number(a) - Number(b)).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
@@ -98,7 +98,7 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
                   <p id={`${key}-help`} className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
                 </div>
                 <select id={key} aria-describedby={`${key}-help`} className={fieldClass} value={inherited(key) ? 'inherit' : String(values[key])} onChange={event => update(key, event.target.value === 'inherit' ? undefined : event.target.value === 'true')}>
-                  {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Project'} default · {data.defaults[key] ? 'On' : 'Off'}</option>}
+                  {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {data.defaults[key] ? 'On' : 'Off'}</option>}
                   <option value="true">On</option><option value="false">Off</option>
                 </select>
               </div>
@@ -111,7 +111,7 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
           </summary>
           <div className="mt-3 max-w-prose space-y-2 leading-5">
             <p>New resources and container starts are still scanned. Shared images use the shortest active rescan interval.</p>
-            <p>Pulse includes all severities, grouped by project. Older CVEs can be newly detected, and fixes can trigger a notification on first detection. Unchanged findings do not send repeat notifications.</p>
+            <p>Pulse includes all severities, grouped by container. Older CVEs can be newly detected, and fixes can trigger a notification on first detection. Unchanged findings do not send repeat notifications.</p>
             <p>Changes apply to future scans.</p>
           </div>
         </details>

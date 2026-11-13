@@ -1,0 +1,14 @@
+{
+  "observedAt": "2026-11-09T19:48:44.716Z",
+  "provider": "github",
+  "repository": "sindresorhus/is",
+  "providerId": "104379939",
+  "commit": "e9c026c611c1160eaad50da00be4e676b626018f",
+  "authentication": "none",
+  "inputPaths": [
+    "package.json"
+  ],
+  "bundleHash": "f50095938674fad5a3b4253b8e348cda97f4dd2c0e16fcd7feb2bf774425744b",
+  "privateAccessValidated": false,
+  "selfHostedValidated": false
+}

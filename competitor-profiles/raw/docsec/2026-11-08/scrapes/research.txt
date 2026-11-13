@@ -1,0 +1,348 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+GitHub - AneezHussain/docsec: DOCSEC - is a container image vulnerability management platform that solves the vulnerability monitoring and visibility challenges in a production environment. The application is a stack of 4 containers: Frontend, Backend, Trivy, and Prometheus. · GitHub (https://github.com/AneezHussain/docsec)
+citeturn6view0 [wordlim: 200] Crawled: 4 days ago; Content type: text/html; Source: open({"ref_id":"https://github.com/AneezHussain/docsec","lineno":null}); Total lines: 344
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29:     * Explore
+L30:       * 【15†Trending repos】
+L31:       * 【16†GitHub Sponsors】
+L32:       * 【17†Developer articles】
+L33: 
+L34:     *       * 【18†Changelog Your source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43:     * By Industry
+L44:       * 【23†Healthcare】
+L45:       * 【24†Financial services】
+L46:       * 【25†Manufacturing】
+L47:       * 【26†Government】
+L48:       * 【27†See all industries】
+L49: 
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced Security Enterprise-grade code security】
+L58:       * 【33†Copilot for business Enterprise-grade AI features】
+L59:       * 【34†Premium Support Enterprise-grade 24/7 support】
+L60:   * Resources
+L61: 
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【37†Events & webinars】
+L67:       * 【38†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【39†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【40†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【41†About】
+L78:       * 【42†Partners】
+L79:       * 【18†Changelog†github.blog】
+L80:     *       * 【43†GitHub Universe The event for developers, by developers — talks, workshops, and what’s next for GitHub.†githubuniverse.com】
+L81: 
+L82:   * 【44†Pricing】
+L83: 
+L84: Search`/`
+L85: 
+L86: 【45†Sign in】
+L87: 
+L88: 【46†Sign up】
+L89: 
+L90: Appearance settings
+L91: 
+L92: You signed in with another tab or window. Reload to refresh your session. You signed out in another tab or window. Reload to refresh your session. You switched accounts on another tab or window. Reload to refresh your session. Dismiss alert
+L93: 
+L94:   1. 【47†AneezHussain】
+L95:   2. 【48†docsec】
+L96: ## Repository navigation
+L97: 
+L98:   *   * 【48†Code】
+L99:   * 【49†Issues】
+L100:   * 【50†Pull requests 7 (7)】
+L101:   * 【51†Actions】
+L102:   * 【52†Projects】
+L103:   * 【53†Security and quality】
+L104:   * 【54†Insights】
+L105: 
+L106: More items
+L107: 
+L108: 【55†Image: AneezHussain†avatars.githubusercontent.com】
+L109: 
+L110: 【48†docsec】
+L111: 
+L112: Public
+L113: 
+L114:   * 【56†Notifications】You must be signed in to change notification settings
+L115:   * 【56†Fork 0 (0)】
+L116:   * 【56†Star 0 (0)】You must be signed in to star a repository
+L117: ## About
+L118: 
+L119: DOCSEC - is a container image vulnerability management platform that solves the vulnerability monitoring and visibility challenges in a production environment. The application is a stack of 4 containers: Frontend, Backend, Trivy, and Prometheus.
+L120: 
+L121: ### Topics
+L122: 
+L123: 【57†container】【58†cve】【59†devsecops】【60†docker】【61†monitoring】【62†prometheus】【63†sbom】【64†scanner】【65†security】【66†trivy】
+L124: 
+L125: ### Resources
+L126: 
+L127: 【67†Readme】
+L128: 
+L129: 【68†GPL-3.0 license】
+L130: 
+L131: 【69†Activity】
+L132: 
+L133: ### Stars
+L134: 
+L135: 0 stars
+L136: 
+L137: ### Watchers
+L138: 
+L139: 0 watching
+L140: ### Forks
+L141: 
+L142: 【70†0 forks】
+L143: 
+L144: 【71†Report repository】
+L145: 
+L146: main
+L147: 
+L148: 【72†Branches】【73†Tags】
+L149: 
+L150: [Input: Go to file]
+L151: 
+L152: Go to file
+L153: 
+L154: Code
+L155: 
+L156: Open more actions menu
+L157: 
+L158: ## Latest commit
+L159: 
+L160: 
+L161: 
+L162: ## History
+L163: 
+L164: 36 Commits
+L165: ## Folders and files
+L166: Name  | Name  | Last commit message  | Last commit date
+L167: --- | --- | --- | ---
+L168: 【74†.github/workflows】  | 【74†.github/workflows】  |    |
+L169: 【75†backend】  | 【75†backend】  |    |
+L170: 【76†frontend】  | 【76†frontend】  |    |
+L171: 【77†.gitignore】  | 【77†.gitignore】  |    |
+L172: 【78†LICENSE】  | 【78†LICENSE】  |    |
+L173: 【79†README.md】  | 【79†README.md】  |    |
+L174: 【80†docker-compose.yml】  | 【80†docker-compose.yml】  |    |
+L175: 【81†package-lock.json】  | 【81†package-lock.json】  |    |
+L176: 【82†package.json】  | 【82†package.json】  |    |
+L177: 【83†prometheus.yml】  | 【83†prometheus.yml】  |    |
+L178: 【84†sonar-project.properties】  | 【84†sonar-project.properties】  |    |
+L179: [Button: View all files]
+L180: ## Repository files navigation
+L181: 
+L182:   *   * 【85†README】
+L183:   * 【85†GPL-3.0 license】
+L184: 
+L185: More items
+L186: 
+L187: # Docsec - Container Image Vulnerability and Management Platform
+L188: 
+L189: DocSec is a container security dashboard built around Trivy. It provides:
+L190: 
+L191:   * automated image vulnerability scanning
+L192:   * manual image scanning
+L193:   * SBOM browsing
+L194:   * CVE trend charts
+L195:   * CVSS enrichment from NVD
+L196: ## Tech Stack
+L197: 
+L198:   * Frontend: React + TypeScript + Vite
+L199:   * Backend: Go
+L200:   * Scanner: Trivy server mode
+L201:   * Metrics: Prometheus
+L202:   * Runtime: Docker Compose
+L203: 
+L204: ## Prerequisites
+L205: 
+L206:   * Docker Desktop (or Docker Engine + Docker Compose v2)
+L207:   * Git
+L208: 
+L209: ## Project Structure
+L210: 
+L211:   * `frontend/`: UI application
+L212:   * `backend/`: API, scan orchestration, auth, SBOM/CVE processing
+L213:   * `docker-compose.yml`: multi-service setup
+L214:   * `.env`: runtime/build configuration for the stack
+L215: ## Environment Configuration
+L216: 
+L217: Create or edit the root `.env` file.
+L218: Current variables:
+L219: 
+L220:     # Backend service
+L221:     BACKEND_ADDR=:8081
+L222:     TRIVY_SERVER=http://trivy:8088
+L223:     MANUAL_REPORTS_DIR=/data/manual-reports
+L224:     SCAN_INTERVAL=30s
+L225:     DOCKER_HOST=unix:///var/run/docker.sock
+L226: 
+L227:     # Auth / JWT
+L228:     AUTH_USERNAME=change-me
+L229:     AUTH_PASSWORD=change-me
+L230:     AUTH_JWT_SECRET=replace-with-a-random-32-char-min-secret
+L231:     AUTH_TOKEN_TTL=1h
+L232:     AUTH_JWT_ISSUER=trivy-uo
+L233: 
+L234:     # Security controls
+L235:     CORS_ALLOWED_ORIGINS=http://localhost:3033
+L236:     # Empty disables user-supplied authUrl for manual scans.
+L237:     TRIVY_ALLOWED_AUTH_HOSTS=
+L238: 
+L239:     # NVD enrichment (optional API key)
+L240:     NVD_API_URL=https://services.nvd.nist.gov/rest/json/cves/2.0
+L241:     NVD_API_KEY=
+L242: 
+L243:     # Frontend chart default window: one of 1m, 10m, 1h, 24h, 1mo
+L244:     VITE_DEFAULT_TREND_WINDOW=1mo
+L245: Notes:
+L246: 
+L247:   * `AUTH_USERNAME`, `AUTH_PASSWORD`, and `AUTH_JWT_SECRET` are required at startup.
+L248:   * `AUTH_JWT_SECRET` must be at least 32 characters.
+L249:   * `NVD_API_KEY` is optional but recommended for higher NVD API throughput.
+L250:   * `VITE_DEFAULT_TREND_WINDOW` is used at frontend build time. Rebuild frontend after changing it.
+L251:   * `CORS_ALLOWED_ORIGINS` should only include trusted frontend origins.
+L252:   * Keep `TRIVY_ALLOWED_AUTH_HOSTS` empty unless you explicitly need registry auth URLs for manual scans.
+L253: ## Installation and Run (Docker)
+L254: 
+L255:   1. Clone the repository and move into it.
+L256: 
+L257:     git clone <your-repo-url>
+L258:     cd docsec
+L259: 
+L260:   2. Ensure the external Docker network exists (required by `docker-compose.yml`).
+L261: 
+L262:     docker network create pangolin
+L263: 
+L264:   3. Review/update `.env` in the project root.
+L265: 
+L266:   4. Build and start all services.
+L267: 
+L268:     docker compose up -d --build
+L269: 
+L270:   5. Verify service configuration.
+L271: 
+L272:     docker compose config
+L273: ## Access
+L274: 
+L275:   * Frontend: `http://localhost:3033`
+L276:   * Backend API: `http://localhost:8081`
+L277:   * Trivy server: `http://localhost:8088`
+L278:   * Prometheus: `http://localhost:9099`
+L279: 
+L280: Login:
+L281: 
+L282:   * username: value of `AUTH_USERNAME`
+L283:   * password: value of `AUTH_PASSWORD`
+L284: ## Common Commands
+L285: 
+L286:     # Stop services
+L287:     docker compose down
+L288: 
+L289:     # Stop services and remove volumes
+L290:     docker compose down -v
+L291: 
+L292:     # View logs
+L293:     docker compose logs -f
+L294: 
+L295:     # Rebuild only frontend (needed after VITE_DEFAULT_TREND_WINDOW change)
+L296:     docker compose up -d --build frontend
+L297: 
+L298: ## Development (Frontend only)
+L299: 
+L300:     npm install
+L301:     npm run dev
+L302: 
+L303: This runs the frontend dev server from the root package scripts.
+L304: ## About
+L305: 
+L306: DOCSEC - is a container image vulnerability management platform that solves the vulnerability monitoring and visibility challenges in a production environment. The application is a stack of 4 containers: Frontend, Backend, Trivy, and Prometheus.
+L307: 
+L308: ### Topics
+L309: 
+L310: 【57†container】【58†cve】【59†devsecops】【60†docker】【61†monitoring】【62†prometheus】【63†sbom】【64†scanner】【65†security】【66†trivy】
+L311: 
+L312: ### Resources
+L313: 
+L314: 【67†Readme】
+L315: 
+L316: 【68†GPL-3.0 license】
+L317: 
+L318: 【69†Activity】
+L319: 
+L320: ### Stars
+L321: 
+L322: 0 stars
+L323: 
+L324: ### Watchers
+L325: 
+L326: 0 watching
+L327: ### Forks
+L328: 
+L329: 【70†0 forks】
+L330: 
+L331: 【71†Report repository】
+L332: 
+L333: ## Releases
+L334: 
+L335: ## Packages
+L336: 
+L337: ## Used by
+L338: 
+L339: ## Contributors
+L340: 
+L341: ## Languages
+L342: 
+L343: You can’t perform that action at this time.
+

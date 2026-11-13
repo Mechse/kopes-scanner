@@ -1,3 +1,5 @@
+import { DetectionBadge, DetectionFilter } from './finding-evidence';
+import { matchesSource, sourceDetection, type Detection, type SourceEvidence } from '../lib/finding-evidence';
 import { ContentSkeleton, LoadingStatus } from "./ui/loading";
 import { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -23,6 +25,14 @@ function timeLabel(time: number) {
 }
 
 export function Pulse({ data, revision }: { data: Dashboard; revision: number; targetName: (target: Target) => string }) {
+  const evidence = useResource<SourceEvidence[]>('finding-evidence', revision, 30000);
+  const [source, setSource] = useState('all');
+  function detections(item: PulseItem): Detection[] {
+    return [...new Set(item.events.filter(e => e.finding).map(e => {
+      const matched = e.kind === 'resolved' ? undefined : evidence?.data?.find(s => matchesSource(e.finding!, s) && (e.sourceBinding ? s.bindingId === e.sourceBinding : s.runtime.some(r => r.targetId === e.target && r.matched)));
+      return e.sourceBinding ? matched ? sourceDetection(matched) : 'codebase' : matched ? 'both' : e.target === 'host' ? 'host' : data.targets.find(t => t.id === e.target)?.summary?.coverage ? 'unknown' : 'container';
+    }))];
+  }
   const [tab, setTab] = useState('Relevant');
   const [filter, setFilter] = useState('All updates');
   const [refresh, setRefresh] = useState(0);
@@ -42,6 +52,7 @@ export function Pulse({ data, revision }: { data: Dashboard; revision: number; t
   const currentItems = items.map(item => currentPulseItem(item, targetIds)).filter(item => item !== null);
   const visible = currentItems.filter(item => (filter === 'Dismissed' ? item.dismissed : !item.dismissed)
     && (filter !== 'Bookmarks' || item.bookmarked)
+    && (source === 'all' || detections(item).includes(source as Detection) || ['codebase', 'container'].includes(source) && detections(item).includes('both'))
     && (tab !== 'Fix available' || hasPulseFix(item)));
   visible.sort((a, b) => {
     const dateDelta = new Date(b.time).setHours(0, 0, 0, 0) - new Date(a.time).setHours(0, 0, 0, 0);
@@ -66,7 +77,7 @@ export function Pulse({ data, revision }: { data: Dashboard; revision: number; t
     const title = finding ? finding.title || latest.issue : labels[latest.kind];
     const currentEvents = item.events;
     const appCount = new Set(currentEvents.map(event => event.target)).size;
-    const appLabel = `${appCount} ${appCount === 1 ? 'app' : 'apps'}`;
+    const appLabel = `${appCount} ${appCount === 1 ? 'resource' : 'resources'}`;
     const status = resolved ? 'Not detected' : fix ? 'Fix available' : labels[latest.kind];
     const bookmarkLabel = item.bookmarked ? 'Remove bookmark' : 'Bookmark';
     return <article key={item.id} aria-label={finding ? `${latest.issue}: ${title}` : title}
@@ -85,6 +96,7 @@ export function Pulse({ data, revision }: { data: Dashboard; revision: number; t
         <span className="mt-2 flex flex-wrap items-center gap-1.5 pb-0.5">
           {finding && !resolved && <span className={pillClass}><span aria-hidden="true" className={`size-1 rounded-full bg-current ${severityColors[finding.severity]}`} />{finding.severity.charAt(0) + finding.severity.slice(1).toLowerCase()}</span>}
           {finding && <span className={pillClass}>{latest.issue}</span>}
+          {detections(item).map(d => <DetectionBadge key={d} detection={d} />)}
           {finding && <span className={pillClass}>{(resolved || fix) && <CircleCheck size={11} />}{status}</span>}
           <span className={`${pillClass} max-w-48`} title="Apps in the current inventory"><Box size={12} className="shrink-0" /><span className="truncate">{appLabel}</span></span>
         </span>
@@ -105,6 +117,7 @@ export function Pulse({ data, revision }: { data: Dashboard; revision: number; t
         {['Relevant', 'Recent', 'Fix available'].map(label => <button key={label} onClick={() => setTab(label)} aria-pressed={tab === label}
           className="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-sunken aria-pressed:bg-sunken aria-pressed:font-medium aria-pressed:text-foreground">{label}</button>)}
       </nav>
+      <DetectionFilter value={source} onChange={setSource} />
       <select aria-label="Filter Pulse updates" value={filter} onChange={e => setFilter(e.target.value)} className="rounded-md border border-border bg-raised px-3 py-2 text-xs text-muted-foreground">
         {['All updates', 'Bookmarks', 'Dismissed'].map(value => <option key={value}>{value}</option>)}
       </select>

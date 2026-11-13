@@ -1,0 +1,288 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+Internal Error ()
+citeturn8view0 [wordlim: 200] Source: open({"ref_id":"https://wazuh.com/platform/vulnerability-detection/","lineno":null}); 
+URL https://wazuh.com/platform/vulnerability-detection/ is not accessible via this tool.--------------------------------------------------------------------------------
+Internal Error ()
+citeturn8view1 [wordlim: 200] Source: open({"ref_id":"https://wazuh.com/pricing/","lineno":null}); 
+URL https://wazuh.com/pricing/ is not accessible via this tool.
+
+How it works - Vulnerability detection · Wazuh documentation (https://documentation.wazuh.com/current/user-manual/capabilities/vulnerability-detection/how-it-works.html)
+citeturn11view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://documentation.wazuh.com/current/user-manual/capabilities/vulnerability-detection/how-it-works.html","lineno":null}); Total lines: 1079
+L0: 【0†iframe†www.googletagmanager.com】
+L1: 
+L2:   * 【1†Blog†wazuh.com】
+L3:   * 【2†Documentation】
+L4:   * 【3†Contact us†wazuh.com】
+L5: 
+L6: [Input: Search]
+L7: 
+L8: [Input] Contact us
+L9:   * 【4†Getting started】
+L10:     * 【5†Components】
+L11:       * 【6†Wazuh indexer】
+L12:       * 【7†Wazuh server】
+L13:       * 【8†Wazuh dashboard】
+L14:       * 【9†Wazuh agent】
+L15:     * 【10†Architecture】
+L16:     * 【11†Use cases】
+L17:       * 【12†Configuration assessment】
+L18:       * 【13†Malware detection】
+L19:       * 【14†File integrity monitoring】
+L20:       * 【15†Threat hunting】
+L21:       * 【16†Log data analysis】
+L22:       * 【17†Vulnerability detection】
+L23:       * 【18†Incident response】
+L24:       * 【19†Regulatory compliance】
+L25:       * 【20†IT hygiene】
+L26:       * 【21†Container security】
+L27:       * 【22†Posture management】
+L28:       * 【23†Cloud workload protection】
+L29:   * 【24†Quickstart】
+L30:   * 【25†Installation guide】
+L31:     * 【26†Wazuh indexer】
+L32:       * 【27†Assisted installation】
+L33:       * 【28†Step-by-step installation】
+L34:     * 【29†Wazuh server】
+L35:       * 【30†Assisted installation】
+L36:       * 【31†Step-by-step installation】
+L37:     * 【32†Wazuh dashboard】
+L38:       * 【33†Assisted installation】
+L39:       * 【34†Step-by-step installation】
+L40:     * 【35†Wazuh agent】
+L41:       * 【36†Linux】
+L42:       * 【37†Windows】
+L43:       * 【38†macOS】
+L44:       * 【39†Solaris】
+L45:       * 【40†AIX】
+L46:       * 【41†HP-UX】
+L47:     * 【42†Packages list】
+L48:     * 【43†Uninstalling Wazuh】
+L49:       * 【44†Uninstalling the Wazuh central components】
+L50:       * 【45†Uninstalling the Wazuh agent】
+L51:   * 【46†Installation alternatives】
+L52:     * 【47†Virtual machine (VM)】
+L53:     * 【48†Amazon Machine Images (AMI)】
+L54:     * 【49†Deployment on Docker】
+L55:       * 【50†Wazuh Docker deployment】
+L56:       * 【51†Changing the default password of Wazuh users】
+L57:       * 【52†Building Docker images locally】
+L58:       * 【53†Wazuh Docker utilities】
+L59:       * 【54†Upgrading Wazuh Docker】
+L60:       * 【55†Uninstalling the Wazuh Docker deployment】
+L61:     * 【56†Deployment on Kubernetes】
+L62:       * 【57†Kubernetes configuration】
+L63:       * 【58†Deployment】
+L64:       * 【59†Upgrade Wazuh installed in Kubernetes】
+L65:       * 【60†Clean Up】
+L66:     * 【61†Offline installation guide】
+L67:       * 【62†Install Wazuh components using the assisted method】
+L68:       * 【63†Install Wazuh components step by step】
+L69:     * 【64†Installation from sources】
+L70:       * 【65†Installing the Wazuh manager from sources】
+L71:       * 【66†Installing the Wazuh agent from sources】
+L72:     * 【67†Deployment with Ansible】
+L73:       * 【68†Requirements】
+L74:       * 【69†Installing Ansible】
+L75:       * 【70†Remote endpoint connection】
+L76:       * 【71†Deploying Wazuh】
+L77:       * 【72†Roles】
+L78:         * 【73†Wazuh indexer】
+L79:         * 【74†Wazuh dashboard】
+--------------------------------------------------------------------------------
+GitHub - wazuh/wazuh: Wazuh - The Open Source Security Platform. Unified XDR and SIEM protection for endpoints and cloud workloads. · GitHub (https://github.com/wazuh/wazuh)
+citeturn11view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/wazuh/wazuh","lineno":null}); Total lines: 431
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29:     * Explore
+L30:       * 【15†Trending repos】
+L31:       * 【16†GitHub Sponsors】
+L32:       * 【17†Developer articles】
+L33: 
+L34:     *       * 【18†Changelog Your source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43:     * By Industry
+L44:       * 【23†Healthcare】
+L45:       * 【24†Financial services】
+L46:       * 【25†Manufacturing】
+L47:       * 【26†Government】
+L48:       * 【27†See all industries】
+L49: 
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced Security Enterprise-grade code security】
+L58:       * 【33†Copilot for business Enterprise-grade AI features】
+L59:       * 【34†Premium Support Enterprise-grade 24/7 support】
+L60:   * Resources
+L61: 
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【37†Events & webinars】
+L67:       * 【38†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【39†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【40†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【41†About】
+L78:       * 【42†Partners】
+L79:       * 【18†Changelog†github.blog】
+--------------------------------------------------------------------------------
+Container vulnerability management | Container Security Tools | Kubernetes Security Solutions | Snyk (https://snyk.io/product/container-vulnerability-management/)
+citeturn11view2 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://snyk.io/product/container-vulnerability-management/","lineno":null}); Total lines: 292
+L0: 【0†Skip to main content】
+L1: 
+L2:   * Platform
+L3:   * Resources
+L4:   * Company
+L5:   * 【1†Pricing】
+L6: 
+L7: EN Select your language[Select]
+L8: 
+L9: [Button: Login]
+L10: 
+L11: [Button: Free and Team Plan Customers]
+L12: 
+L13:   * 【2†Snyk app.snyk.io†app.snyk.io】
+L14: 
+L15: [Button: Enterprise Plan Customers]
+L16:   * 【2†🇺🇸Snyk US - 1 app.snyk.io†app.snyk.io】
+L17:   * 【3†🇺🇸Snyk US - 2 app.us.snyk.io†app.us.snyk.io】
+L18:   * 【4†🇪🇺Snyk EU app.eu.snyk.io†app.eu.snyk.io】
+L19:   * 【5†🇦🇺Snyk AU app.au.snyk.io†app.au.snyk.io】
+L20: The region where your data is hosted follows local agreements, and it may not align with your own location. 【6†Find out more†docs.snyk.io】.
+L21: 
+L22: [Button: Snyk API & Web - All Customers]
+L23: 
+L24:   * 【7†Snyk API & Web (DAST)plus.probely.app†plus.probely.app】
+L25: 
+L26: 【8†Sign up†app.snyk.io】【9†Book a live demo】
+L27: 【10†Explore】【11†Integrations】【12†DeepCode AI】【13†Evo Overview Security and governance for AI Agents】【14†Evo Agentic Development Security Secure software in the age of AI agents】【15†Evo AI-SPM Makes AI visible, governable and enforceable】【16†Evo Continuous Offensive Security Find what attackers find, before they find it】【17†Evo Agentic AppSec Security agents that run your AppSec program】【18†Snyk Code Secure your code as it's written】【19†Snyk Open Source Avoid vulnerable dependencies】【20†Snyk Container Keep your base images secure】【21†Snyk IaC Fix IaC misconfigurations in-code】【22†Snyk API & Web (DAST) Find and test APIs and web apps】【23†Snyk Secrets Stop hardcoded secrets before commit】【24†Secure AI-Generated Code AI writes, Snyk secures】【25†Application Security Build secure, stay secure】【26†Software Supply Chain Security Mitigate supply chain risk】【27†Zero-Day Vulns Fix the first day with Snyk】【28†Risk based prioritization Focus on what matters】【29†Resource Library Browse our extensive database】【30†Customer Resources The one stop shop for customers】【31†Snyk in 30 Resource Hub Live and on-demand sessions】【32†Code Checker Write better code for free】【33†Security Intelligence Comprehensive vulnerability data】【34†Snyk Blog】【35†Snyk's Podcasts】【36†Snyk’s YouTube†www.youtube.com】【37†AI Glossary】【38†Snyk Labs Research on AI, vulnerabilities, and DevSecOps†labs.snyk.io】【39†Snyk Learn Security education from Snyk†learn.snyk.io】【40†Snyk User Docs Get started with Snyk†docs.snyk.io】【41†Snyk Support How can we help?†support.snyk.io】【42†Snyk Vuln Database Find new vulnerabilities†security.snyk.io】【43†Snyk Updates Stay in the loop†updates.snyk.io】【44†Snyk Partner Solutions Directory Explore Snyk Partner Integrations†partners.snyk.io】【45†AI Security Engineers Join the community to help build secure AI†www.aiseceng.io】【46†Read more】【47†Events & Webinars】【48†Ambassadors】【49†VulnVortex†www.vulnvortex.com】【50†Subscribe to our newsletter】【51†Our Services Maximize your AppSec ROI】【52†Our Customers We help customers save time and money】【53†Our Partners Bringing business class security with partners】【54†Case Studies Check out our customer stories and stats】【55†Newsroom See the latest press releases】【56†Contact Us Get in touch with any feedback or questions】【57†Careers Join Snyk today】【58†Leadership Meet our leaders】【59†Read more】
+--------------------------------------------------------------------------------
+GitHub - aquasecurity/trivy: Find vulnerabilities, misconfigurations, secrets, SBOM in containers, Kubernetes, code repositories, clouds and more · GitHub (https://github.com/aquasecurity/trivy)
+citeturn11view3 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/aquasecurity/trivy","lineno":null}); Total lines: 365
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29:     * Explore
+L30:       * 【15†Trending repos】
+L31:       * 【16†GitHub Sponsors】
+L32:       * 【17†Developer articles】
+L33: 
+L34:     *       * 【18†Changelog Your source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43:     * By Industry
+L44:       * 【23†Healthcare】
+L45:       * 【24†Financial services】
+L46:       * 【25†Manufacturing】
+L47:       * 【26†Government】
+L48:       * 【27†See all industries】
+L49: 
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced Security Enterprise-grade code security】
+L58:       * 【33†Copilot for business Enterprise-grade AI features】
+L59:       * 【34†Premium Support Enterprise-grade 24/7 support】
+L60:   * Resources
+L61: 
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【37†Events & webinars】
+L67:       * 【38†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【39†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【40†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【41†About】
+L78:       * 【42†Partners】
+L79:       * 【18†Changelog†github.blog】
+

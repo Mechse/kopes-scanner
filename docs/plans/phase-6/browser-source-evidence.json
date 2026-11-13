@@ -1,0 +1,13 @@
+{
+  "fixture": "synthetic, no provider compatibility claim",
+  "multipleRepositories": true,
+  "allIntroducingParents": true,
+  "unknownCoverage": true,
+  "providerErrorRetainsHistory": true,
+  "sourceSbomExport": true,
+  "scanningFlagEnforced": true,
+  "fixAndDeploymentSeparate": true,
+  "runtimeVerificationUnknown": true,
+  "mobileHorizontalOverflow": false,
+  "pageErrors": []
+}

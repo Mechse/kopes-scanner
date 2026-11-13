@@ -10,7 +10,8 @@
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port 3100",
-    "dev:docker": "docker compose -f compose.yaml -f compose.local.yaml -f compose.desktop.yaml -f compose.dev.yaml up -d --build",
+    "dev:docker": "node --env-file-if-exists=.env scripts/dev-docker.mjs",
+    "dev:docker:source": "node --env-file-if-exists=.env scripts/dev-docker.mjs --source",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
@@ -31,7 +32,9 @@
     "radix-ui": "1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "semver": "7.7.2",
     "tailwind-merge": "^3.3.0",
+    "yaml": "2.8.1",
     "zod": "^4"
   },
   "devDependencies": {
@@ -40,7 +43,9 @@
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/semver": "7.7.1",
     "@vitejs/plugin-react": "6.2.1",
+    "esbuild": "0.28.2",
     "nitro": "3.0.261103-rc",
     "tailwindcss": "4.3.4",
     "tsx": "^4.20.0",

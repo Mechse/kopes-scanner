@@ -29,6 +29,6 @@ export function remediation(f: Finding, kind: Target['kind'], container?: Contai
     const inspection: Record<string, string> = { npm: `npm explain ${name}`, 'node-pkg': `npm explain ${name}`, pip: `python -m pip show ${name}`, 'python-pkg': `python -m pip show ${name}`, cargo: `cargo tree --invert ${name}`, rust: `cargo tree --invert ${name}`, gomod: 'go mod graph', gobinary: 'go mod graph' };
     steps.splice(1, 0, { title: 'Trace the dependency in the source project', detail: 'Run this in the matching source checkout and package environment. Update the direct dependency in the manifest, or upgrade the parent that brings it in. Regenerate the lockfile, test, then rebuild the application. Choose the fixed version for your release branch; do not edit a deployed container’s lockfile.', command: inspection[f.type] });
   }
-  steps.push({ title: 'Verify with a new scan', detail: 'After deployment, open the updated resource in Projects and scan it. Check that this advisory/package pair is gone and review new findings. A replacement image appears as a new scan target.' });
+  steps.push({ title: 'Verify with a new scan', detail: 'After deployment, open the updated resource in Containers and scan it. Check that this advisory/package pair is gone and review new findings. A replacement image appears as a new scan target.' });
   return steps;
 }

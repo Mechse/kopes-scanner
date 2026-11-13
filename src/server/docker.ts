@@ -45,7 +45,13 @@ export function containerInfo(c: DockerContainer): Container {
   const project = coolifyProject
     ? [coolifyProject, labels['coolify.environmentName']?.trim()].filter(Boolean).join(' · ')
     : coolifyResource || coolifyName || coolifyId || compose || name;
-  return { id: c.Id, name, image: c.Image, target_id: `image:${c.ImageID}`,
+  const serviceIdentity = labels['com.docker.compose.service'] || labels['coolify.serviceName'];
+  const managerIdentity = labels['coolify.applicationUuid'] ? ['application', labels['coolify.applicationUuid']]
+    : labels['coolify.databaseUuid'] ? ['database', labels['coolify.databaseUuid']]
+    : labels['coolify.serviceUuid'] && serviceIdentity ? ['service', labels['coolify.serviceUuid'], serviceIdentity] : null;
+  const discoveryKey = managerIdentity ? JSON.stringify(['local', 'Coolify', ...managerIdentity])
+    : !coolify && compose && serviceIdentity ? JSON.stringify(['local', 'Compose', compose, serviceIdentity]) : undefined;
+  return { sourceRepository: labels['org.opencontainers.image.source'], ...(discoveryKey && { discoveryKey }), ...(labels['coolify.environmentName'] && { environment: labels['coolify.environmentName'] }), id: c.Id, name, image: c.Image, target_id: `image:${c.ImageID}`,
     project: labels['kopes.project']?.trim() || infrastructure || (coolify ? `Coolify · ${project}` : dokploy ? `Dokploy · ${dokploy}` : compose || `Standalone · ${name}`),
     manager: coolify || infrastructure ? 'Coolify' : dokploy ? 'Dokploy' : compose ? 'Compose' : 'Docker',
     service: labels['coolify.serviceName']?.trim() || labels['com.docker.compose.service'] || coolifyResource || coolifyName || '' };

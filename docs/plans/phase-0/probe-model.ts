@@ -1,0 +1,22 @@
+// Characterizes current behavior in memory; not a production migration.
+import assert from 'node:assert/strict';
+import { Store } from '../../../src/server/store';
+import { parseReport } from '../../../src/server/trivy';
+const store = new Store(':memory:');
+const id = `image:sha256:${'a'.repeat(64)}`;
+const resource = {id:'old-container',name:'api',image:'example:1',target_id:id,project:'Old name',service:'api',manager:'Coolify'};
+store.syncInventory([resource]);
+store.saveSettings('project','Old name',{rescanHours:24});
+const before = store.settings('resource',JSON.stringify(['Old name','api']));
+store.syncInventory([{...resource,id:'replacement',project:'New name'}]);
+const after = store.settings('resource',JSON.stringify(['New name','api']));
+assert.equal(before?.effective.rescanHours,24);
+assert.equal(after?.effective.rescanHours,168);
+store.syncInventory([]);
+assert.equal(store.db.prepare('SELECT id FROM targets WHERE id=?').get(id),undefined);
+const parsed = parseReport(JSON.stringify({SchemaVersion:2,Results:[{Target:'pnpm-lock.yaml',Type:'pnpm',Packages:[{Name:'parent',Version:'1',ID:'parent@1',DependsOn:['child@1'],Dev:true,Relationship:'direct'}]}]}));
+assert.equal('DependsOn' in parsed.packages[0],false);
+const empty = parseReport(JSON.stringify({SchemaVersion:2,Results:[]}));
+assert.equal(empty.packages.length,0);
+console.log(JSON.stringify({renamedProjectLosesInheritedSettings:true,removedImageTargetDeleted:true,currentParserDiscardsGraphAndScope:true,emptyResultsAccepted:true},null,2));
+store.db.close();

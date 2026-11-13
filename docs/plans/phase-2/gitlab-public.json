@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-11-09T19:48:45.449Z",
+  "provider": "gitlab",
+  "repository": "gitlab-org/gitlab",
+  "providerId": "278964",
+  "commit": "b3ba07f3c1f907921047e610529d1e2a60a0b49c",
+  "authentication": "none",
+  "privateAccessValidated": false,
+  "selfHostedValidated": false
+}

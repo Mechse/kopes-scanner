@@ -1,0 +1,14 @@
+{
+  "name": "phase0-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "parent-a": "2.0.0"
+  },
+  "devDependencies": {
+    "left-pad": "1.3.0"
+  },
+  "scripts": {
+    "preinstall": "touch /tmp/SHOULD_NOT_EXIST"
+  }
+}

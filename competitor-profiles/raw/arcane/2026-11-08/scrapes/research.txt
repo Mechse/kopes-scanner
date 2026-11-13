@@ -1,0 +1,566 @@
+# Retrieved web excerpts; grouped responses may include other competitors.
+Vulnerability Scans | Arcane (https://getarcane.app/docs/security/vulnerability-scans)
+citeturn5view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://getarcane.app/docs/security/vulnerability-scans","lineno":null}); Total lines: 314
+L0: 【0†Arcane】
+L1: 
+L2: 【1†Docs】【2†Blog】【3†Instance Generator】【4†Community】
+L3: 
+L4: Search``Ctrl``K``
+L5: 
+L6: [Button: Cancel]
+L7: 
+L8: 【1†Docs】【2†Blog】【3†Instance Generator】【4†Community】
+L9: 
+L10: Menu
+L11:   * Get Started
+L12:     * 【5†Installation】
+L13:     * 【6†LXC Container Setup】
+L14:     * 【7†Migrate to 2.0】
+L15:     * 【8†Preview Builds】
+L16:     * 【9†Preview Features】
+L17:     * 【10†Downgrading】
+L18:   * Managing Docker
+L19:     * Projects
+L20:       * 【11†Overview】
+L21:       * 【12†Git Sync】
+L22:       * 【13†GitOps Lifecycle Hooks】
+L23:     * 【14†Containers】
+L24:     * 【15†Images】
+L25:     * 【16†Image Builds】
+L26:     * 【17†Volumes】
+L27:     * 【18†Networks】
+L28:     * 【19†Backups】
+L29:     * 【20†Auto Updates】
+L30:     * Templates
+L31:       * 【21†Overview】
+L32:       * 【22†Template Registries】
+L33:     * 【23†Variables】
+L34:     * 【24†Activity & Events】
+L35:   * Podman
+L36:     * 【25†Run Arcane on Podman】
+L37:     * 【26†Podman Overview】
+L38:     * 【27†Pods】
+L39:     * 【28†Quadlets】
+L40:     * 【29†Kubernetes YAML】
+L41:     * 【30†Podman Secrets】
+L42:     * 【31†Podman Auto-Update】
+L43:   * Remote Hosts & Swarm
+L44:     * 【32†Remote Environments】
+L45:     * Docker Swarm
+L46:       * 【33†Overview】
+L47:       * 【34†Cluster】
+L48:       * 【35†Workloads】
+L49:       * 【36†Nodes & Agents】
+L50:       * 【37†Configs & Secrets】
+L51:   * Users & Access
+L52:     * 【38†OIDC Single Sign-On】
+L53:     * 【39†Passkeys & MFA】
+L54:     * 【40†Roles & Permissions】
+L55:     * 【41†Federated Credentials】
+L56:     * 【42†Account Recovery】
+L57:   * Settings & Integrations
+L58:     * 【43†Appearance & Preferences】
+L59:     * 【44†Notifications】
+L60:     * 【45†Arcane Mobile】
+L61:     * 【46†GPU Monitoring】
+L62:     * 【47†OpenTelemetry】
+L63:     * 【48†Analytics】
+L64:   * Reverse Proxy & Networking
+L65:     * 【49†Reverse Proxy Setup】
+L66:     * 【50†TLS and HTTP/2】
+L67:     * 【51†Outbound HTTP Proxy】
+L68:   * Security
+L69:     * 【52†Vulnerability Scans】
+L70:     * 【53†Socket Proxy】
+L71:     * 【54†Edge Agent mTLS】
+L72:     * 【55†Verify Artifacts】
+L73:   * Reference
+L74:     * 【56†Environment Variables】
+L75:     * 【57†Compose Labels (x-arcane)】
+L76:     * 【58†API Reference】
+L77:     * CLI
+L78:       * 【59†Overview】
+L79:       * 【60†CLI Configuration】
+L80:       * 【61†CLI Commands】
+L81:   * Contributing
+L82:     * 【62†Contributing to Arcane】
+L83:     * 【63†Translating Arcane】
+L84:     * Buildables
+L85:       * 【64†Overview】
+L86:       * 【65†Autologin】
+L87:   * Community
+L88:     * 【66†Discord†discord.gg】
+L89: 【1†Docs】【2†Blog】【3†Instance Generator】【4†Community】【67†Try the Demo†demo.getarcane.app】
+L90: 
+L91: On this page
+L92: 
+L93:   * 【68†Turn on scanning】
+L94:   * 【69†Review results】
+L95:     * 【70†Filter and export results】
+L96:   * 【71†Patch image vulnerabilities】
+L97:     * 【72†Schedule patching】
+L98:   * 【73†Configure scans】
+L99:     * 【74†Use a remote Trivy server】
+L100:   * 【75†How scans run】
+L101:   * 【76†Threat intelligence】
+L102:   * 【77†Reference】
+L103:     * 【78†Risk score】
+L104:     * 【79†Image score】
+L105:     * 【80†Environment score】
+L106:     * 【81†Risk bands】
+L107:     * 【82†Settings】
+L108: # Vulnerability Scans
+L109: 
+L110: Scan your Docker images with Trivy on a schedule and see what to patch first.
+L111: 
+L112: Arcane scans your Docker images for known vulnerabilities (CVEs) with 【83†Trivy†trivy.dev】, an open-source vulnerability scanner, and saves the results for each image. It then ranks findings by risk so you know which images to fix first, and can patch some of them for you.
+L113: 【84†Image: Vulnerability findings with severity, affected packages, and fixed versions.】【85†Image: Vulnerability findings with severity, affected packages, and fixed versions.】Review affected packages and available fixes, ordered by severity.
+L114: 
+L115: [Button: ×]【84†Image: Vulnerability findings with severity, affected packages, and fixed versions.】【85†Image: Vulnerability findings with severity, affected packages, and fixed versions.】
+L116: 
+L117: Review affected packages and available fixes, ordered by severity.
+L118: ## Turn on scanning
+L119: 
+L120: 【68†Section titled “Turn on scanning”】
+L121: 
+L122:   1. Open Environments and select the environment.
+L123:   2. On the Features tab, make sure Vulnerability management is on.
+L124:   3. On the Automations tab, turn on the vulnerability scan job.
+L125:   4. Optional: change the job’s schedule. It uses 6-field cron syntax, with seconds first. The default `0 0 0 * * *` runs daily at midnight. Changes apply without a restart.
+L126: 
+L127: To scan right away, open Security in the sidebar and click Scan all images.
+L128: ## Review results
+L129: 
+L130: 【69†Section titled “Review results”】
+L131: 
+L132: Open Security in the sidebar. The overview shows the environment’s 【78†risk score】 and which images and CVEs to fix first. The Vulnerabilities tab lists every finding, and the Patches tab lets you apply supported fixes.
+L133: 
+L134: The overview contains:
+L135: Card  | What it shows
+L136: --- | ---
+L137: Risk score  | The environment score, its band, and the change from 7 days ago.
+L138: Highest-priority fix  | The fixable finding with the highest risk, with its image, package, and fixed version.
+L139: Trend  | Daily scores over 30 or 90 days.
+L140: Known exploited, Overdue KEV  | Findings in the CISA KEV catalog, and those past CISA’s remediation due date.
+L141: Likely exploited  | Findings with an EPSS probability of 10% or more.
+--------------------------------------------------------------------------------
+GitHub - getarcaneapp/arcane: Modern Docker Management, Designed for Everyone · GitHub (https://github.com/getarcaneapp/arcane)
+citeturn5view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"https://github.com/getarcaneapp/arcane","lineno":null}); Total lines: 305
+L0: 【0†Skip to content】
+L1: ## Navigation Menu
+L2: 
+L3:   * Products
+L4: 
+L5:     *       * 【1†GitHub Repository hosting, code review, and collaboration】
+L6:       * 【2†Copilot AI coding agent for tasks, projects, and automated work】
+L7: 
+L8:     * Build & Ship
+L9:       * 【3†Actions CI/CD and automation】
+L10:       * 【4†Code Quality Quality analysis, fixes, and enforcement】
+L11:       * 【5†Codespaces Cloud development environments】
+L12:     * Secure
+L13:       * 【6†Code Security Vulnerability detection and remediation】
+L14:       * 【7†Secret Protection Secret scanning and leak prevention】
+L15: 
+L16: 【8†All Features】
+L17: 
+L18:   * Developers
+L19: 
+L20:     * Learn
+L21:       * 【9†Documentation†docs.github.com】
+L22:       * 【10†Training†learn.github.com】
+L23:       * 【11†Certifications†learn.github.com】
+L24: 
+L25:     * Build
+L26:       * 【12†Build with Copilot】
+L27:       * 【13†Customize Copilot†docs.github.com】
+L28:       * 【14†Integrations】
+L29:     * Explore
+L30:       * 【15†Trending repos】
+L31:       * 【16†GitHub Sponsors】
+L32:       * 【17†Developer articles】
+L33: 
+L34:     *       * 【18†Changelog Your source for the latest features, improvements, and fixes across GitHub products, all in one place.†github.blog】
+L35: 
+L36:   * Businesses
+L37: 
+L38:     * By Stage
+L39:       * 【19†Enterprises】
+L40:       * 【20†Team】
+L41:       * 【21†Startups】
+L42:       * 【22†Nonprofits】
+L43:     * By Industry
+L44:       * 【23†Healthcare】
+L45:       * 【24†Financial services】
+L46:       * 【25†Manufacturing】
+L47:       * 【26†Government】
+L48:       * 【27†See all industries】
+L49: 
+L50:     * Evaluate GitHub
+L51:       * 【28†Why GitHub】
+L52:       * 【29†Customer Stories】
+L53:       * 【30†Business insights】
+L54:       * 【31†Trust Center】
+L55: 
+L56:     * Add-ons
+L57:       * 【32†GitHub Advanced Security Enterprise-grade code security】
+L58:       * 【33†Copilot for business Enterprise-grade AI features】
+L59:       * 【34†Premium Support Enterprise-grade 24/7 support】
+L60:   * Resources
+L61: 
+L62:     * Learn & Connect
+L63:       * 【9†Documentation†docs.github.com】
+L64:       * 【35†Resource center】
+L65:       * 【36†Blog†github.blog】
+L66:       * 【37†Events & webinars】
+L67:       * 【38†Community Forum】
+L68:       * 【29†Customer Stories】
+L69:       * 【14†Integrations】
+L70: 
+L71:     * Support
+L72:       * 【39†Customer support†help.github.com】
+L73:       * 【10†Training†learn.github.com】
+L74:       * 【40†GitHub Status†www.githubstatus.com】
+L75: 
+L76:     * Company
+L77:       * 【41†About】
+L78:       * 【42†Partners】
+L79:       * 【18†Changelog†github.blog】
+L80:     *       * 【43†GitHub Universe The event for developers, by developers — talks, workshops, and what’s next for GitHub.†githubuniverse.com】
+L81: 
+L82:   * 【44†Pricing】
+L83: 
+L84: Search`/`
+L85: 
+L86: 【45†Sign in】
+L87: 
+L88: 【46†Sign up】
+L89: 
+L90: Appearance settings
+L91: 
+L92: You signed in with another tab or window. Reload to refresh your session. You signed out in another tab or window. Reload to refresh your session. You switched accounts on another tab or window. Reload to refresh your session. Dismiss alert
+L93: 
+L94:   1. 【47†getarcaneapp】
+L95:   2. 【48†arcane】
+L96: ## Repository navigation
+L97: 
+L98:   *   * 【48†Code】
+L99:   * 【49†Issues 6 (6)】
+L100:   * 【50†Pull requests 7 (7)】
+L101:   * 【51†Discussions】
+L102:   * 【52†Actions】
+L103:   * 【53†Security and quality 16 (16)】
+L104:   * 【54†Insights】
+L105: 
+L106: More items
+L107: 
+L108: 【55†Image: getarcaneapp†avatars.githubusercontent.com】
+L109: 
+L110: 【48†arcane】
+L111: 
+L112: Public
+L113: 
+L114:   * Sponsor
+L115:   * 【56†Notifications】You must be signed in to change notification settings
+L116:   * 【56†Fork 347 (347)】
+L117:   * 【56†Star 8.2k (8.2k)】You must be signed in to star a repository
+L118: ## About
+L119: 
+L120: Modern Docker Management, Designed for Everyone
+L121: 
+L122: 【57†getarcane.app†getarcane.app】
+L123: 
+L124: ### Topics
+L125: 
+L126: 【58†compose】【59†container-management】【60†containers】【61†docker】【62†docker-compose】【63†docker-management】【64†go】【65†self-hosted】【66†sveltekit】【67†typescript】【68†web-ui】
+L127: 
+L128: ### Resources
+L129: 
+L130: 【69†Readme】
+L131: 
+L132: 【70†BSD-3-Clause license】
+L133: 
+L134: ### Contributing
+L135: 
+L136: 【71†Contributing】
+L137: 
+L138: ### Security policy
+L139: 
+L140: 【72†Security policy】
+L141: 
+L142: 【73†Activity】
+L143: 
+L144: 【74†Custom properties】
+L145: 
+L146: ### Stars
+L147: 
+L148: 8.2k stars
+L149: 
+L150: ### Watchers
+L151: 
+L152: 14 watching
+L153: ### Forks
+L154: 
+L155: 【75†347 forks】
+L156: 
+L157: 【76†Report repository】
+L158: 
+L159: main
+L160: 
+L161: 【77†Branches】【78†Tags】
+L162: 
+L163: [Input: Go to file]
+L164: 
+L165: Go to file
+L166: 
+L167: Code
+L168: 
+L169: Open more actions menu
+L170: 
+L171: ## Latest commit
+L172: 
+L173: 
+L174: 
+L175: ## History
+L176: 
+L177: 4,438 Commits
+L178: ## Folders and files
+L179: Name  | Name  | Last commit message  | Last commit date
+L180: --- | --- | --- | ---
+L181: 【79†.depot】  | 【79†.depot】  |    |
+L182: 【80†.devcontainer】  | 【80†.devcontainer】  |    |
+L183: 【81†.github】  | 【81†.github】  |    |
+L184: 【82†.vite-hooks】  | 【82†.vite-hooks】  |    |
+L185: 【83†.vscode】  | 【83†.vscode】  |    |
+L186: 【84†backend】  | 【84†backend】  |    |
+L187: 【85†cli】  | 【85†cli】  |    |
+L188: 【86†docker】  | 【86†docker】  |    |
+L189: 【87†frontend】  | 【87†frontend】  |    |
+L190: 【88†just】  | 【88†just】  |    |
+L191: 【89†scripts】  | 【89†scripts】  |    |
+L192: 【90†tests】  | 【90†tests】  |    |
+L193: 【91†types】  | 【91†types】  |    |
+L194: 【92†.arcane.json】  | 【92†.arcane.json】  |    |
+L195: 【93†.dockerignore】  | 【93†.dockerignore】  |    |
+L196: 【94†.env.example】  | 【94†.env.example】  |    |
+L197: 【95†.gitattributes】  | 【95†.gitattributes】  |    |
+L198: 【96†.gitignore】  | 【96†.gitignore】  |    |
+
+
+GitHub - PatchMon/PatchMon: Linux Patch Management & Automation Platform · GitHub (https://github.com/PatchMon/PatchMon)
+citeturn12view0 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"turn2view2","lineno":252}); Total lines: 488
+L191: 【95†.gitattributes】  | 【95†.gitattributes】  |    |
+L192: 【96†.gitignore】  | 【96†.gitignore】  |    |
+L193: 【97†.gitleaks.toml】  | 【97†.gitleaks.toml】  |    |
+L201: 【105†dashboard.png】  | 【105†dashboard.png】  |    |
+L202: 【106†lefthook.yml】  | 【106†lefthook.yml】  |    |
+L203: 【107†notifications.png】  | 【107†notifications.png】  |    |
+L204: 【108†package-lock.json】  | 【108†package-lock.json】  |    |
+L205: 【109†package.json】  | 【109†package.json】  |    |
+L206: 【110†patching.png】  | 【110†patching.png】  |    |
+L207: 【111†renovate.json】  | 【111†renovate.json】  |    |
+L208: 【112†reporting.png】  | 【112†reporting.png】  |    |
+L209: 【113†setup-docker.sh】  | 【113†setup-docker.sh】  |    |
+L210: 【114†setup.sh】  | 【114†setup.sh】  |    |
+L211: [Button: View all files]
+L212: ## Repository files navigation
+L213: 
+L214:   *   * 【115†README】
+L215:   * 【115†Contributing】
+L216:   * 【115†AGPL-3.0 license】
+L217:   * 【115†Security】
+L218: 
+L219: More items
+L220: 
+L221: # PatchMon
+L222: 
+L223: ### Enterprise-grade Linux patch & server management platform
+L224: 
+L225: * * *
+L226: ## What is PatchMon?
+L227: 
+L228: PatchMon is an enterprise-grade platform that gives operations teams a single pane of glass to monitor, patch and secure their Linux fleet, with FreeBSD and Windows agent support.
+L229: 
+L230: A lightweight agent communicates outbound-only to the PatchMon server on your schedule - no inbound ports required on monitored hosts - delivering real-time visibility into package health, compliance posture and system status across environments of any scale.
+L231: 
+L232: * * *
+L233: ## Why PatchMon?
+L234:   * Outbound-only agents - no inbound firewall changes, no SSH or WinRM exposure, no VPN required.
+L235:   * Single binary, bundled UI - one Go binary with the React frontend embedded. One container, no Node runtime at deploy time.
+L236:   * Open source, with a managed cloud - AGPL v3 licensed, free to self-host. Production hosting available at 【116†patchmon.net/cloud†patchmon.net】.
+L237:   * Multi-OS by design - Linux (apt, dnf, yum, apk, pacman), FreeBSD (pkg) and Windows, handled by the same agent and control plane.
+L238: * * *
+L239: ## Quick Start
+L240: 
+L241: Docker is the fastest way to try PatchMon:
+L242: 
+L243:     mkdir patchmon && cd patchmon
+L244:     bash -c "$(curl -fsSL https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/setup-env.sh)"
+L245:     docker compose up -d
+L246: 
+L247: Open `http://localhost:3000`, create an admin user, add a host in the UI and copy the generated install command onto the target server.
+L248: 
+L249: Full deployment options (Docker manual, Proxmox LXC, PatchMon Cloud) are in the 【117†Deployment】 section.
+L250: 
+L251: * * *
+L252: ## Features at a Glance
+L253: ### Patch Management
+L254: 
+L255: The core of PatchMon - orchestrate updates across your fleet with validation, approval and live visibility.
+L256: Capability  | What It Does
+L257: --- | ---
+L258: Dry-Run Validation  | Preview the exact package transaction on a host before anything touches production. Every run captures the full plan so you know what would change.
+L259: Approve & Execute  | One-click approval turns a validated dry-run into a real patch run, with a per-host audit trail of who approved what and when.
+L260: Scheduled Patching  | Patch policies decide when updates apply - immediate, maintenance window or delayed rollout. Approve now, execute later.
+L261: Live Patch Streaming  | Watch patch execution in real time from the browser. Agent stdout/stderr is streamed over WebSocket, with the ability to stop a run mid-flight.
+L262: Selective Patching  | Target specific packages, security-only updates or a full upgrade. Works across apt, dnf, yum, apk, pacman and FreeBSD pkg.
+L263: Patch History & Audit  | Full searchable history of every run - exit code, duration, packages touched, approver and host.
+L264: ### Visibility & Inventory
+L265: Capability  | What It Does
+L266: --- | ---
+L267: Personalised Dashboard  | Per-user, drag-and-reorder overview cards showing fleet health, outdated packages, host status and patching activity at a glance.
+L268: Host Inventory  | Browse every enrolled server with OS, uptime, kernel, last check-in and group membership.
+L269: Package Inventory  | View every installed package across your fleet, filter to outdated or vulnerable ones, and see exactly which hosts need attention.
+L270: Repository Tracking  | Every APT / YUM / DNF / APK / pacman repository configured on each host, in one place.
+L271: Docker Monitoring  | Automatic discovery of containers, images, volumes and networks with real-time status pushed over WebSocket.
+L272: ### Security & Compliance
+L273: Capability  | What It Does
+L274: --- | ---
+L275: Compliance Scanning  | Run OpenSCAP CIS Benchmarks and Docker Bench for Security. Track compliance scores over time with rule-level results and remediation guidance.
+L276: Alerting  | Host-down, pending server updates and agent-update alerts. Filter by severity, type and status; assign to team members.
+L277: Outbound-Only Agent  | No inbound ports on monitored hosts. Agent initiates all traffic, with IP allow-lists for enrolment tokens and rate limiting on every endpoint.
+L278: RBAC  | Multi-user accounts with fully customisable roles and granular permissions - every team member sees only what they need.
+L279: OIDC Single Sign-On  | Authenticate with Authentik, Keycloak, Okta or any OIDC provider. Supports auto user provisioning, group-to-role mapping and SSO-only enforcement.
+L280: ### Access & Operations
+L281: Capability  | What It Does
+L282: --- | ---
+L283: Web SSH Terminal  | Browser-based SSH to any host directly from the UI. Direct or proxy mode (route through the agent, no SSH port exposure).
+L284: AI Terminal Assistant  | Built-in AI chat panel inside the SSH terminal for command suggestions, error diagnosis and context-aware help. Works with OpenRouter, Anthropic, OpenAI or Google Gemini.
+L285: Branding & Theming  | Upload custom logos and favicon, choose colour themes and toggle light / dark mode per user.
+L286: ### Platform
+L287: 
+L288: Capability  | What It Does
+L289: --- | ---
+L290: Integrations  | 33+ integrations including Proxmox LXC auto-enrolment, getHomepage, Ansible and more.
+L291: REST API  | Full `/api/v1` with JWT authentication and interactive Swagger / OpenAPI docs at `/api-docs`.
+L292: 
+L293: * * *
+L294: 
+L295: ## Deployment Options
+L296: ### PatchMon Cloud
+L297: 
+L298: > 14-day trial at 【118†patchmon.net/pricing†patchmon.net】
+L299: 
+L300: Fully managed PatchMon hosting with zero infrastructure overhead. We handle provisioning, updates, backups and scaling so you can focus on your fleet instead of the tooling behind it.
+L301: ### Self-Hosted - Docker (Officially supported)
+L302: 
+L303: Docker is the preferred and supported self-hosted deployment. We use hardened images for security.
+L304: Automated setup from an empty directory. The setup script downloads `docker-compose.yml` and `env.example`, generates all required secrets, and walks you through URL and `CORS_ORIGIN` configuration interactively:
+L305: 
+L306:     mkdir patchmon && cd patchmon
+L307:     bash -c "$(curl -fsSL https://raw.githubusercontent.com/PatchMon/PatchMon/refs/heads/main/docker/setup-env.sh)"
+L308:     docker compose up -d
+L309: 
+L310: Access the application at the URL you configured (default: `http://localhost:3000`).
+L311: Manual Docker setup: see 【119†Installing PatchMon Server on Docker†patchmon.net】.
+L312: ### Self-Hosted - Proxmox LXC
+L313: 
+L314: One-command LXC deployment via the 【120†Proxmox VE Helper-Scripts†community-scripts.github.io】 community script:
+L315: 
+L316:     bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/patchmon.sh)"
+--------------------------------------------------------------------------------
+Vulnerability Scans | Arcane (https://getarcane.app/docs/security/vulnerability-scans)
+citeturn12view1 [wordlim: 200] Crawled: today; Content type: text/html; Source: open({"ref_id":"turn5view0","lineno":145}); Total lines: 314
+L108: # Vulnerability Scans
+L109: 
+L110: Scan your Docker images with Trivy on a schedule and see what to patch first.
+L111: 
+L112: Arcane scans your Docker images for known vulnerabilities (CVEs) with 【83†Trivy†trivy.dev】, an open-source vulnerability scanner, and saves the results for each image. It then ranks findings by risk so you know which images to fix first, and can patch some of them for you.
+L113: 【84†Image: Vulnerability findings with severity, affected packages, and fixed versions.】【85†Image: Vulnerability findings with severity, affected packages, and fixed versions.】Review affected packages and available fixes, ordered by severity.
+L114: 
+L115: [Button: ×]【84†Image: Vulnerability findings with severity, affected packages, and fixed versions.】【85†Image: Vulnerability findings with severity, affected packages, and fixed versions.】
+L116: 
+L117: Review affected packages and available fixes, ordered by severity.
+L118: ## Turn on scanning
+L119: 
+L120: 【68†Section titled “Turn on scanning”】
+L121: 
+L122:   1. Open Environments and select the environment.
+L123:   2. On the Features tab, make sure Vulnerability management is on.
+L124:   3. On the Automations tab, turn on the vulnerability scan job.
+L125:   4. Optional: change the job’s schedule. It uses 6-field cron syntax, with seconds first. The default `0 0 0 * * *` runs daily at midnight. Changes apply without a restart.
+L126: 
+L127: To scan right away, open Security in the sidebar and click Scan all images.
+L128: ## Review results
+L129: 
+L130: 【69†Section titled “Review results”】
+L131: 
+L132: Open Security in the sidebar. The overview shows the environment’s 【78†risk score】 and which images and CVEs to fix first. The Vulnerabilities tab lists every finding, and the Patches tab lets you apply supported fixes.
+L133: 
+L134: The overview contains:
+L135: Card  | What it shows
+L136: --- | ---
+L137: Risk score  | The environment score, its band, and the change from 7 days ago.
+L138: Highest-priority fix  | The fixable finding with the highest risk, with its image, package, and fixed version.
+L139: Trend  | Daily scores over 30 or 90 days.
+L140: Known exploited, Overdue KEV  | Findings in the CISA KEV catalog, and those past CISA’s remediation due date.
+L141: Likely exploited  | Findings with an EPSS probability of 10% or more.
+L142: Running critical/high, Images scanned  | Critical and high findings in running containers, and how many images have been scanned.
+L143: Findings by severity, Findings by exposure  | All findings, including ones without a fix.
+L144: Top vulnerabilities  | The 10 highest-risk CVEs. Sort by Prevalence to see which CVEs appear in the most images.
+L145: Images to prioritize  | The 5 highest-scoring images.
+L146: ### Filter and export results
+L147: 
+L148: 【70†Section titled “Filter and export results”】
+L149: 
+L150: Use Fixable in the Vulnerabilities table to show only findings with a known fixed version. This filters saved results and doesn’t change what future scans collect. To stop scans from recording unfixable findings at all, turn on Only Report Fixable Vulnerabilities (see 【73†Configure scans】).
+L151: Choosing All under Rows per page asks for confirmation, because loading every finding can slow the browser. The table goes back to 20 rows the next time you open it.
+L152: 
+L153: Click Export CSV to download every result that matches the current search and filters, including Show ignored and Fixable, across all pages.
+L154: ## Patch image vulnerabilities
+L155: 
+L156: 【71†Section titled “Patch image vulnerabilities”】
+L157: 
+L158: Arcane can patch fixable OS-package vulnerabilities with 【86†Copacetic†project-copacetic.github.io】 (copa), an image patching tool, instead of waiting for the image’s publisher to release a fixed version.
+L159:   1. Open Security → Patches. The table lists scanned images with their fixable CVE counts, last scan time, last patch status, and patched tag.
+L160:   2. Click Patch on a row. You can also patch from the image detail page or the Images table row menu.
+L161:   3. Follow progress in the Activity Center. Patches run in the background, one at a time, and need the `images:patch` permission.
+L162:   4. Redeploy your containers against the new tag to use the patched image.
+L163: 
+L164: What happens during a patch:
+L165:   * Arcane runs copa against the Docker daemon’s built-in BuildKit (Docker’s image build engine). No helper container is started, and Arcane’s stored registry credentials are used to pull.
+L166:   * If the image’s latest scan has a stored report, only the vulnerabilities in that report are patched. Without one, copa updates every outdated OS package in the image.
+L167:   * The result is tagged with a suffix, so `nginx:1.25` becomes `nginx:1.25-patched` by default. It exists only in the local Docker daemon. Nothing is pushed, and running containers are not touched.
+L168:   * Arcane re-scans the patched image afterwards, and the Patches table shows the result.
+L169: What can’t be patched:
+L170: 
+L171:   * Vulnerabilities in language or application dependencies (npm, pip, Go modules, and so on). Only OS packages are patched; rebuild the image for the rest.
+L172:   * Locally built images with no registry source. Rebuild them instead.
+L173:   * Untagged images.
+L174: ### Schedule patching
+L175: 
+L176: 【72†Section titled “Schedule patching”】
+L177: 
+L178: Turn on Scheduled Image Patching under Environments → your environment → Security → Image Patching, and set the patch job’s schedule in Automations. The default `0 0 3 * * *` runs daily at 03:00. Each run patches scanned images in the local Docker environment that have a stored report and haven’t been patched since their latest scan.
+L179: ## Configure scans
+L180: 
+L181: 【73†Section titled “Configure scans”】
+L182: 
+L183: Scan settings live under Environments → your environment → Security → Vulnerability Scanning and apply to every scan in that environment. Run a new scan to refresh saved results after changing them.
+L184:   * Only Report Fixable Vulnerabilities records only vulnerabilities that have a known fixed version.
+L185:   * Trivy Config (YAML) takes the contents of a `trivy.yaml` file.
+L186:   * .trivyignore takes one vulnerability ID per line. Lines starting with `#` are comments.
+L187: 
+L188: Options Arcane passes on the command line win over the YAML: output format, timeout, cache directory, database or server settings, exit code, and the fixable-only setting.
+L189: CPU Limit (cores), Memory Limit (MB), and Concurrent Scan Containers cap the resources scans use; see 【82†Settings】.
+L190: ### Use a remote Trivy server
+L191: 
+L192: 【74†Section titled “Use a remote Trivy server”】
+L193: 
+L194: Trivy can run as a server that holds the vulnerability database, so Arcane doesn’t have to download and load it on each host. This helps on small or 32-bit hosts, especially armv7, where the local database may fail to load.
+L195: 
+L196:   1. Turn on Use Remote Trivy Server.
+L197:   2. Set Trivy Server URL, for example `http://trivy.example.com:4954`.
+L198:   3. Optional: set Trivy Server Token if the server requires authentication.
+L199: Scan containers must be able to reach the server URL; Trivy Network controls their network. Arcane passes the token in the `TRIVY_TOKEN` environment variable, so it doesn’t show up in process arguments.
+
