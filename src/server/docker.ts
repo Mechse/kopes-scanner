@@ -1,3 +1,4 @@
+import { localImage, type LocalImage } from './base-images';
 import type { Container } from '../lib/model';
 import type { CoolifyLookup } from './coolify';
 
@@ -56,8 +57,14 @@ export function containerInfo(c: DockerContainer): Container {
     manager: coolify || infrastructure ? 'Coolify' : dokploy ? 'Dokploy' : compose ? 'Compose' : 'Docker',
     service: labels['coolify.serviceName']?.trim() || labels['com.docker.compose.service'] || coolifyResource || coolifyName || '' };
 }
-export async function dockerJson(base: string, path: string): Promise<unknown> {
-  const response = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(15_000), redirect: 'error' });
+export async function dockerJson(base: string, path: string, signal?: AbortSignal): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(`${base}${path}`, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000), redirect: 'error' });
+  } catch {
+    signal?.throwIfAborted();
+    throw new Error('Docker image metadata or inventory is unavailable. Check that the Docker socket proxy is reachable and healthy, then retry the scan.');
+  }
   if (!response.ok) throw new Error(`Docker proxy returned HTTP ${response.status}. Check socket access and proxy permissions.`);
   return response.json();
 }
@@ -98,4 +105,24 @@ export async function watchEvents(base: string, onChange: (startedId?: string) =
       }
     }
   } finally { await reader.cancel().catch(() => {}); }
+}
+
+/** Bound metadata discovery independently of the number of scan targets. */
+export async function localImages(base: string, signal: AbortSignal): Promise<{ images: LocalImage[]; note: string }> {
+  const data = await dockerJson(base, '/images/json', signal);
+  if (!Array.isArray(data)) throw new Error('Invalid Docker image inventory.');
+  const ids = [...new Set(data.map(item => item.Id).filter((id): id is string => typeof id === 'string' && /^sha256:[a-f0-9]{64}$/.test(id)))];
+  const images: LocalImage[] = [];
+  let failed = false;
+  for (let offset = 0; offset < Math.min(ids.length, 100); offset += 4) {
+    signal.throwIfAborted();
+    await Promise.all(ids.slice(offset, Math.min(offset + 4, 100)).map(async id => {
+      try {
+        const image = localImage(await dockerJson(base, `/images/${id}/json`, signal));
+        if (image) images.push(image);
+        else failed = true;
+      } catch { signal.throwIfAborted(); failed = true; }
+    }));
+  }
+  return { images, note: ids.length > 100 || failed ? 'Local image discovery was incomplete; some base images may be missing.' : '' };
 }

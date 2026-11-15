@@ -77,10 +77,10 @@ test('v5 copied database migration preserves legacy rows and imports reports exa
       DROP TABLE project_members; DROP TABLE projects; PRAGMA user_version=5;`);
     s.db.close(); s = new Store(directory);
     for (const table of tables) assert.deepEqual(s.db.prepare(`SELECT * FROM ${table}`).all(), before[table], table);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 13);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 15);
     const imported = s.db.prepare('SELECT * FROM scan_observations').all();
     assert.equal(imported.length, 1); assert.equal(imported[0].imported, 1);
-    assert.deepEqual(JSON.parse(String(imported[0].report_json)), report);
+    assert.deepEqual(JSON.parse(String(imported[0].report_json)), s.report(a.target_id));
     const resource = s.db.prepare('SELECT * FROM resources').get()!;
     assert.equal(resource.name, 'Display');
     assert.equal(JSON.parse(String(resource.settings_json)).rescanHours, 24);
@@ -105,7 +105,7 @@ for (const missingLinks of [true, false]) test(`v10 upgrade preserves history an
     if (missingLinks) s.db.exec('DROP TABLE scan_observation_resources');
     s.db.exec('PRAGMA user_version=10');
     s.db.close(); s = new Store(directory);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 13);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 15);
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observations').all(), history);
     assert.deepEqual(s.db.prepare('SELECT * FROM resources').all(), resources);
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observation_resources').all(), missingLinks ? [] : links);

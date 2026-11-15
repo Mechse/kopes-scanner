@@ -1,3 +1,4 @@
+import { RepositoryConnectionSelector } from './repository-connection-selector';
 import { Link } from '@tanstack/react-router';
 import { sourceAssessment } from '../lib/source-assessment';
 import { createContext, useContext, useState, useRef, type ReactNode } from 'react';
@@ -10,7 +11,7 @@ import { FavouriteButton, useFavourites } from './favourites';
 import { type Scan } from './project-sources';
 import { pillClass } from './ui/pill';
 
-export type Binding = { id: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
+export type Binding = { id: string; connection_id?: string; connection_label?: string; connection_owner?: string; connection_health?: string; auth_kind?: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
 type Inventory = { administrator: boolean; flags: { connections: boolean; scanning: boolean }; storageError: string | null; projects: { id: string; name: string; archived: number }[]; resources: { id: string; name: string; project_id: string | null; containerIds: string[] }[]; bindings: Binding[] };
 type Context = { projectId?: string; group?: string; containerId?: string; resourceId?: string };
 const field = 'mt-1 block w-full rounded border border-border bg-background px-3 py-2 text-sm';
@@ -58,8 +59,9 @@ export function RepositoryWorkspace({ children }: { children: ReactNode }) {
         const resources: string[] = [];
         if (mode === 'edit') {
           if (!selectedBinding) throw new Error('Select a repository.');
+          if (f.get('connectionId') && f.get('connectionId')!==selectedBinding.connection_id) await post('repositories',{action:'switch',bindingId:selectedBinding.id,connectionId:f.get('connectionId')});
           await post('repositories', { action: 'settings', bindingId: selectedBinding.id, projectId, resources });
-        } else await post('repositories', { action: 'add', repository: f.get('repository'), projectId, resources });
+        } else await post('repositories', { action: 'add', connectionId: f.get('connectionId') || null, repository: f.get('repository'), projectId, resources });
       }
       refresh(); setMode(null);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
@@ -82,9 +84,9 @@ export function RepositoryWorkspace({ children }: { children: ReactNode }) {
           {error && <p role="alert" className="text-critical">{error}</p>}
           <div className="flex justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => { setError(''); setMode('edit'); }}>Cancel</Button><Button type="button" variant="outline" className="border-critical text-critical" busy={busy} onClick={() => void removeRepository()}>Remove everywhere</Button></div>
         </div>
-      </Modal> : mode === 'assignment' ? <Modal title="Move resource" description="Choose a container. Existing scan settings are preserved."><form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); void save(e.currentTarget); }}><label className="block text-sm">Container<select aria-label="Container" className={field} name="projectId" required defaultValue=""><option value="">Select a container</option>{data?.projects.filter(p => !p.archived).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><p className="text-sm text-muted-foreground">Members of the destination container will gain access to this resource’s scan history.</p>{error && <p role="alert">{error}</p>}<Button busy={busy}>Move resource</Button></form></Modal> : mode && <Modal title={mode === 'edit' ? 'Repository settings' : 'Add repository'} description="Scan the default branch of a public GitHub repository.">
+      </Modal> : mode === 'assignment' ? <Modal title="Move resource" description="Choose a container. Existing scan settings are preserved."><form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); void save(e.currentTarget); }}><label className="block text-sm">Container<select aria-label="Container" className={field} name="projectId" required defaultValue=""><option value="">Select a container</option>{data?.projects.filter(p => !p.archived).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><p className="text-sm text-muted-foreground">Members of the destination container will gain access to this resource’s scan history.</p>{error && <p role="alert">{error}</p>}<Button busy={busy}>Move resource</Button></form></Modal> : mode && <Modal title={mode === 'edit' ? 'Repository settings' : 'Add repository'} description="Scan the default branch using public access or an explicitly selected GitHub connection.">
         <form className="mt-5 space-y-4" onSubmit={e => { e.preventDefault(); void save(e.currentTarget); }}>
-          {mode !== 'edit' && <label className="block text-sm">Repository URL<input autoFocus className={field} name="repository" placeholder="https://github.com/owner/repository" required maxLength={300}/></label>}
+          <RepositoryConnectionSelector repository={mode!=='edit'}/>
           <label className="block text-sm">Container access<select aria-label="Container access" className={field} name="projectId" defaultValue={selectedBinding?.project_id ?? ''}><option value="">Administrators only</option>{data?.projects.filter(p => !p.archived || p.id === selectedBinding?.project_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <p className="text-sm text-muted-foreground">{data?.flags.connections && data.flags.scanning ? 'New repositories use their default branch and start a source scan.' : 'You can add repositories now. Source scanning is currently unavailable.'}</p>
           {mode === 'edit' && <p className="text-xs text-muted-foreground">Changing the container changes who can access this repository’s scan history.</p>}
@@ -111,7 +113,7 @@ export function RepositoryCard({ binding: b, view = 'grid' }: { binding: Binding
   return <article className={view === 'grid' ? 'group relative isolate flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink' : 'mobile-project-row group relative isolate flex min-w-0 items-center gap-4 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50'}>
     <div className={`flex min-w-0 flex-1 ${view === 'grid' ? 'items-start gap-3' : 'items-center gap-2'}`}>
       <span className={view === 'grid' ? 'grid size-10 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground' : 'grid size-8 shrink-0 place-items-center text-muted-foreground'}><GitBranch size={view === 'grid' ? 20 : 17}/></span>
-      <div className="min-w-0 flex-1"><Link to="/repositories/$repository" params={{ repository: b.id }} title={b.repository} className="block w-full truncate text-left text-sm font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{b.repository}</Link><span className="mt-1 block truncate text-xs text-muted-foreground">{b.branch}</span></div>
+      <div className="min-w-0 flex-1"><Link to="/repositories/$repository" params={{ repository: b.id }} title={b.repository} className="block w-full truncate text-left text-sm font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{b.repository}</Link><span className="mt-1 block truncate text-xs text-muted-foreground">{b.branch}</span>{b.connection_label && <span className="mt-1 block truncate text-xs text-muted-foreground">{b.connection_label} · {b.connection_owner} · {b.connection_health}</span>}</div>
       <FavouriteButton name={b.repository} active={repos.favourites.has(item)} disabled={repos.favourites.disabled} onClick={() => void repos.favourites.toggle(item)}/>
       {repos.data?.administrator && <button type="button" aria-label={`Repository settings for ${b.repository}`} onClick={() => repos.edit(b)} className="relative z-10 grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-sunken"><Ellipsis size={17}/></button>}
     </div>

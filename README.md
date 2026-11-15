@@ -1,9 +1,49 @@
-# kopes.dev — single-host scanner
+# kopes.dev
 
-An installable TanStack Start app using Trivy, Better Auth (GitHub, Google and Microsoft), SQLite, Tailwind
-and shadcn-style Radix components. This repository is self-contained: it includes
-its own logo and light/dark design tokens and does not require the private landing
-page repository.
+## Your app shipped. Its vulnerabilities keep changing.
+
+Yesterday's deployment can pick up a newly disclosed vulnerability today,
+even if you haven't changed a line of code. Your app still responds, your
+containers still run, and the vulnerable package stays in place until you update it.
+
+**Kopes helps solo developers and small teams see what needs attention on their
+Docker or Coolify VPS.** Install it on the server you want to scan, then review
+known vulnerabilities in its container images and supported Linux host packages
+from one dashboard.
+
+- **Find the affected app.** Group container findings by project, with automatic
+  app names through the optional Coolify connection.
+- **Work out the next step.** Open a finding for affected packages, reported fixed
+  versions, and remediation guidance you can review before updating and redeploying.
+- **Keep checking after launch.** Schedule rescans and use Pulse to see newly
+  detected vulnerabilities and newly available fixes.
+
+Kopes uses Trivy for scanning. It reports findings and suggests next steps;
+you stay in control of changes to your server.
+
+**[Install with Coolify](#install-with-coolify-recommended)** ·
+[Install on a standalone VPS](#one-command-vps-installer) ·
+[Help shape Kopes](#help-shape-kopes)
+
+![Kopes walkthrough: container overview, resources, scan findings, vulnerability details, and remediation guidance](docs/media/kopes-walkthrough.gif)
+
+*A 23-second walkthrough captured from the local app: find a resource, inspect a
+vulnerability, and review the steps to update, redeploy, and verify.*
+
+### Help shape Kopes
+
+The most useful contributions right now are **feature requests, real-world
+testing, and bug reports**. Try it on your setup and tell us where it falls short.
+
+- [Request a feature](https://github.com/Mechse/kopes-scanner/issues/new?title=Feature%20request%3A%20).
+  Describe the task you're trying to finish and how you handle it today.
+- [Report a bug or share test results](https://github.com/Mechse/kopes-scanner/issues/new?title=Real-world%20feedback%3A%20).
+  Include your OS, Docker/Coolify version, installation method, what you expected,
+  and what happened. Remove secrets and private details from logs or screenshots.
+
+Want to work on the code? Start with the [development guide](#operate--develop).
+The app uses TanStack Start, Trivy, Better Auth, SQLite, Tailwind, and Radix
+components. This repository includes its own logo and light/dark design tokens.
 
 ## License
 
@@ -541,7 +581,8 @@ the same. Notification channels and responsibility settings are deferred.
 
 ## Independent repository analysis
 
-Open **Repositories** in the sidebar to add a public GitHub repository and inspect
+Open **Repositories** in the sidebar to add a public GitHub repository or explicitly
+select a configured GitHub App/PAT connection, and inspect
 its **Vulnerabilities**. The list includes advisories with or without CVE IDs,
 affected packages, installed/fixed versions, dependency paths, severity, and
 production/development scope filters. A dependency can have both scopes; incomplete
@@ -567,3 +608,80 @@ unpinned/local dependencies, omitted transitive dependencies, dependency paths,
 and production/development scope are not established by this adapter. Container
 OS packages remain part of container scans. Repositories without recognized,
 resolved inputs show “Repository not assessed” rather than implying a clean scan.
+
+### Private GitHub connections
+
+Administrators can configure an installation-owned private GitHub App through a
+manifest, or a fine-grained PAT fallback, in **Settings → GitHub connections**.
+App installation callbacks require independent GitHub user and App verification;
+scan tokens are repository-scoped and renewed in memory. Polling works without a
+public webhook endpoint. Connection changes and access removal stop pending and
+in-flight result publication while retaining historical reports and project access.
+
+This implementation still requires **live personal-account and organization
+acceptance**; automated provider fixtures are not live GitHub evidence. Read the
+[setup, permissions, recovery and validation guide](docs/github-connections.md)
+before enabling private scans. Existing sign-in methods and GitLab connections
+remain independent. Database migration 15 preserves legacy encrypted tokens.
+
+### Underlying container images
+
+After a new scan, the **Images** tab includes declared bases, bases discovered
+from published SLSA build provenance, and local images
+whose filesystem layers form a strict prefix of the container’s layers. Declared
+bases are followed recursively; remote scans currently support public Docker Hub
+and GHCR references pinned by OCI base digest labels or provenance materials.
+Provenance is checked for the installed platform and digest. If the original
+manifest has disappeared, the current tag may supply candidates, but only bases
+with matching installed layers are accepted. Build-stage-only inputs are omitted. Local matches confirm shared
+layers, not the original `FROM` name. Each successfully assessed underlying image
+has standalone findings, including packages later removed or updated in the final
+container. Failed or empty-package scans remain **Not assessed**.
+
+Discovery checks up to 100 local images and scans up to 12 underlying images over
+8 ancestry levels. Missing labels, unavailable base images, and discarded build
+stages can leave gaps; the final container scan still includes inherited packages.
+Existing saved reports keep their previous interpretation until rescanned. Deploy
+both the scanner and the updated socket proxy to enable local image discovery
+(the proxy now permits read-only `/images/json`).
+
+### Underlying image evidence and migration
+
+Schema 14 adds persistent ancestry and an immutable image scan cache. The migration
+runs in a transaction, preserves exact pre-migration image reports in
+`ancestry_migration_backup`, and labels legacy coverage as unknown. Existing scan
+observations are unchanged. Keep a normal SQLite backup before deploying; older
+application versions refuse schema 14 rather than silently downgrading it.
+
+Established layer relationships survive failed discovery and deleted registry
+manifests. Retained assessments display their historical status and original date.
+Successful base scans are shared by immutable reference and platform for one hour;
+after that, cached inventory is converted to an SBOM and reassessed without
+requiring the registry image to remain downloadable. Cache timestamps do not change
+the ancestry observation date. Container findings are the priority; do not sum
+standalone base counts across overlapping ancestry.
+
+Discovery supports BuildKit index attestations and OCI referrers (including the
+standard digest-tag fallback), SLSA v0.2/v1, declared OCI base labels, and strict
+local layer prefixes. Digest integrity checks are not signature verification:
+published provenance remains untrusted candidate evidence.
+
+For explicitly configured registries, set `KOPES_REGISTRIES` to a comma-separated
+list of registry hosts and `KOPES_DOCKER_CONFIG` to a mounted Docker configuration
+directory. Trivy reuses that configuration; discovery supports Docker Hub/GHCR
+token exchange and HTTPS Basic authentication for configured hosts. Discovery
+does not execute credential helpers or follow arbitrary authentication realms.
+Do not put credentials in image names. Anonymous access remains the default.
+
+Source discovery currently reads the root Dockerfile from public GitHub at the
+exact 40-character revision in OCI source labels. Only digest-pinned literal
+FROM references are candidates; mutable tags and build arguments are unresolved.
+Multistage build-only candidates are kept separate, and runtime candidates still
+require installed-layer verification. Private source retrieval, custom Dockerfile
+paths, signature verification, and generic registry bearer challenges are not
+implemented. Missing evidence never becomes “confirmed no base.”
+
+Discovery is bounded to 12 candidate scans and 8 ancestry levels, four attestation
+manifests and two statement layers per manifest, 4 MiB registry/source responses,
+20-second HTTP timeouts, and no application-level retries. Cancellation propagates
+through discovery and scanner work.

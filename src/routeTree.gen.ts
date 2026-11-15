@@ -19,7 +19,9 @@ import { Route as RepositoriesRepositoryRouteImport } from './routes/repositorie
 import { Route as SettingsUsersRouteImport } from './routes/settings_.users'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
+import { Route as ApiGithubSplatRouteImport } from './routes/api.github.$'
 import { Route as ApiSourceHookSplatRouteImport } from './routes/api.source-hook.$'
+import { Route as ImagesTargetImageRouteImport } from './routes/images.$target.$image'
 import { Route as RepositoriesRepositoryPackagesPackageRouteImport } from './routes/repositories_.$repository_.packages.$package'
 
 const IndexRoute = IndexRouteImport.update({
@@ -72,9 +74,19 @@ const ApiDataSplatRoute = ApiDataSplatRouteImport.update({
   path: '/api/data/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGithubSplatRoute = ApiGithubSplatRouteImport.update({
+  id: '/api/github/$',
+  path: '/api/github/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSourceHookSplatRoute = ApiSourceHookSplatRouteImport.update({
   id: '/api/source-hook/$',
   path: '/api/source-hook/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImagesTargetImageRoute = ImagesTargetImageRouteImport.update({
+  id: '/images/$target/$image',
+  path: '/images/$target/$image',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RepositoriesRepositoryPackagesPackageRoute =
@@ -95,7 +107,9 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/images/$target/$image': typeof ImagesTargetImageRoute
   '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesByTo {
@@ -109,7 +123,9 @@ export interface FileRoutesByTo {
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/images/$target/$image': typeof ImagesTargetImageRoute
   '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesById {
@@ -124,7 +140,9 @@ export interface FileRoutesById {
   '/settings_/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
+  '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
+  '/images/$target/$image': typeof ImagesTargetImageRoute
   '/repositories_/$repository_/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRouteTypes {
@@ -140,7 +158,9 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/github/$'
     | '/api/source-hook/$'
+    | '/images/$target/$image'
     | '/repositories/$repository/packages/$package'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,7 +174,9 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/github/$'
     | '/api/source-hook/$'
+    | '/images/$target/$image'
     | '/repositories/$repository/packages/$package'
   id:
     | '__root__'
@@ -168,7 +190,9 @@ export interface FileRouteTypes {
     | '/settings_/users'
     | '/api/auth/$'
     | '/api/data/$'
+    | '/api/github/$'
     | '/api/source-hook/$'
+    | '/images/$target/$image'
     | '/repositories_/$repository_/packages/$package'
   fileRoutesById: FileRoutesById
 }
@@ -183,7 +207,9 @@ export interface RootRouteChildren {
   SettingsUsersRoute: typeof SettingsUsersRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataSplatRoute: typeof ApiDataSplatRoute
+  ApiGithubSplatRoute: typeof ApiGithubSplatRoute
   ApiSourceHookSplatRoute: typeof ApiSourceHookSplatRoute
+  ImagesTargetImageRoute: typeof ImagesTargetImageRoute
   RepositoriesRepositoryPackagesPackageRoute: typeof RepositoriesRepositoryPackagesPackageRoute
 }
 
@@ -259,11 +285,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDataSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/github/$': {
+      id: '/api/github/$'
+      path: '/api/github/$'
+      fullPath: '/api/github/$'
+      preLoaderRoute: typeof ApiGithubSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/source-hook/$': {
       id: '/api/source-hook/$'
       path: '/api/source-hook/$'
       fullPath: '/api/source-hook/$'
       preLoaderRoute: typeof ApiSourceHookSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/images/$target/$image': {
+      id: '/images/$target/$image'
+      path: '/images/$target/$image'
+      fullPath: '/images/$target/$image'
+      preLoaderRoute: typeof ImagesTargetImageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/repositories_/$repository_/packages/$package': {
@@ -287,7 +327,9 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsUsersRoute: SettingsUsersRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataSplatRoute: ApiDataSplatRoute,
+  ApiGithubSplatRoute: ApiGithubSplatRoute,
   ApiSourceHookSplatRoute: ApiSourceHookSplatRoute,
+  ImagesTargetImageRoute: ImagesTargetImageRoute,
   RepositoriesRepositoryPackagesPackageRoute:
     RepositoriesRepositoryPackagesPackageRoute,
 }

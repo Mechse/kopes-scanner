@@ -1,4 +1,5 @@
-import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories } from './source/schema';
+import { normalizeAncestry, preserveAncestry } from '../lib/ancestry';
+import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections } from './source/schema';
 import { randomUUID } from 'node:crypto';
 import { migrateProjects, syncResources, linkScanResources } from './project-store';
 import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
@@ -19,7 +20,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 13) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 15) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -107,6 +108,19 @@ export class Store {
         PRIMARY KEY(provider,origin,provider_id,name)); PRAGMA user_version=12`);
     });
     if (version.user_version < 13) migrateIndependentRepositories(this.db);
+    if (version.user_version < 14) this.transaction(() => {
+      this.db.exec(`CREATE TABLE IF NOT EXISTS image_scan_cache (reference TEXT NOT NULL, platform TEXT NOT NULL, raw TEXT NOT NULL, assessed_at INTEGER NOT NULL, PRIMARY KEY(reference,platform));
+        CREATE TABLE IF NOT EXISTS image_ancestry (target TEXT PRIMARY KEY, report_json TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS ancestry_migration_backup (target TEXT PRIMARY KEY, report_json TEXT NOT NULL);`);
+      for (const row of this.db.prepare("SELECT id,report_json FROM targets WHERE kind='image' AND report_json IS NOT NULL").all()) {
+        this.db.prepare('INSERT OR IGNORE INTO ancestry_migration_backup VALUES (?,?)').run(row.id, row.report_json);
+        const report = JSON.stringify(normalizeAncestry(JSON.parse(String(row.report_json))));
+        this.db.prepare('UPDATE targets SET report_json=? WHERE id=?').run(report, row.id);
+        this.db.prepare('INSERT OR IGNORE INTO image_ancestry VALUES (?,?)').run(row.id, report);
+      }
+      this.db.exec('PRAGMA user_version=14');
+    });
+    if (version.user_version < 15) this.transaction(() => migrateGithubConnections(this.db));
     if (!this.getMeta('pulseInitialized')) this.transaction(() => {
       for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
         this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));
@@ -343,10 +357,22 @@ export class Store {
       summary: row.summary_json ? JSON.parse(row.summary_json) : null,
       suggestions: JSON.parse(row.suggestions_json), recommendation_note: row.recommendation_note };
   }
+  cachedImage(reference: string, platform: string, includeStale = false) {
+    const row = this.db.prepare('SELECT raw FROM image_scan_cache WHERE reference=? AND platform=? AND assessed_at>?').get(reference, platform, includeStale ? 0 : Date.now() - 60 * 60_000);
+    return row ? String(row.raw) : null;
+  }
+  cacheImage(reference: string, platform: string, raw: string) {
+    this.db.prepare('INSERT INTO image_scan_cache VALUES (?,?,?,?) ON CONFLICT(reference,platform) DO UPDATE SET raw=excluded.raw, assessed_at=excluded.assessed_at').run(reference, platform, raw, Date.now());
+  }
   complete(id: string, report: Report, sbom: string, platform: string | null, suggestions: Suggestion[], note: string) {
     this.transaction(() => {
       const scannedAt = Date.now();
       if (!this.db.prepare('SELECT 1 FROM targets WHERE id=?').get(id)) throw new Error('Unknown scan target.');
+      if (this.db.prepare("SELECT 1 FROM targets WHERE id=? AND kind='image'").get(id)) {
+        const saved = this.db.prepare('SELECT report_json FROM image_ancestry WHERE target=?').get(id);
+        report = preserveAncestry(saved ? JSON.parse(String(saved.report_json)) : this.report(id), report);
+        this.db.prepare('INSERT INTO image_ancestry VALUES (?,?) ON CONFLICT(target) DO UPDATE SET report_json=excluded.report_json').run(id, JSON.stringify(report));
+      }
       const observationId = randomUUID();
       this.db.prepare('INSERT INTO scan_observations VALUES (?,?,?,?,?,?,0)')
         .run(observationId, id, scannedAt, JSON.stringify(report), sbom, platform);

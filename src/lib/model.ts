@@ -14,7 +14,11 @@ export const garageRelease = {
   commit: '268334bd2530fa99f8b06c7383b2e9f776691edd',
   binarySha256: '004b6081c6e3cccbb80317c69e3c5749fbb3fc889e217cc9b89c215bf0dd7ded',
 };
-export type Report = { imageContext?: string; coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
+export type AncestryReason = 'old-scan' | 'missing-metadata' | 'deleted-manifest' | 'authentication-required' | 'registry-failure' | 'discovery-limit' | 'source-only';
+export type AncestryCoverage = { state: 'incomplete' | 'confirmed-no-base'; reasons: AncestryReason[]; checkedAt?: number };
+export type ImageIdentity = { configId?: string; manifestDigest?: string; indexDigest?: string; platform?: string };
+export type BaseImage = { identity?: ImageIdentity; evidence?: { kind: 'declared-reference' | 'provenance-reference' | 'dockerfile-reference' | 'layer-match'; authenticity: 'unverified'; observedAt: number }[]; scanStatus?: 'pending' | 'scanned' | 'failed' | 'unavailable' | 'unknown'; discoveredAt?: number; assessedAt?: number; historical?: boolean; name?: string; digest: string; verified: boolean; source?: 'declared' | 'local' | 'provenance' | 'dockerfile'; parentDigest?: string; depth?: number; layers?: string[]; report?: Report; error?: string };
+export type Report = { buildOnlyImages?: { name: string; digest: string }[]; ancestry?: AncestryCoverage; baseImages?: BaseImage[]; baseDiscoveryNote?: string; imageContext?: string; coverage?: 'release-source'; findings: Finding[]; packages: Package[]; os: string; eol: boolean };
 export type Summary = { newCves?: string[]; coverage?: Report['coverage']; counts: Record<Severity, number>; packages: number; fixable: number; os: string; eol: boolean };
 export type Suggestion = {
   action?: 'Rebuild' | 'Upgrade' | 'Remove'; scope?: 'base-image' | 'image'; currentPackages?: number; candidatePackages?: number; currentOs?: string; candidateOs?: string; baseline?: string;

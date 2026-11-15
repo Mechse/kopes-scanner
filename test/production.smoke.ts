@@ -81,6 +81,19 @@ test('standalone production output: SSR, assets, auth, access control and data',
     const dashboard = await data.json();
     assert.equal(dashboard.targets[0].summary.os, 'debian 12');
     assert.equal(dashboard.isAdmin, true);
+    // Production routing/auth boundaries for GitHub setup; no live provider responses are mocked here.
+    for (const endpoint of ['github','github-repositories?connectionId=missing']) {
+      assert.equal((await fetch(`${origin}/api/data/${endpoint}`)).status,401);
+      assert.equal((await fetch(`${origin}/api/data/${endpoint}`,{headers:{cookie:memberCookie}})).status,403);
+    }
+    const githubSettings=await fetch(`${origin}/api/data/github`,{headers:{cookie}});
+    assert.equal(githubSettings.status,200);assert.match(githubSettings.headers.get('cache-control')??'',/no-store/);
+    assert.deepEqual(await githubSettings.json(),{connections:[],apps:[]});
+    assert.equal((await fetch(`${origin}/api/data/github`,{method:'POST',headers:{cookie,origin:'https://attacker.example'},body:'{}'})).status,403);
+    const callback=await fetch(`${origin}/api/github/install/callback?installation_id=1&state=untrusted`,{redirect:'manual'});
+    assert.equal(callback.status,303);assert.equal(callback.headers.get('location'),origin+'/settings');assert.equal(callback.headers.get('referrer-policy'),'no-referrer');
+    const webhook=await fetch(`${origin}/api/github/webhooks/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`,{method:'POST',body:'{}'});
+    assert.equal(webhook.status,400); // Reachable with scans disabled, but unsigned/unknown Apps cannot act.
     const settingsPath = `${origin}/api/data/settings?scope=resource&key=host`;
     assert.equal((await fetch(settingsPath)).status, 401);
     const currentSettings = await fetch(settingsPath, { headers: { cookie } });

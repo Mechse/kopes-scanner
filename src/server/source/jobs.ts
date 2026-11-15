@@ -1,3 +1,5 @@
+import { GithubError, githubErrorMessage, githubHttp, type GithubHttp } from './github-http';
+import { credentialProvider, connectionRevision } from './github-app';
 import { sourceAnalyzerVersion } from './version';
 import { enrichLegacyCvss } from './legacy-cvss';
 import { cleanSourceSpool, requireSourceStorage, recordStorageError, SourceStoragePressure } from './storage';
@@ -11,7 +13,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import type { Store } from '../store';
 import type { Config } from '../config';
-import { connectionFor, enqueueSource, sourceFlags, sourcePolicy } from './service';
+import { enqueueSource, sourceFlags, sourcePolicy } from './service';
 import { GitProvider, providerReader, type ReadJson } from './provider';
 const text = z.string().max(4096);
 const scope = z.enum(['runtime','development','optional','peer','unknown']);
@@ -41,13 +43,13 @@ export function needsSourceAnalysis(kind: string, head: string | null, commit: s
 export function queueDueSources(store: Store) {
   if (!sourceFlags().scanning) return;
   const due = store.db.prepare(`SELECT b.id FROM source_bindings b LEFT JOIN projects p ON p.id=b.project_id JOIN source_connections c ON c.id=b.connection_id
-    WHERE b.enabled=1 AND (b.project_id IS NULL OR p.archived=0) AND c.disconnected=0 AND b.next_poll<=? ORDER BY b.next_poll LIMIT 20`).all(Date.now());
+    WHERE b.enabled=1 AND b.access_status='active' AND (b.project_id IS NULL OR p.archived=0) AND c.disconnected=0 AND b.next_poll<=? ORDER BY b.next_poll LIMIT 20`).all(Date.now());
   for (const row of due) {
     enqueueSource(store, String(row.id), 'poll');
     store.db.prepare('UPDATE source_bindings SET next_poll=? WHERE id=?').run(Date.now()+15*60_000, row.id);
   }
 }
-export async function runSourceJob(store: Store, config: Config, signal: AbortSignal, read: ReadJson = providerReader(sourcePolicy()), admission = requireSourceStorage): Promise<boolean> {
+export async function runSourceJob(store: Store, config: Config, signal: AbortSignal, read: ReadJson = providerReader(sourcePolicy()), admission: (store: Store, spool: string) => Promise<unknown> = requireSourceStorage, http: GithubHttp = githubHttp): Promise<boolean> {
   if (!sourceFlags().scanning || !sourceFlags().connections || !process.env.KOPES_SOURCE_SPOOL) return false;
   if (await sourceWorkerBusy()) return false;
   // Storage failure pauses source admission without polling providers or consuming retries.
@@ -59,20 +61,23 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     recordStorageError(store,'');
   } catch(e) { recordStorageError(store,e instanceof SourceStoragePressure?e.reason:'Source scanning paused: temporary storage maintenance failed.'); return false; }
   queueDueSources(store);
-  const job = store.db.prepare(`SELECT j.*,b.repository_id,b.connection_id,b.branch,b.folder,b.project_id,b.head_sha,b.error AS binding_error,r.provider_id,c.credential_version
+  const job = store.db.prepare(`SELECT j.*,b.repository_id,b.connection_id,b.branch,b.folder,b.project_id,b.head_sha,b.error AS binding_error,r.provider_id,c.credential_version,b.access_revision AS binding_revision
     FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id LEFT JOIN projects p ON p.id=b.project_id
     JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id
-    WHERE j.state='queued' AND j.available_at<=? AND b.enabled=1 AND c.disconnected=0 AND (b.project_id IS NULL OR p.archived=0) ORDER BY j.created_at LIMIT 1`).get(Date.now());
+    WHERE j.state='queued' AND j.available_at<=? AND b.enabled=1 AND b.access_status='active' AND c.disconnected=0 AND (b.project_id IS NULL OR p.archived=0) ORDER BY j.created_at LIMIT 1`).get(Date.now());
   if (!job) return false;
   const jobId = String(job.id), spool = process.env.KOPES_SOURCE_SPOOL;
   const attemptId = randomUUID();
   const input = join(spool, 'in', attemptId+'.json'), output = join(spool, 'out', attemptId+'.json');
   store.db.prepare("UPDATE source_jobs SET state='running',attempted_at=?,attempts=attempts+1 WHERE id=?").run(Date.now(), jobId);
-  const active = () => !signal.aborted && Boolean(store.db.prepare(`SELECT 1 FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id JOIN source_connections c ON c.id=b.connection_id
-    WHERE j.id=? AND j.state='running' AND b.enabled=1 AND c.disconnected=0 AND c.credential_version=?`).get(jobId, job.credential_version));
+  let accessRevision = '';
+  try { accessRevision = connectionRevision(store,String(job.connection_id),String(job.provider_id)); } catch { store.db.prepare("UPDATE source_jobs SET state='cancelled' WHERE id=?").run(jobId); return true; }
+  const accessCurrent = () => { try { return connectionRevision(store,String(job.connection_id),String(job.provider_id))===accessRevision; } catch { return false; } };
+  const active = () => accessCurrent() && !signal.aborted && Boolean(store.db.prepare(`SELECT 1 FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id JOIN source_connections c ON c.id=b.connection_id LEFT JOIN projects p ON p.id=b.project_id
+    WHERE (b.project_id IS NULL OR p.archived=0) AND j.id=? AND j.state='running' AND b.enabled=1 AND b.access_status='active' AND c.disconnected=0 AND c.credential_version=? AND b.connection_id=? AND b.access_revision=?`).get(jobId, job.credential_version,job.connection_id,job.binding_revision));
   let stage = 'Repository access';
   try {
-    const provider = new GitProvider(connectionFor(store, String(job.connection_id), config.secret), read);
+    const { provider } = credentialProvider(store,String(job.connection_id),config.secret,read,String(job.provider_id),http);
     const repo = await provider.repository(String(job.provider_id));
     if (!active()) return true;
     if (repo.providerId !== String(job.provider_id)) throw new Error('Repository identity changed.');
@@ -80,6 +85,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     if (!historical) store.db.prepare('UPDATE source_bindings SET branch=? WHERE id=?').run(repo.branch, job.binding_id);
     const commit = historical ? String(job.commit_sha) : await provider.head(repo, repo.branch);
     const last = historical ? undefined : store.db.prepare("SELECT s.observed_at,s.snapshot_id,s.result_json,s.analyzer FROM source_scans s JOIN source_jobs j ON j.id=s.job_id WHERE s.binding_id=? AND j.kind NOT LIKE 'deployed:%' ORDER BY s.observed_at DESC LIMIT 1").get(job.binding_id);
+    if (!active()) return true;
     if (!needsSourceAnalysis(String(job.kind), job.head_sha === null ? null : String(job.head_sha), commit, last ? Number(last.observed_at) : undefined, Date.now(), { error: job.binding_error || job.error, analyzer: last ? String(last.analyzer) : undefined })) {
       store.db.prepare("UPDATE source_jobs SET state='complete',commit_sha=?,error=NULL WHERE id=?").run(commit, jobId); return true;
     }
@@ -93,7 +99,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     await admission(store,spool);
     if (!active()) return true;
     await rm(output, { force: true });
-    await writeFile(input+'.tmp', JSON.stringify({ bundle, folder: job.folder, rematch }), { mode: 0o600 }); await rename(input+'.tmp', input);
+    await writeFile(input+'.tmp', JSON.stringify({ bundle, folder: job.folder, rematch }), { mode: 0o600 }); if (!active()) return true; await rename(input+'.tmp', input);
     stage = 'Isolated dependency analysis';
     let completed = false;
     for (let tick = 0; tick < 220; tick++) {
@@ -113,7 +119,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     await enrichLegacyCvss(result.analysis.findings);
     if (!active()) return true;
     let history: Awaited<ReturnType<GitProvider['history']>> | undefined;
-    if (sourceFlags().provenance) { try { history = await provider.history(repo, commit); } catch { /* Attribution unavailable; scan evidence is still useful. */ } }
+    if (sourceFlags().provenance && store.db.prepare("SELECT 1 FROM source_connections WHERE id=? AND (auth_kind NOT IN ('pat','github_app') OR history=1)").get(job.connection_id)) { try { history = await provider.history(repo, commit); } catch { /* Attribution unavailable; scan evidence is still useful. */ } }
     if (!active()) return true;
     await admission(store,spool);
     stage = 'Saving source scan results';
@@ -147,11 +153,11 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
         recordStorageError(store,failure.reason);
         return true;
       }
-      const error = `${stage} failed. Retry the scan; if it continues, check the source worker and provider connection. Coverage is unknown; historical scans are retained.`;
+      const error = failure instanceof GithubError ? githubErrorMessage(failure) : `${stage} failed. Retry the scan; if it continues, check the source worker and provider connection. Coverage is unknown; historical scans are retained.`;
       const attempts = Number(job.attempts)+1;
-      store.db.prepare("UPDATE source_jobs SET state=?,error=?,available_at=? WHERE id=?").run(attempts >= 3 ? 'failed' : 'queued', error, Date.now()+Math.min(3600_000, 60_000*2**attempts), jobId);
+      store.db.prepare("UPDATE source_jobs SET state=?,error=?,available_at=? WHERE id=?").run(attempts >= 3 ? 'failed' : 'queued', error, failure instanceof GithubError && failure.retryAt ? failure.retryAt : Date.now()+Math.min(3600_000, 60_000*2**attempts), jobId);
       store.db.prepare('UPDATE source_bindings SET error=? WHERE id=?').run(error, job.binding_id);
-      store.db.prepare("UPDATE source_connections SET health='stale-or-error',observed_at=? WHERE id=?").run(Date.now(), job.connection_id);
+      store.db.prepare("UPDATE source_connections SET health=?,observed_at=? WHERE id=?").run(failure instanceof GithubError ? failure.reason : 'stale-or-error',Date.now(),job.connection_id);
     } else store.db.prepare("UPDATE source_jobs SET state='cancelled' WHERE id=? AND state='running'").run(jobId);
   } finally {
     if (!active()) store.db.prepare("UPDATE source_jobs SET state=?,available_at=? WHERE id=? AND state='running'").run(signal.aborted ? 'queued' : 'cancelled', Date.now(), jobId);

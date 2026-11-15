@@ -1,3 +1,5 @@
+import { handleGithub } from '../server/source/github-connections';
+import { githubContext } from '../server/source/github-auth';
 import { findingEvidence, annotateReport, syncSourcePulse } from '../server/source/finding-evidence';
 import { rescan } from '../server/rescan';
 import { handleRepositories } from '../server/source/repositories';
@@ -22,10 +24,11 @@ async function handle({ request }: { request: Request }) {
   const url = new URL(request.url);
   const action = url.pathname.replace('/api/data/', '');
   const id = url.searchParams.get('id') ?? '';
+  if (action === 'github' || action === 'github-repositories') return handleGithub(request,store,await githubContext(request),config);
   if (action === 'favourites') return handleFavourites(request, store, session.user.id, config.origin, isAdmin);
   if (action === 'provenance') return handleProvenance(request, store, { userId: session.user.id, administrator: isAdmin }, config);
-  if (action === 'repositories') return handleRepositories(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin);
-  if (action === 'source') return handleSource(request, store, { userId: session.user.id, administrator: isAdmin }, config);
+  if (action === 'repositories') return handleRepositories(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin, undefined, config.secret, isAdmin ? (await githubContext(request)).recheck : undefined);
+  if (action === 'source') return handleSource(request, store, { userId: session.user.id, administrator: isAdmin }, { ...config, recheck: isAdmin ? (await githubContext(request)).recheck : undefined });
   if (action === 'projects') return handleProjects(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin);
   if (action === 'auth-settings') return handleAuthSettings(request, isAdmin, session.user.accessId?.startsWith('microsoft:') ? 'microsoft' : session.user.accessId ? 'google' : 'github', store, baseConfig);
   if (action === 'coolify') return handleCoolifySettings(request, isAdmin, store, config);

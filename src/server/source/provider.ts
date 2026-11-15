@@ -39,7 +39,7 @@ export function providerReader(policy: NetworkPolicy): ReadJson {
       const chosen = addresses[0];
       const req = https.request(url, { method: 'GET', family: chosen.family, ca: policy.ca, signal: AbortSignal.timeout(30_000),
         lookup: (_hostname, _options, callback) => callback(null, chosen.address, chosen.family),
-        headers: { 'User-Agent': 'kopes-source', Accept: 'application/json', ...(connection.token ? connection.provider === 'github' ? { Authorization: `Bearer ${connection.token}` } : { 'PRIVATE-TOKEN': connection.token } : {}) },
+        headers: { 'User-Agent': 'kopes-source', Accept: 'application/json', ...(connection.provider==='github'?{'X-GitHub-Api-Version':'2026-03-10'}:{}), ...(connection.token ? connection.provider === 'github' ? { Authorization: `Bearer ${connection.token}` } : { 'PRIVATE-TOKEN': connection.token } : {}) },
       }, res => {
         if (res.statusCode !== 200) { res.resume(); reject(new ProviderError(res.statusCode ?? 0)); return; }
         const chunks: Buffer[] = []; let size = 0;
@@ -65,6 +65,7 @@ export class GitProvider {
       ? /^\d+$/.test(locator) ? `/repositories/${locator}` : `/repos/${locator.split('/').map(segment).join('/')}`
       : `/api/v4/projects/${segment(locator)}`);
     if (!repo.id || typeof (repo.full_name ?? repo.path_with_namespace) !== 'string' || typeof repo.default_branch !== 'string') throw new Error('Incomplete repository identity.');
+    if (this.connection.provider==='github' && (!/^[1-9][0-9]{0,19}$/.test(String(repo.id)) || typeof repo.id==='number' && !Number.isSafeInteger(repo.id))) throw new Error('Invalid repository identity.');
     return { providerId: String(repo.id), name: repo.full_name ?? repo.path_with_namespace, branch: repo.default_branch };
   }
   private root(repo: Repository) { return this.connection.provider === 'github' ? `/repos/${repo.name.split('/').map(segment).join('/')}` : `/api/v4/projects/${segment(repo.providerId)}`; }

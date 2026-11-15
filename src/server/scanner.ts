@@ -1,3 +1,5 @@
+import { sourceDockerfileCandidates } from './dockerfile-evidence';
+import { imageProvenance } from './image-provenance';
 import { comparisonLimitation } from '../lib/image-improvement';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -6,11 +8,11 @@ import type { Config } from './config';
 import type { Store } from './store';
 import { snapshotHost } from './host';
 import { garageSourceInventory } from './garage-release';
-import { attributeReport, imageEvidence } from './image-evidence';
-import { publicImage } from './registry';
+import { attributeReport } from './image-evidence';
+import { discoverBaseImages, discoveryFailure } from './base-images';
 import { parseReport } from './trivy';
-import { imagePlatform } from './docker';
-import { discoverCandidates } from './registry';
+import { imagePlatform, localImages } from './docker';
+import { discoverCandidates, registryIdentity } from './registry';
 import { compareReports, hasEmptyImageInventory, NoPackageCoverage, matchSbom, readOutput, runTrivy } from './trivy';
 
 export async function scanTarget(config: Config, store: Store, target: Target, signal: AbortSignal) {
@@ -38,6 +40,7 @@ export async function scanTarget(config: Config, store: Store, target: Target, s
       const expected = JSON.parse(sourceInventory).components.length;
       if (report.packages.length !== expected) throw new Error('The matcher did not recognize the full release-source inventory.');
       report.coverage = 'release-source';
+      report.ancestry = { state: 'incomplete', reasons: ['source-only'], checkedAt: Date.now() };
       store.complete(target.id, report, sbom, platform, [], '');
       return;
     }
@@ -51,28 +54,70 @@ export async function scanTarget(config: Config, store: Store, target: Target, s
       try {
         const imageJson = join(work, 'image-evidence.json');
         await runTrivy(config, ['image', '--image-src', 'docker', '--docker-host', config.docker.replace('http:', 'tcp:'), '--list-all-pkgs', '--format', 'json', '--output', imageJson, target.image_id!], signal);
-        const raw = await readOutput(imageJson), evidence = imageEvidence(raw);
+        const raw = await readOutput(imageJson);
         baselineDigests = (JSON.parse(raw).Metadata?.RepoDigests ?? []).map((ref: string) => ref.split('@')[1]).filter(Boolean);
         const direct = parseReport(raw);
         // The direct image scan retains occurrence paths and layers that SBOM matching loses.
         Object.assign(report, direct);
         attributeReport(report, raw);
-        let baseRaw: string | undefined;
-        const base = evidence.baseName && publicImage(evidence.baseName);
-        if (base && evidence.baseDigest) {
-          const basePath = join(work, 'base.json');
-          await runTrivy(config, ['image', '--image-src', 'remote', '--platform', platform!, '--list-all-pkgs', '--format', 'json', '--output', basePath, `${base.name}@${evidence.baseDigest}`], signal);
-          baseRaw = await readOutput(basePath);
-          const layers = imageEvidence(baseRaw).layers;
-          if (layers.length && layers.every((layer, i) => evidence.layers[i] === layer)) {
-            baselineDigests = [evidence.baseDigest];
-            baselineImageId = JSON.parse(baseRaw).Metadata?.ImageID ?? null;
-            baseline = parseReport(baseRaw); recommendationReference = evidence.baseName!; baseComparison = true;
+        const local = await localImages(config.docker, signal).catch(() => {
+          signal.throwIfAborted();
+          return { images: [], note: 'Local image discovery unavailable. Base images without labels may be missing.' };
+        });
+        let sequence = 0;
+        const discoveryReasons: import('../lib/model').AncestryReason[] = [];
+        const ancestry = await discoverBaseImages(raw, local.images, async (reference, source) => {
+          const cached = store.cachedImage(reference, platform!);
+          if (cached) return cached;
+          const path = join(work, `base-${sequence++}.json`);
+          const inventory = store.cachedImage(reference, platform!, true);
+          if (inventory) {
+            // Immutable inventory survives registry deletion; update advisories independently.
+            await writeFile(path, inventory, { mode: 0o600 });
+            const baseSbom = path + '.cdx';
+            await runTrivy(config, ['convert', '--format', 'cyclonedx', '--output', baseSbom, path], signal);
+            const refreshed = await matchSbom(config, baseSbom, path + '.assessment', signal);
+            const cachedRaw = JSON.parse(inventory);
+            cachedRaw.KopesReport = refreshed;
+            cachedRaw.KopesAssessedAt = Date.now();
+            const output = JSON.stringify(cachedRaw);
+            store.cacheImage(reference, platform!, output);
+            return output;
           }
+          await runTrivy(config, ['image', '--image-src', source, ...(source === 'docker' ? ['--docker-host', config.docker.replace('http:', 'tcp:')] : ['--platform', platform!]), '--list-all-pkgs', '--format', 'json', '--output', path, reference], signal);
+          const scanned = JSON.parse(await readOutput(path));
+          if (source === 'remote') {
+            try { scanned.KopesIdentity = await registryIdentity(reference, platform!, signal); }
+            catch { signal.throwIfAborted(); /* Unknown digest kind stays unknown. */ }
+          }
+          scanned.KopesAssessedAt = Date.now();
+          const output = JSON.stringify(scanned);
+          store.cacheImage(reference, platform!, output);
+          return output;
+        }, signal, async imageRaw => {
+          const refs: string[] = JSON.parse(imageRaw).Metadata?.RepoDigests ?? [];
+          const reference = refs[0];
+          const source = await sourceDockerfileCandidates(imageRaw, signal);
+          report.buildOnlyImages = [...(report.buildOnlyImages ?? []), ...source.filter(base => base.role === 'build-only')];
+          const dockerfile = source.filter(base => base.role === 'runtime').map(base => ({ ...base, source: 'dockerfile' as const }));
+          // Source candidates remain available even when the registry has no provenance.
+          try { return [...dockerfile, ...(reference ? await imageProvenance(reference, platform!, signal) : [])]; }
+          catch (error) { if (!dockerfile.length) throw error; signal.throwIfAborted(); discoveryReasons.push(discoveryFailure(error)); return dockerfile; }
+        });
+        attributeReport(report, raw, ancestry.direct?.raw);
+        report.baseImages = ancestry.bases;
+        report.ancestry = { ...ancestry.coverage, reasons: [...new Set([...ancestry.coverage.reasons, ...discoveryReasons])] };
+        report.baseDiscoveryNote = [local.note, ancestry.note, 'Discovery uses declared bases, published build provenance, and locally available images with matching layers. Missing metadata or images can leave gaps; discarded build stages are not included.'].filter(Boolean).join(' ');
+        if (ancestry.direct) {
+          baselineDigests = [ancestry.direct.digest];
+          baselineImageId = JSON.parse(ancestry.direct.raw).Metadata?.ImageID ?? null;
+          baseline = parseReport(ancestry.direct.raw);
+          recommendationReference = ancestry.direct.name;
+          baseComparison = true;
         }
-        attributeReport(report, raw, baseRaw);
       } catch {
         if (signal.aborted) throw new Error('Scan interrupted.');
+        report.ancestry = { state: 'incomplete', reasons: ['missing-metadata'], checkedAt: Date.now() };
         provenanceNote = ' Image build evidence unavailable; unproven origins remain Unknown.';
       }
       if (!baseComparison) provenanceNote += ' Base-image comparison unavailable: supply OCI base name/digest labels and preserved image layers, then rescan. No base-image savings are claimed.';

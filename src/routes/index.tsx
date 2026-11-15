@@ -1,3 +1,4 @@
+import { ContainerImages } from '../components/container-images';
 import { containerCoverageAreas } from '../lib/assessment-coverage';
 import { FindingsSummary } from '../components/findings-summary';
 import { freshness } from '../lib/coverage-explanation';
@@ -61,7 +62,7 @@ type Location = {
   projectSettings?: boolean;
   resource?: string;
   view?: "apps";
-  tab?: "activity";
+  tab?: "activity" | "images";
   events?: "all" | "findings" | "scans";
   activityResource?: string;
   target?: string;
@@ -92,7 +93,7 @@ export const Route = createFileRoute("/")({
         ? "apps"
         : undefined,
     project: typeof input.project === "string" ? input.project : undefined,
-    tab: input.tab === "activity" || (input.view === "activity" && (typeof input.project === "string" || typeof input.target === "string")) ? "activity" : undefined,
+    tab: input.tab === "images" ? "images" : input.tab === "activity" || (input.view === "activity" && (typeof input.project === "string" || typeof input.target === "string")) ? "activity" : undefined,
     events: input.events === "findings" || input.events === "scans" || input.events === "all" ? input.events : input.log === true ? "scans" : undefined,
     activityResource: typeof input.activityResource === "string" ? input.activityResource : undefined,
     target: typeof input.target === "string" ? input.target : undefined,
@@ -170,7 +171,7 @@ function WorkspaceContent() {
         report={isReport ? ((selectedApp ? resourceName(selectedApp) : undefined) ?? (target ? targetName(target) : "Scan target")) : undefined}
       />
       {data && view === "apps" && !projectSettings && (id || project !== undefined || managedId) && <nav aria-label={id ? "Resource views" : "Container views"} className="-mx-4 flex gap-5 border-b border-border px-4">
-        {[{ label: id ? "Findings" : "Resources", tab: undefined }, { label: "Activity", tab: "activity" as const }].map(item => <Link key={item.label} to="/" search={{ ...search, tab: item.tab, finding: undefined }} aria-current={tab === item.tab ? 'page' : undefined} className={`border-b-2 py-3 text-sm ${tab === item.tab ? 'border-current font-medium' : 'border-transparent text-muted-foreground'}`}>{item.label}</Link>)}
+        {[{ label: id ? "Findings" : "Resources", tab: undefined }, ...(target?.kind === "image" ? [{ label: "Images", tab: "images" as const }] : []), { label: "Activity", tab: "activity" as const }].map(item => <Link key={item.label} to="/" search={{ ...search, tab: item.tab, finding: undefined }} aria-current={tab === item.tab ? 'page' : undefined} className={`border-b-2 py-3 text-sm ${tab === item.tab ? 'border-current font-medium' : 'border-transparent text-muted-foreground'}`}>{item.label}</Link>)}
       </nav>}
       {!data && inventory?.error && <p role="alert" className={`${noticeClass} text-critical`}>{inventory.error}</p>}
       {!data ? (
@@ -333,6 +334,7 @@ function TargetDetail({
   function findingSearch(index: number) {
     return { ...search, scan: loadedAt ?? undefined, finding: index };
   }
+  if (search.tab === "images" && target.kind === "image") return <ContainerImages target={target} report={report} scannedAt={loadedAt} error={error} app={selectedApp} project={search.project} managedId={search.managedId}/>;
   return (
     <>
       {showingFinding && (

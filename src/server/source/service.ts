@@ -1,5 +1,6 @@
+import { credentialProvider, invalidateConnection } from './github-app';
 import { boundedBody } from './body';
-import { createHmac, createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Store } from '../store';
 import { ProjectStore, type ProjectPrincipal } from '../project-store';
@@ -7,26 +8,17 @@ import { GitProvider, providerReader, validateOrigin, safeInputPath, type Connec
 
 export const sourceFlags = () => ({ connections: process.env.KOPES_SOURCE_PILOT === '1', scanning: process.env.KOPES_SOURCE_SCAN_PILOT === '1', provenance: process.env.KOPES_PROVENANCE_PILOT === '1' });
 export const sourcePolicy = (): NetworkPolicy => ({ gitlabOrigins: (process.env.KOPES_GITLAB_ORIGINS ?? '').split(',').filter(Boolean), privateOrigins: (process.env.KOPES_GITLAB_PRIVATE_ORIGINS ?? '').split(',').filter(Boolean), ca: process.env.KOPES_GITLAB_CA_PEM || undefined });
-function key(secret: string) { return createHash('sha256').update(`kopes.source.credentials\0${secret}`).digest(); }
-export function seal(token: string, secret: string, identity: string) {
-  const nonce = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key(secret), nonce); cipher.setAAD(Buffer.from(identity));
-  const ciphertext = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
-  return Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]).toString('base64');
-}
-export function unseal(value: string, secret: string, identity: string) {
-  const bytes = Buffer.from(value, 'base64'), cipher = createDecipheriv('aes-256-gcm', key(secret), bytes.subarray(0,12));
-  cipher.setAAD(Buffer.from(identity)); cipher.setAuthTag(bytes.subarray(12,28));
-  return Buffer.concat([cipher.update(bytes.subarray(28)), cipher.final()]).toString('utf8');
-}
+export { seal, unseal } from './credentials';
+import { seal, unseal } from './credentials';
 export function connectionFor(store: Store, id: string, secret: string): Connection {
   const row = store.db.prepare('SELECT * FROM source_connections WHERE id=? AND disconnected=0').get(id);
-  if (!row || !['github','gitlab'].includes(String(row.provider))) throw new Error('Connection unavailable.');
+  if (!row || row.auth_kind === 'github_app' || !['github','gitlab'].includes(String(row.provider))) throw new Error('Connection unavailable.');
   return { provider: row.provider as Connection['provider'], origin: String(row.origin), token: row.credential ? unseal(String(row.credential), secret, `${row.id}:${row.origin}`) : '' };
 }
 export function enqueueSource(store: Store, bindingId: string, kind = 'scan', commit?: string) {
   if (commit && !/^[a-f0-9]{40,64}$/.test(commit)) throw new Error('Invalid commit.');
   const binding = store.db.prepare(`SELECT 1 FROM source_bindings b LEFT JOIN projects p ON p.id=b.project_id
-    JOIN source_connections c ON c.id=b.connection_id WHERE b.id=? AND b.enabled=1 AND (b.project_id IS NULL OR p.archived=0) AND c.disconnected=0`).get(bindingId);
+    JOIN source_connections c ON c.id=b.connection_id WHERE b.id=? AND b.enabled=1 AND (b.project_id IS NULL OR p.archived=0) AND c.disconnected=0 AND b.access_status='active'`).get(bindingId);
   if (!binding) throw new Error('Binding is not active.');
   store.db.prepare("INSERT OR IGNORE INTO source_jobs(id,binding_id,kind,state,created_at,available_at,commit_sha) VALUES (?,?,?,'queued',?,?,?)")
     .run(randomUUID(), bindingId, kind, Date.now(), Date.now(), commit ?? null);
@@ -40,7 +32,7 @@ const command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('scan'), bindingId: id }).strict(),
   z.object({ action: z.literal('cancel'), bindingId: id }).strict(),
 ]);
-export async function handleSource(request: Request, store: Store, principal: ProjectPrincipal, options: { secret: string; origin: string }, reader: ReadJson = providerReader(sourcePolicy())) {
+export async function handleSource(request: Request, store: Store, principal: ProjectPrincipal, options: { secret: string; origin: string; recheck?: () => Promise<void> }, reader: ReadJson = providerReader(sourcePolicy())) {
   const flags = sourceFlags();
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'private, no-store' } });
   if (!flags.connections) return json({ enabled: false, reason: 'Source pilot is disabled.' }, 503);
@@ -75,7 +67,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
     if (!principal.administrator) return json({ error: 'Administrator access required.' }, 403);
     if (url.searchParams.get('view') === 'webhook') {
       const id = url.searchParams.get('connectionId') ?? '';
-      const c = store.db.prepare('SELECT credential_version FROM source_connections WHERE id=? AND disconnected=0').get(id);
+      const c = store.db.prepare("SELECT credential_version FROM source_connections WHERE id=? AND disconnected=0 AND auth_kind NOT IN ('pat','github_app')").get(id);
       if (!c) return json({ error: 'Connection not found.' }, 404);
       return json({ url: options.origin + '/api/source-hook/' + encodeURIComponent(id), secret: createHmac('sha256',options.secret).update(`kopes.source.hook:${id}:${c.credential_version}`).digest('hex'), events: 'Push only. Manual registration; keep polling enabled.' });
     }
@@ -88,6 +80,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
   let parsed; try { parsed = command.safeParse(JSON.parse(raw)); } catch { return json({ error: 'Invalid request.' }, 400); }
   if (!parsed.success) return json({ error: 'Invalid source action.' }, 400);
   const body = parsed.data;
+  await options.recheck?.();
   if (!principal.administrator && !['scan','cancel'].includes(body.action)) return json({ error: 'Administrator access required.' }, 403);
   try {
     if (body.action === 'scan' || body.action === 'cancel') {
@@ -104,20 +97,22 @@ export async function handleSource(request: Request, store: Store, principal: Pr
       const origin = validateOrigin(connection, sourcePolicy());
       connection.origin = origin;
       const repo = await new GitProvider(connection, reader).repository(body.repository);
+      await options.recheck?.();
       const connectionId = randomUUID();
       store.transaction(() => {
-      store.db.prepare("INSERT INTO source_connections(id,provider,origin,credential,health,observed_at) VALUES (?,?,?,?,?,?)")
-        .run(connectionId, body.provider, origin, body.token ? seal(body.token, options.secret, `${connectionId}:${origin}`) : '', body.token ? 'repository-read; permissions-unvalidated' : 'public-read', Date.now());
+      store.db.prepare("INSERT INTO source_connections(id,provider,origin,credential,health,observed_at,auth_kind) VALUES (?,?,?,?,?,?,?)")
+        .run(connectionId, body.provider, origin, body.token ? seal(body.token, options.secret, `${connectionId}:${origin}`) : '', body.token ? 'repository-read; permissions-unvalidated' : 'public-read', Date.now(),body.token ? body.provider==='github'?'legacy_pat':'legacy_token':'anonymous');
       audit('source-connection-created', connectionId);
       });
       return json({ id: connectionId, repository: repo, compatibility: 'Repository read only; private permissions and lifecycle unvalidated.' });
     }
     if (body.action === 'rotate') {
       if (/[\r\n]/.test(body.token)) throw new Error('Invalid credential.');
-      const row = store.db.prepare('SELECT origin FROM source_connections WHERE id=?').get(body.connectionId);
-      if (!row) throw new Error('Connection not found.');
+      const row = store.db.prepare('SELECT origin,auth_kind FROM source_connections WHERE id=?').get(body.connectionId);
+      if (!row || ['github_app','pat'].includes(String(row.auth_kind))) throw new Error('Use GitHub settings to update this connection.');
+      if (!body.token) return json({ok:true});
       store.transaction(() => {
-      store.db.prepare("UPDATE source_connections SET credential=?,credential_version=credential_version+1,health='unvalidated',disconnected=0 WHERE id=?")
+      store.db.prepare("UPDATE source_connections SET credential=?,credential_version=credential_version+1,health='unvalidated',disconnected=0,auth_kind=CASE WHEN provider='github' THEN 'legacy_pat' ELSE 'legacy_token' END WHERE id=?")
         .run(body.token ? seal(body.token, options.secret, `${body.connectionId}:${row.origin}`) : '', body.connectionId);
       audit('source-credential-rotated', body.connectionId);
       });
@@ -126,14 +121,18 @@ export async function handleSource(request: Request, store: Store, principal: Pr
     if (body.action === 'disconnect') {
       store.transaction(() => {
         audit('source-disconnected', body.connectionId);
+        invalidateConnection(store,body.connectionId,'disconnected',true);
+        store.db.prepare("UPDATE github_setup_attempts SET status='cancelled',material='' WHERE app_id IN (SELECT i.app_id FROM github_installations i JOIN source_connections c ON c.installation_id=i.id WHERE c.id=?)").run(body.connectionId);
         store.db.prepare("UPDATE source_connections SET credential='',disconnected=1,health='disconnected',credential_version=credential_version+1 WHERE id=?").run(body.connectionId);
         store.db.prepare("UPDATE source_jobs SET state='cancelled' WHERE binding_id IN (SELECT id FROM source_bindings WHERE connection_id=?) AND state IN ('running','queued')").run(body.connectionId);
       }); return json({ ok: true });
     }
     if (!projects.canRead(body.projectId)) return json({ error: 'Container not found.' }, 404);
     if (body.folder && !safeInputPath(body.folder)) throw new Error('Invalid folder.');
-    const connection = connectionFor(store, body.connectionId, options.secret), provider = new GitProvider(connection, reader);
-    const repo = await provider.repository(body.repository); await provider.head(repo, body.branch);
+    if (store.db.prepare('SELECT auth_kind FROM source_connections WHERE id=?').get(body.connectionId)?.auth_kind==='github_app') throw new Error('Use the GitHub repository picker.');
+    const access = credentialProvider(store,body.connectionId,options.secret,reader);
+    const { connection,provider } = access;
+    const repo = await provider.repository(body.repository); await provider.head(repo, body.branch); await options.recheck?.(); access.current();
     const bindingId = randomUUID();
     store.transaction(() => {
       store.db.prepare('DELETE FROM source_removed_repositories WHERE provider=? AND origin=? AND (provider_id=? OR name=?)').run(connection.provider, connection.origin, repo.providerId, repo.name);

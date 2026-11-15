@@ -1,3 +1,6 @@
+import { expireSetup } from './source/github-setup';
+import { reconcileGithub } from './source/github-reconcile';
+import { recoverGithubDeliveries } from './source/github-webhook';
 import { cleanSourceSpool } from './source/storage';
 import { recoverSourceJobs, runSourceJob, sourceWorkerBusy } from './source/jobs';
 import { isMainThread } from 'node:worker_threads';
@@ -25,6 +28,11 @@ async function initialize() {
   await migrateAuth(auth);
   store.recover();
   if(process.env.KOPES_SOURCE_SPOOL) await cleanSourceSpool(process.env.KOPES_SOURCE_SPOOL,true);
+  expireSetup(store,true);
+  recoverGithubDeliveries(store);
+  store.db.prepare("UPDATE github_installations SET next_check=0,status=CASE WHEN status='active' THEN 'pending' ELSE status END").run();
+  store.db.prepare("UPDATE source_connections SET next_check=0 WHERE auth_kind='pat'").run();
+  await reconcileGithub(store,config.secret);
   recoverSourceJobs(store);
   // Interrupted scans only contain scratch copies; completed SBOMs live transactionally in SQLite.
   for (const name of await readdir(config.dataDir)) if (name.startsWith('scan-')) await rm(join(config.dataDir, name), { recursive: true, force: true });
@@ -80,7 +88,13 @@ async function initialize() {
   }
   // Host scanning does not depend on a working Docker daemon.
   store.db.prepare("INSERT OR IGNORE INTO targets(id,kind,name) VALUES('host','host','Host OS')").run();
-  const tasks = [poll(), events(), worker()];
+  async function githubLifecycle() {
+    while (!signal.aborted) {
+      try { expireSetup(store); recoverGithubDeliveries(store); await reconcileGithub(store,config.secret); } catch { /* Retry durable work without logging credentials or payloads. */ }
+      await delay(30_000,undefined,{signal}).catch(()=>{});
+    }
+  }
+  const tasks = [poll(), events(), worker(), githubLifecycle()];
   for (const task of tasks) task.catch(() => { console.error('A background scanner task stopped unexpectedly. Restart the application.'); controller.abort(); });
   const shutdown = () => { controller.abort(); };
   process.once('SIGTERM', shutdown);

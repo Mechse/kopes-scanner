@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 export function publicImage(reference: string) {
@@ -7,7 +9,11 @@ export function publicImage(reference: string) {
   if (name.startsWith('ghcr.io/')) { registry = 'ghcr.io'; name = name.slice(8); }
   else {
     name = name.replace(/^(docker\.io|index\.docker\.io|registry-1\.docker\.io)\//, '');
-    if (name.includes('/') && /[.:]|^localhost$/.test(name.split('/')[0])) return null;
+    if (name.includes('/') && /[.:]|^localhost$/.test(name.split('/')[0])) {
+      const host = name.split('/')[0];
+      if (!(process.env.KOPES_REGISTRIES ?? '').split(',').map(s => s.trim()).includes(host) || !/^[a-z0-9.-]+(?::[0-9]+)?$/.test(host)) return null;
+      registry = host; name = name.slice(host.length + 1);
+    }
   }
   const match = /^([a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*)(?::([\w][\w.-]{0,127}))?$/.exec(name);
   if (!match) return null;
@@ -27,8 +33,17 @@ export function candidateTags(current: string, tags: string[]) {
   return [...new Set(tags)].map(tag => ({ tag, v: version(tag) })).filter(({ v }) => v && v.prefix === base.prefix && v.precision === base.precision && v.suffix === base.suffix && v.numbers[0] === base.numbers[0] && compare(v.numbers, base.numbers) > 0)
     .sort((a, b) => compare(b.v!.numbers, a.v!.numbers)).slice(0, 2).map(x => x.tag);
 }
-async function boundedFetch(url: string, headers: Record<string, string> = {}) {
-  const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(20_000) });
+export async function boundedFetch(url: string, headers: Record<string, string> = {}, signal?: AbortSignal, blobRedirects = false) {
+  let response = await fetch(url, { headers, redirect: blobRedirects ? 'manual' : 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000) });
+  for (let redirects = 0; blobRedirects && [301, 302, 303, 307, 308].includes(response.status) && redirects < 2; redirects++) {
+    const location = new URL(response.headers.get('location') ?? '', url);
+    await response.body?.cancel();
+    const host = location.hostname;
+    if (location.protocol !== 'https:' || location.username || location.password || location.port ||
+      !(host === 'pkg-containers.githubusercontent.com' || host === 'production.cloudflare.docker.com' || host.endsWith('.r2.cloudflarestorage.com'))) throw new Error('Unsupported registry blob redirect.');
+    // Signed storage URL: never forward the registry bearer token.
+    response = await fetch(location, { redirect: 'manual', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000) });
+  }
   if (!response.ok) throw new Error(`Public registry returned HTTP ${response.status}; it may be private or rate-limited.`);
   if (!response.body) throw new Error('Empty registry response.');
   const reader = response.body.getReader();
@@ -74,4 +89,45 @@ export async function discoverCandidates(reference: string) {
     candidates.push({ action: tag === image.tag ? 'Rebuild' as const : 'Upgrade' as const, tag, digest, reference: `${image.name}@${digest}` });
   }
   return { candidates, note: candidates.length ? 'Checked the tracked tag and up to two newer tags in the same major version and tag variant. Rebuild comparisons require a changed image identity. Compatibility is not verified.' : 'No comparable newer tags in the bounded registry listing (Docker Hub: latest 100 updated tags; GHCR: first 1,000).' };
+}
+
+/** Explicit opt-in Docker auth file; never fall back to the user's ambient credentials. */
+export function registryAuthorization(registry: string): string | undefined {
+  const directory = process.env.KOPES_DOCKER_CONFIG;
+  if (!directory) return;
+  const data = JSON.parse(readFileSync(join(directory, 'config.json'), 'utf8'));
+  const auth = data.auths?.[registry]?.auth ?? (registry === 'registry-1.docker.io' ? data.auths?.['https://index.docker.io/v1/']?.auth : undefined);
+  if (typeof auth === 'string' && /^[A-Za-z0-9+/]+=*$/.test(auth)) return `Basic ${auth}`;
+}
+
+/** Resolve OCI identity types explicitly instead of treating a config ID as a manifest. */
+export async function registryIdentity(reference: string, platform: string, signal: AbortSignal) {
+  const [name, digest] = reference.split('@');
+  const image = publicImage(name);
+  if (!image || !/^sha256:[a-f0-9]{64}$/.test(digest ?? '')) return;
+  let authorization = registryAuthorization(image.registry);
+  if (['ghcr.io', 'registry-1.docker.io'].includes(image.registry)) {
+    const scope = encodeURIComponent(`repository:${image.repository}:pull`);
+    const url = image.registry === 'ghcr.io' ? `https://ghcr.io/token?service=ghcr.io&scope=${scope}` : `https://auth.docker.io/token?service=registry.docker.io&scope=${scope}`;
+    const token = JSON.parse((await boundedFetch(url, authorization ? { Authorization: authorization } : {}, signal)).body);
+    if (typeof (token.token ?? token.access_token) !== 'string') throw new Error('Authentication required.');
+    authorization = `Bearer ${token.token ?? token.access_token}`;
+  }
+  const headers = { ...(authorization ? { Authorization: authorization } : {}), Accept: 'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' };
+  async function manifest(id: string) {
+    if (!/^sha256:[a-f0-9]{64}$/.test(id)) throw new Error('Invalid manifest digest.');
+    const { body } = await boundedFetch(`https://${image!.registry}/v2/${image!.repository}/manifests/${id}`, headers, signal);
+    if (`sha256:${createHash('sha256').update(body).digest('hex')}` !== id) throw new Error('Manifest digest mismatch.');
+    return JSON.parse(body);
+  }
+  let value = await manifest(digest);
+  let manifestDigest = digest;
+  let indexDigest: string | undefined;
+  if (Array.isArray(value.manifests)) {
+    const [os, architecture, variant] = platform.split('/');
+    const target = value.manifests.find((item: { platform?: { os?: string; architecture?: string; variant?: string } }) => item.platform?.os === os && item.platform?.architecture === architecture && (!variant || item.platform.variant === variant));
+    if (!target) throw new Error('Platform not found.');
+    indexDigest = digest; manifestDigest = target.digest; value = await manifest(manifestDigest);
+  }
+  return { indexDigest, manifestDigest, configId: value.config?.digest as string | undefined, platform };
 }

@@ -31,5 +31,6 @@ export function attributeReport(report: Report, raw: string, baseRaw?: string) {
   const evidence = imageEvidence(raw);
   if (evidence.developmentCommand) report.imageContext = `Image metadata starts a development command (${evidence.developmentCommand}). Development tooling may account for additional findings; this does not establish the origin of individual packages.`;
   const baseLayers = baseRaw ? imageEvidence(baseRaw).layers : undefined;
+  report.baseImages = evidence.baseDigest ? [{ name: evidence.baseName, digest: evidence.baseDigest, verified: !!baseLayers?.length && baseLayers.every((layer, i) => evidence.layers[i] === layer) }] : [];
   for (const finding of report.findings) finding.origin = attributeOrigin(finding, { ...evidence, baseLayers });
 }

@@ -11,7 +11,7 @@ const exec = promisify(execFile);
 export async function runTrivy(config: Config, args: string[], signal?: AbortSignal) {
   await exec(config.trivy, [...args, '--cache-dir', join(config.dataDir, 'trivy'), '--timeout', '10m', '--quiet', '--no-progress'], {
     timeout: 11 * 60_000, maxBuffer: 2 * 1024 * 1024, signal,
-    env: { PATH: process.env.PATH, HOME: config.dataDir, TMPDIR: process.env.TMPDIR ?? '/tmp', DOCKER_CONFIG: join(config.dataDir, 'docker-anonymous') },
+    env: { PATH: process.env.PATH, HOME: config.dataDir, TMPDIR: process.env.TMPDIR ?? '/tmp', DOCKER_CONFIG: process.env.KOPES_DOCKER_CONFIG || join(config.dataDir, 'docker-anonymous') },
   });
 }
 export async function readOutput(path: string) {

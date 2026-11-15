@@ -1,3 +1,4 @@
+import { GithubSettings } from '../components/github-settings';
 import { resourceName, projectName as displayProjectName } from '../lib/display-name';
 import { ContentSkeleton } from "../components/ui/loading";
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -47,6 +48,6 @@ function SettingsPage() {
       <span aria-current="page">Settings</span>
     </nav>
     {inventory?.error && <p role="alert" className="mt-4 rounded-lg border border-critical/20 bg-critical/5 p-4 text-sm text-critical">{inventory.error}</p>}
-    {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <><CoolifySettings /><AuthMethodsSettings /></> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <SettingsForm key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} /> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}
+    {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <><CoolifySettings /><GithubSettings /><AuthMethodsSettings /></> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <SettingsForm key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} /> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}
   </main>;
 }

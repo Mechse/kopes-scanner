@@ -62,3 +62,49 @@ export function migrateIndependentRepositories(db: DatabaseSync) {
     PRAGMA user_version=13;
     COMMIT;`);
 }
+
+/** v15: retain legacy credential ciphertext and its original associated data. */
+export function migrateGithubConnections(db: DatabaseSync) {
+  const backfill = !db.prepare('PRAGMA table_info(source_connections)').all().some(c=>c.name==='auth_kind');
+  const schema = `
+    CREATE TABLE IF NOT EXISTS github_apps(id TEXT PRIMARY KEY, github_id TEXT UNIQUE, client_id TEXT, slug TEXT,
+      owner_id TEXT, owner_login TEXT NOT NULL, owner_type TEXT NOT NULL, origin TEXT NOT NULL,
+      private_key TEXT NOT NULL DEFAULT '', client_secret TEXT NOT NULL DEFAULT '', webhook_secret TEXT NOT NULL DEFAULT '',
+      credential_revision INTEGER NOT NULL DEFAULT 1, history INTEGER NOT NULL DEFAULT 0, webhook_mode TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending-registration', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS github_installations(id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES github_apps(id),
+      github_id TEXT NOT NULL, owner_id TEXT NOT NULL, owner_login TEXT NOT NULL, permissions TEXT NOT NULL,
+      selection TEXT NOT NULL, status TEXT NOT NULL, access_revision INTEGER NOT NULL DEFAULT 1,
+      reconciled_at INTEGER, next_check INTEGER NOT NULL DEFAULT 0, UNIQUE(app_id,github_id));
+    ALTER TABLE source_connections ADD COLUMN auth_kind TEXT NOT NULL DEFAULT 'anonymous';
+    ALTER TABLE source_connections ADD COLUMN label TEXT NOT NULL DEFAULT '';
+    ALTER TABLE source_connections ADD COLUMN installation_id TEXT REFERENCES github_installations(id);
+    ALTER TABLE source_connections ADD COLUMN owner_login TEXT;
+    ALTER TABLE source_connections ADD COLUMN expires_at INTEGER;
+    ALTER TABLE source_connections ADD COLUMN history INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE source_connections ADD COLUMN validated_at INTEGER;
+    ALTER TABLE source_connections ADD COLUMN next_check INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE source_connections ADD COLUMN validation_repository TEXT;
+    ALTER TABLE source_bindings ADD COLUMN access_revision INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE source_bindings ADD COLUMN access_status TEXT NOT NULL DEFAULT 'active';
+
+    CREATE TABLE IF NOT EXISTS github_installation_repositories(installation_id TEXT NOT NULL REFERENCES github_installations(id),
+      repository_id TEXT NOT NULL, name TEXT NOT NULL, private INTEGER NOT NULL, status TEXT NOT NULL,
+      access_revision INTEGER NOT NULL DEFAULT 1, generation TEXT NOT NULL, observed_at INTEGER NOT NULL,
+      PRIMARY KEY(installation_id,repository_id));
+    CREATE TABLE IF NOT EXISTS github_setup_attempts(state_hash TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES github_apps(id),
+      user_id TEXT NOT NULL, session_hash TEXT NOT NULL, purpose TEXT NOT NULL, owner_login TEXT NOT NULL,
+      status TEXT NOT NULL, expires_at INTEGER NOT NULL, claimed_at INTEGER, completed_at INTEGER,
+      material TEXT NOT NULL DEFAULT '');
+    CREATE UNIQUE INDEX IF NOT EXISTS github_setup_active ON github_setup_attempts(app_id) WHERE status='pending';
+    CREATE TABLE IF NOT EXISTS github_webhook_deliveries(app_id TEXT NOT NULL REFERENCES github_apps(id), delivery_id TEXT NOT NULL,
+      event TEXT NOT NULL, metadata TEXT NOT NULL, received_at INTEGER NOT NULL, processed_at INTEGER,
+      state TEXT NOT NULL DEFAULT 'queued', PRIMARY KEY(app_id,delivery_id));
+    PRAGMA user_version=15;
+  `;
+  // Introspection also supports older schema fixtures and interrupted manual recoveries.
+  const sql = schema.replace(/ALTER TABLE (source_connections|source_bindings) ADD COLUMN ([a-z_]+) ([^;]+);/g, (statement,table,column) =>
+    db.prepare(`PRAGMA table_info(${table})`).all().some(c=>c.name===column) ? '' : statement);
+  db.exec(sql);
+  if (backfill) db.exec("UPDATE source_connections SET auth_kind=CASE WHEN credential='' THEN 'anonymous' WHEN provider='github' THEN 'legacy_pat' ELSE 'legacy_token' END");
+}

@@ -30,7 +30,7 @@ test('socket proxy permits only discovery/image reads and rejects writes, archiv
     req.on('error', reject); req.end();
   });
   try {
-    const config = (await readFile('socket-proxy.cfg', 'utf8')).replace('bind :2375', `bind 127.0.0.1:${port}`).replace('/var/run/docker.sock', socket);
+    const config = (await readFile('socket-proxy.cfg', 'utf8')).replace('bind :2375', `bind 127.0.0.1:${port}`).replaceAll('/var/run/docker.sock', socket);
     const file = join(directory, 'haproxy.cfg'); await writeFile(file, config);
     child = spawn(process.env.HAPROXY_TEST_BIN!, ['-db', '-f', file], { stdio: 'ignore' });
     let ready = false;
@@ -40,7 +40,7 @@ test('socket proxy permits only discovery/image reads and rejects writes, archiv
     }
     assert.ok(ready);
     const id = 'a'.repeat(64);
-    for (const path of ['/_ping', '/version', '/v1.47/containers/json', '/events?filters=%7B%7D', '/images/get?names=example', `/images/sha256:${id}/json`, `/v1.47/images/sha256%3A${id}/history`]) assert.equal(await status(path), 200, path);
+    for (const path of ['/_ping', '/version', '/images/json', '/v1.47/containers/json', '/events?filters=%7B%7D', '/images/get?names=example', `/images/sha256:${id}/json`, `/v1.47/images/sha256%3A${id}/history`]) assert.equal(await status(path), 200, path);
     assert.equal(await status('/_ping', 'HEAD'), 200);
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) assert.equal(await status('/containers/json', method), 403, method);
     for (const path of ['/containers/create', '/containers/abc/json', '/containers/abc/archive?path=/etc', '/containers/abc/logs', '/info', '/secrets', '/images/../../containers/abc/json', '/images/%2e%2e/%2e%2e/containers/abc/json']) assert.equal(await status(path), 403, path);
