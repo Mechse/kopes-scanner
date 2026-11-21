@@ -1,6 +1,6 @@
 # Git source pilot operations
 
-This feature is not generally released. Review `plans/phase-6/README.md` before enabling it. Enabling pilots or deploying/upgrading a live installation requires the operator's explicit authorization.
+Source scanning is enabled by default in `compose.yaml`, including Coolify deployments. Review `plans/phase-6/README.md` for the remaining release gates. To turn it off, set `KOPES_SOURCE_PILOT=0` and `KOPES_SOURCE_SCAN_PILOT=0` in the deployment environment.
 
 ## Flags and permissions
 
@@ -18,11 +18,11 @@ GitHub: configure a GitHub App or fine-grained PAT in [GitHub connections](githu
 
 ## Worker and data
 
-For local Docker Desktop development with source scanning, set `KOPES_SOURCE_DB_DIR` in `.env` to a durable directory containing `db/trivy.db` and `db/metadata.json`, then run `pnpm dev:docker:source`. To preserve source scanning across ordinary development rebuilds, set `COMPOSE_FILE=compose.yaml:compose.local.yaml:compose.desktop.yaml:compose.dev.yaml:compose.source.yaml` in `.env`. Both `pnpm dev:docker` and `docker compose up -d --build` honor this configuration; `pnpm dev:docker:source` also adds the source overlay when it is absent. Without a configured `COMPOSE_FILE`, `pnpm dev:docker` uses the base, local, Desktop and development overlays. Keep the source overlay after the Desktop overlay so its shared volumes are retained.
+`compose.yaml` runs source scanning by default, and the local, Desktop and development overlays keep it. `pnpm dev:docker` and `docker compose up -d --build` include it with no extra configuration.
 
-The worker uses an immutable database snapshot and cannot refresh it without network access. Prepare a fresh snapshot in a new directory, update `KOPES_SOURCE_DB_DIR`, and recreate the worker when no source job is running. The snapshot's `db/metadata.json` records its update time and next expected refresh.
+The `source-db` service downloads the public Trivy database into the `source-db` volume and exits; the worker waits for it to complete successfully. The worker has no network access, so it cannot refresh the database itself. Each deploy or `docker compose up` reruns the download. Redeploy when no source job is running. If the database changes while the worker is running, the worker exits and restarts against the new copy. `db/metadata.json` records the update time and the next expected refresh.
 
-`compose.source.yaml` is an opt-in overlay. It supplies a separate worker with no network, secrets, host mounts or Docker proxy. `KOPES_SOURCE_DB_DIR` must contain an immutable public Trivy snapshot under `db/` (including `trivy.db` and `metadata.json`). Refresh the snapshot outside active analysis and restart the worker against the new snapshot; never mount the application's whole data volume. Input/output volumes must be owned by UID 65532. The worker image creates matching `/spool/in` and `/spool/out` directories for named-volume initialization; start the worker before the development scanner when initializing new volumes.
+The `source-worker` service runs with no network, secrets, host mounts or Docker proxy, and mounts the database volume read-only. Never mount the application's whole data volume into it. Both images create their spool and database directories as UID 65532, so named volumes initialize with matching ownership in any start order.
 
 Only allowlisted dependency files are fetched, at full commit SHAs. Raw input bundles are removed after processing. Normalized inventories, graphs, SBOMs, scans and evidence remain in SQLite. Repeated matching uses the saved SBOM and preserves authoritative filesystem graph/scope data. No private source is sent to an AI service.
 

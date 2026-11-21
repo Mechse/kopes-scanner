@@ -25,10 +25,15 @@ services:
       DOCKER_HOST: http://socket-proxy:2375
       DATA_DIR: /data
       HOST_ROOT: /host
+      KOPES_SOURCE_PILOT: ${KOPES_SOURCE_PILOT:-1}
+      KOPES_SOURCE_SCAN_PILOT: ${KOPES_SOURCE_SCAN_PILOT:-1}
+      KOPES_SOURCE_SPOOL: /source
     expose:
       - '3100'
     volumes:
       - scanner-data:/data
+      - source-input:/source/in
+      - source-output:/source/out
       - type: bind
         source: /
         target: /host
@@ -70,9 +75,54 @@ services:
     mem_limit: 64m
     networks: [proxy]
     # Never publish the Docker API port to the host or attach an ingress network.
+  # Downloads the public Trivy DB on each deploy; the offline worker cannot fetch it.
+  source-db:
+    build:
+      context: .
+      dockerfile: Dockerfile.source-worker
+    command: [trivy, image, --download-db-only, --cache-dir, /db, --no-progress, --disable-telemetry, --skip-version-check]
+    restart: on-failure:3
+    environment:
+      # The compressed DB exceeds the small /tmp tmpfs; stage it in the volume instead.
+      TMPDIR: /db
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 512m
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - source-db:/db
+    networks: [outbound]
+  source-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.source-worker
+    restart: unless-stopped
+    init: true
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 1g
+    cpus: 1.0
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - source-input:/spool/in:ro
+      - source-output:/spool/out
+      - source-db:/db:ro
+    depends_on:
+      source-db:
+        condition: service_completed_successfully
 networks:
   proxy:
     internal: true
   outbound: {}
 volumes:
   scanner-data: {}
+  source-input: {}
+  source-output: {}
+  source-db: {}

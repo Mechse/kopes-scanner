@@ -32,6 +32,14 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
     assert.equal(linux.services.scanner.environment.BETTER_AUTH_SECRET, env.SERVICE_PASSWORD_64_AUTH);
     assert.equal(linux.services.scanner.environment.GITHUB_ADMIN_USER, 'alice');
     assert.equal(linux.services.scanner.environment.COOLIFY_URL, undefined);
+    assert.equal(linux.services.scanner.environment.KOPES_SOURCE_SCAN_PILOT, '1');
+    const worker = linux.services['source-worker'];
+    assert.equal(worker.network_mode, 'none');
+    assert.equal(worker.environment, undefined);
+    assert.deepEqual(worker.volumes.map((v: { source: string; read_only?: boolean }) => [v.source, Boolean(v.read_only)]), [['source-input', true], ['source-output', false], ['source-db', true]]);
+    assert.equal(worker.depends_on['source-db'].condition, 'service_completed_successfully');
+    assert.deepEqual(Object.keys(linux.services['source-db'].networks), ['outbound']);
+    assert.equal(config([], { ...env, KOPES_SOURCE_PILOT: '0' }).services.scanner.environment.KOPES_SOURCE_PILOT, '0');
     assert.equal(local.services.scanner.ports[0].host_ip, '127.0.0.1');
     assert.equal(local.services.scanner.ports[0].published, '3100');
     const manual = config([], { ...env, BETTER_AUTH_URL: 'http://localhost:3100', BETTER_AUTH_SECRET: 'b'.repeat(64) });
@@ -58,8 +66,7 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
     assert.equal(root.source, '/');
     assert.equal(root.read_only, true);
     assert.equal(root.bind.propagation, 'rslave');
-    assert.equal(desktop.services.scanner.volumes.length, 1);
-    assert.equal(desktop.services.scanner.volumes[0].target, '/data');
+    assert.deepEqual(desktop.services.scanner.volumes.map((v: { target: string }) => v.target), ['/data', '/source/in', '/source/out']);
     assert.deepEqual(desktop.services.scanner.tmpfs, ['/tmp:size=64m,mode=1777', '/host:ro,size=64k,mode=0555']);
     assert.equal(desktop.services.scanner.read_only, true);
     assert.deepEqual(desktop.services['socket-proxy'], linux.services['socket-proxy']);

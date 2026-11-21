@@ -4,6 +4,8 @@ services:
   scanner:
     volumes: !override
       - scanner-data:/data
+      - source-input:/source/in
+      - source-output:/source/out
     tmpfs: !override
       - /tmp:size=64m,mode=1777
       - /host:ro,size=64k,mode=0555

@@ -12,8 +12,10 @@ COPY src/lib/source-inputs.ts src/lib/source-inputs.ts
 RUN node scripts/build-source-worker.mjs
 FROM node:24.17.0-bookworm-slim
 COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+COPY --from=trivy /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /repo/.source-worker/worker.mjs /app/worker.mjs
-RUN mkdir -p /spool/in /spool/out && chown -R 65532:65532 /spool
+# /db lets the source-db volume initialize as 65532 so the non-root download can write it.
+RUN mkdir -p /spool/in /spool/out /db && chown -R 65532:65532 /spool /db
 USER 65532:65532
 ENV HOME=/tmp TMPDIR=/tmp
 CMD ["node", "--max-old-space-size=512", "/app/worker.mjs"]

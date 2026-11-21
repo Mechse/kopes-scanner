@@ -548,8 +548,8 @@ affected packages, installed/fixed versions, dependency paths, severity, and
 production/development scope filters. A dependency can have both scopes; incomplete
 paths are labeled unknown. Supported JavaScript lockfiles are npm v2/v3, pnpm v6/v9, and Bun text `bun.lock` v0/v1, including workspaces. For legacy binary `bun.lockb`, migrate to and commit the text lockfile before scanning. The scanner does not run Bun or install repository dependencies.
 
-With the source connection and scanning pilots enabled and the isolated source
-worker running, default branches are checked every 15 minutes. New commits trigger
+With the isolated source worker running (the default Compose deployment
+includes it), default branches are checked every 15 minutes. New commits trigger
 analysis; unchanged dependencies are rematched daily. **Scan now** requests an
 immediate scan. Each completed scan shows its timestamp and commit.
 
