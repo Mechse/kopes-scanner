@@ -11,13 +11,15 @@ import { CoolifySettings } from '../components/coolify-settings';
 import { UserAccess } from '../components/user-access';
 import { UntrackContainer } from '../components/add-resource';
 import { SettingsTabs, SettingsPanel } from '../components/settings-tabs';
-import { activeTab, useSettingsNav, type SettingsNavData } from '../components/settings-nav';
+import { activeSection, activeTab, useSettingsNav, type SettingsNavData } from '../components/settings-nav';
+import { providerNames } from '../components/auth-setup';
 import { githubSetupNotice, type GithubSetupNotice } from '../lib/github';
 
-type SettingsSearch = { project?: string; target?: string; app?: string; tab?: string; githubSetup?: GithubSetupNotice };
+type SettingsSearch = { project?: string; target?: string; app?: string; tab?: string; section?: string; githubSetup?: GithubSetupNotice };
 export const Route = createFileRoute('/settings')({
   validateSearch: (input: Record<string, unknown>): SettingsSearch => ({
     tab: typeof input.tab === 'string' ? input.tab : undefined,
+    section: typeof input.section === 'string' ? input.section : undefined,
     githubSetup: githubSetupNotice(input.githubSetup),
     project: typeof input.project === 'string' ? input.project : undefined,
     target: typeof input.target === 'string' ? input.target : undefined,
@@ -28,7 +30,7 @@ export const Route = createFileRoute('/settings')({
 });
 
 function SettingsPage() {
-  const { project, target: targetId, app, tab, githubSetup } = Route.useSearch();
+  const { project, target: targetId, app, tab, section, githubSetup } = Route.useSearch();
   const navigate = Route.useNavigate();
   const { inventory, refresh } = useWorkspace();
   const data = inventory?.data;
@@ -41,9 +43,14 @@ function SettingsPage() {
   const settingsKey = isResource ? resourceKey(container) : project ?? '';
   const back = { view: 'apps' as const, target: targetId, app };
   const sections: SettingsNavData['sections'] = appSettings
-    ? [{ tab: 'integrations', label: 'Integrations' }, { tab: 'auth', label: 'Auth' }, { tab: 'users', label: 'Users' }]
+    ? [
+      { tab: 'integrations', label: 'Integrations', children: [{ section: 'coolify', label: 'Coolify' }, { section: 'github', label: 'GitHub' }] },
+      { tab: 'auth', label: 'Auth', children: [...Object.entries(providerNames).map(([section, label]) => ({ section, label })), { section: 'email', label: 'Email' }] },
+      { tab: 'users', label: 'Users' },
+    ]
     : [{ tab: 'general', label: 'General' }, { tab: 'notifications', label: 'Notifications' }, ...(container && data?.isAdmin ? [{ tab: 'danger', label: 'Danger zone' }] : [])];
   const current = activeTab(tab, sections);
+  const currentSection = activeSection(section, sections.find(s => s.tab === current)?.children);
   useSettingsNav({
     scroll: !appSettings,
     back: appSettings ? { to: '/', search: {}, label: 'workspace' } : { to: '/', search: isResource ? back : { view: 'apps' }, label: valid ? name : 'Containers' },
@@ -63,8 +70,8 @@ function SettingsPage() {
     {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <>
       <header className="py-6"><h1 className="mb-1 text-xl font-medium tracking-tight">Settings</h1><p className="text-sm text-muted-foreground">Manage workspace connections, sign-in methods, and access.</p></header>
       <SettingsTabs value={current}>
-        <SettingsPanel value="integrations"><CoolifySettings /><GithubSettings setupNotice={githubSetup} /></SettingsPanel>
-        <SettingsPanel value="auth"><AuthMethodsSettings /></SettingsPanel>
+        <SettingsPanel value="integrations">{current !== 'integrations' ? null : currentSection === 'github' ? <GithubSettings setupNotice={githubSetup} /> : <CoolifySettings />}</SettingsPanel>
+        <SettingsPanel value="auth">{current === 'auth' && <AuthMethodsSettings section={currentSection!} />}</SettingsPanel>
         <SettingsPanel value="users"><div className="pt-6"><p className="mb-4 text-sm text-muted-foreground">Manage who can sign in and access this workspace.</p><UserAccess /></div></SettingsPanel>
       </SettingsTabs>
     </> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <><SettingsForm container={container} key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} />{container && data.isAdmin && <UntrackContainer id={container.id} name={name} onDone={() => { refresh(); void navigate({ to: '/', search: { view: 'apps' } }); }} />}</> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}

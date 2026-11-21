@@ -10,7 +10,7 @@ import type { GithubSetupNotice } from '../../lib/github';
 export type GithubContext = { userId: string; sessionId: string; recheck: () => Promise<void> };
 export const setupHeaders = { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' };
 export function setupFailureRedirect(origin: string, notice: GithubSetupNotice) {
-  return new Response(null,{status:303,headers:{...setupHeaders,Location:`${origin}/settings?tab=integrations&githubSetup=${notice}`}});
+  return new Response(null,{status:303,headers:{...setupHeaders,Location:`${origin}/settings?tab=integrations&section=github&githubSetup=${notice}`}});
 }
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 export const ownerSchema = z.string().trim().regex(/^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i);

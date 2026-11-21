@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { useResource } from '../lib/use-resource';
 import { Button } from './ui/button';
 import { ContentSkeleton } from './ui/loading';
@@ -10,7 +9,8 @@ type Settings = { origin: string; currentProvider: AuthProvider; providers: Prov
 const fieldClass = 'mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm';
 const registration = { github: 'https://github.com/settings/developers', google: 'https://console.cloud.google.com/auth/overview', microsoft: 'https://entra.microsoft.com/' };
 
-export function AuthMethodsSettings() {
+/** `section`: a provider id, or `email` for Microsoft email verification. */
+export function AuthMethodsSettings({ section }: { section: string }) {
   const result = useResource<Settings>('auth-settings', 0);
   const [saved, setSaved] = useState<Settings>();
   const data = saved ?? result?.data;
@@ -31,13 +31,13 @@ export function AuthMethodsSettings() {
   }
   return <section className="max-w-2xl py-6" aria-labelledby="auth-settings-heading">
     <h2 id="auth-settings-heading" className="mt-0! text-base font-medium">Sign-in methods</h2>
-    <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose a provider to manage sign-in. Saved changes apply immediately. Secrets are encrypted and never displayed again.</p>
+    <p className="mt-2 text-sm leading-6 text-muted-foreground">Saved changes apply immediately. Secrets are encrypted and never displayed again.</p>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">Your current sign-in method is protected. Sign in through another method before changing or disabling it. Accounts remain tied to their original provider.</p>
     {result?.error && <p role="alert" className="mt-4 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading sign-in methods…" layout="settings" /> : <div key={version}>
-      {data.providers.map(provider => <ProviderForm key={provider.provider} data={provider} origin={data.origin} locked={provider.provider === data.currentProvider} busy={busy} submit={submit} />)}
-      <details className="group border-b border-border py-5">
-        <summary className="flex flex-wrap items-center justify-between gap-2 rounded-sm text-sm font-medium [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><ChevronDown size={14} aria-hidden="true" className="-rotate-90 group-open:rotate-0" />Microsoft email verification</span><span className="text-xs font-normal text-muted-foreground">{data.mail.configured ? 'Configured' : 'Not configured'}</span></summary>
+      {data.providers.filter(provider => provider.provider === section).map(provider => <ProviderForm key={provider.provider} data={provider} origin={data.origin} locked={provider.provider === data.currentProvider} busy={busy} submit={submit} />)}
+      {section === 'email' && <div className="border-t border-border py-5">
+        <SectionHeading title="Microsoft email verification" status={data.mail.configured ? 'Configured' : 'Not configured'} />
       <form className="mt-4" onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
         void submit({ action: 'mail', smtpUrl: form.get('smtpUrl'), mailFrom: form.get('mailFrom') });
@@ -55,7 +55,7 @@ export function AuthMethodsSettings() {
         </fieldset>
         <p className="mt-3 text-xs text-muted-foreground">{data.mail.configured ? 'Email delivery is configured. Verify delivery with a Microsoft sign-in.' : 'Email delivery is not configured.'}</p>
       </form>
-      </details>
+      </div>}
     </div>}
     {message && <p role="status" className="mt-4 text-sm">{message}</p>}
     {error && <p role="alert" className="mt-4 text-sm text-critical">{error}</p>}
@@ -65,8 +65,8 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const name = providerNames[data.provider], callback = `${origin}/api/auth/callback/${data.provider}`;
-  return <details className="group border-b border-border py-5">
-    <summary className="flex flex-wrap items-center justify-between gap-2 rounded-sm text-sm font-medium [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><ChevronDown size={14} aria-hidden="true" className="-rotate-90 group-open:rotate-0" />{name}</span><span className="text-xs font-normal text-muted-foreground">{data.enabled ? 'Enabled' : 'Not enabled'}{locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}</span></summary>
+  return <div className="border-t border-border py-5">
+    <SectionHeading title={name} status={`${data.enabled ? 'Enabled' : 'Not enabled'}${locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}`} />
     <form className="mt-4" onSubmit={event => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     void submit({ action: 'save', provider: data.provider, clientId: form.get('clientId'), clientSecret: form.get('clientSecret'), administrator: form.get('administrator') });
@@ -84,5 +84,8 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
       <div className="flex flex-wrap gap-2"><Button type="submit">Save changes</Button>{data.enabled && <Button type="button" variant="ghost" onClick={() => void submit({ action: 'disable', provider: data.provider })}>Disable {name}</Button>}</div>
     </fieldset>
   </form>
-  </details>;
+  </div>;
+}
+function SectionHeading({ title, status }: { title: string; status: string }) {
+  return <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="m-0! text-sm font-medium">{title}</h3><span className="text-xs text-muted-foreground">{status}</span></div>;
 }

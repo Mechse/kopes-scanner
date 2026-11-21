@@ -38,8 +38,8 @@ export function GithubSettings({setupNotice}: {setupNotice?: GithubSetupNotice})
     }
   }
   const tokenUrl = `https://github.com/settings/personal-access-tokens/new?${new URLSearchParams({name:'Kopes Scanner',target_name:owner,expires_in:'90',contents:'read',...(history?{pull_requests:'read'}:{})})}`;
-  return <section className="max-w-3xl border-t border-border py-6" aria-labelledby="github-heading">
-    <h2 id="github-heading" className="text-base font-medium">GitHub connections</h2>
+  return <section className="max-w-3xl py-6" aria-labelledby="github-heading">
+    <h2 id="github-heading" className="mt-0! text-base font-medium">GitHub connections</h2>
     <p className="mt-2 text-sm text-muted-foreground">Use a private GitHub App owned by the account containing your repositories. Create a separate connection for each owner. Manage GitHub sign-in in the Auth tab.</p>
     <p className="mt-2 text-xs text-muted-foreground">Contents read allows access to repository contents. Kopes fetches dependency inputs without cloning or executing source code. Private GitHub validation is required for your installation before relying on scans.</p>
     {(error || result?.error) && <p role="alert" className="mt-3 text-sm text-critical">{error || result?.error}</p>}

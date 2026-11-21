@@ -189,7 +189,7 @@ test('manifest registration uses canonical URLs and polling mode, persists encry
   const state=new URL(start.action).searchParams.get('state')!;let conversions=0;
   const http:GithubHttp=async r=>{if(r.path.includes('/conversions')){conversions++;return {...remoteApp,pem,client_secret:'client-secret',webhook_secret:'hook-secret'};}throw new GithubError(503,'temporary');};
   const result=await setupCallback(callback('manifest',state,{code:'conversion-code'}),s,context,config,http);
-  assert.equal(result.status,303);assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(result.headers.get('Location'),config.origin+'/settings?tab=integrations&githubSetup=verification');
+  assert.equal(result.status,303);assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(result.headers.get('Location'),config.origin+'/settings?tab=integrations&section=github&githubSetup=verification');
   const saved=appRecord(s,start.appId);assert.equal(saved.status,'verification-failed');assert.equal(appSecret(saved,config.secret,'private_key'),pem);
   await setupCallback(callback('manifest',state,{code:'conversion-code'}),s,context,config,http);assert.equal(conversions,1);
   const resumed=await resumeSetup(s,start.appId,context,config,api);assert.match(resumed.url,/installations\/new\?state=/);
@@ -244,7 +244,7 @@ test('callback failures redirect with fixed notices and never expose provider er
     const state=new URL(start.action).searchParams.get('state')!;
     const result=await setupCallback(callback('manifest',state,{code:'secret-code'}),s,context,config,async()=>{if(phase==='exchange')throw new Error('secret-provider-response');return {pem:'secret-key'};});
     const location=result.headers.get('Location')!;
-    assert.equal(location,config.origin+'/settings?tab=integrations&githubSetup='+phase);assert.ok(!location.includes('secret'));assert.ok(!location.includes(state));
+    assert.equal(location,config.origin+'/settings?tab=integrations&section=github&githubSetup='+phase);assert.ok(!location.includes('secret'));assert.ok(!location.includes(state));
     assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(appRecord(s,start.appId).private_key,'');
   }
   assert.equal(githubSetupNotice('verification'),'verification');
