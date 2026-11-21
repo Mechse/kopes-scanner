@@ -1,3 +1,4 @@
+import { deliverTelegram } from './telegram';
 import { startupFailure, type StartupStage } from './startup-error';
 import { expireSetup } from './source/github-setup';
 import { reconcileGithub } from './source/github-reconcile';
@@ -121,7 +122,15 @@ async function initialize() {
         await delay(30_000,undefined,{signal}).catch(()=>{});
       }
     }
-    const tasks = [poll(), events(), worker(), githubLifecycle()];
+    async function telegramWorker() {
+      while (!signal.aborted) {
+        let wait = 5000;
+        try { if (await deliverTelegram(store, config.secret)) wait = 1500; }
+        catch { wait = 60000; } // Retry without logging the token-bearing URL.
+        await delay(wait, undefined, { signal }).catch(() => {});
+      }
+    }
+    const tasks = [poll(), events(), worker(), githubLifecycle(), telegramWorker()];
     for (const task of tasks) task.catch(() => { console.error('A background scanner task stopped unexpectedly. Restart the application.'); controller.abort(); });
     const shutdown = () => { controller.abort(); };
     process.once('SIGTERM', shutdown);

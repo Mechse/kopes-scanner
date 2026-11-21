@@ -1,5 +1,6 @@
 import { GithubError, githubErrorMessage, githubHttp, type GithubHttp } from './github-http';
 import { SourceError, sourceErrorMessage } from './errors';
+import { telegramKey, enqueueTelegram } from '../telegram';
 import { readAuthConfig } from '../auth-settings';
 import { isAdministrator } from '../auth';
 import { gitlabApp, pause } from './gitlab';
@@ -154,6 +155,10 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
       store.db.prepare('INSERT OR IGNORE INTO source_snapshots VALUES (?,?,?,?,?,?)').run(snapshotId, job.repository_id, commit, bundle.hash, JSON.stringify({ nodes: result.analysis.nodes, edges: result.analysis.edges, roots: result.analysis.roots, manager: result.analysis.manager, analyzerPackages: result.analysis.analyzerPackages, sbom: result.sbom }), Date.now());
       const snapshot = store.db.prepare('SELECT id FROM source_snapshots WHERE repository_id=? AND commit_sha=? AND bundle_hash=?').get(job.repository_id, commit, bundle.hash)!;
       store.db.prepare('INSERT INTO source_scans VALUES (?,?,?,?,?,?,?,?)').run(randomUUID(), job.binding_id, snapshot.id, jobId, Date.now(), result.analyzer, JSON.stringify(result.database), JSON.stringify({ ...result.analysis, paths: result.paths, favicon }));
+      if (!historical && store.getMeta(telegramKey)) {
+        const ids = (a: Analysis) => a.findings.flatMap(f => [f.advisory, ...f.aliases]);
+        enqueueTelegram(store, `Repository ${repo.name} (${job.branch})`, ids(result.analysis), previousScan ? ids(JSON.parse(String(previousScan.result_json))) : []);
+      }
       if (history) {
         appendEvidence(store, evidenceProject, 'commit-metadata-observed', history, null, String(job.binding_id));
         for (const change of history.associatedRequests) if (change.merged && change.mergeCommit === commit && change.targetBranch === repo.branch) appendEvidence(store, evidenceProject, 'merged', { ...change, commit, actorRole: 'merger', authenticatedFixer: null }, change.mergedAt && Number.isFinite(Date.parse(change.mergedAt)) ? Date.parse(change.mergedAt) : null, String(job.binding_id), change.merger ? { ...change.merger, role: 'merger' } : null);

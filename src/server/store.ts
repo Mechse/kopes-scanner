@@ -2,6 +2,7 @@ import { normalizeAncestry, preserveAncestry } from '../lib/ancestry';
 import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections, migrateGithubPollingSchedule, removeLegacyGithubConnections } from './source/schema';
 import { randomUUID } from 'node:crypto';
 import { migrateProjects, syncResources, linkScanResources } from './project-store';
+import { enqueueTelegram, telegramKey } from './telegram';
 import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
 import { defaultSettings, resourceKey, type ScanSettings, type SettingsData } from '../lib/settings';
 import { DatabaseSync } from 'node:sqlite';
@@ -56,6 +57,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS access_history (
         seq INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, identifier TEXT NOT NULL, time INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS telegram_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS pulse_events (
         seq INTEGER PRIMARY KEY, target TEXT NOT NULL, name TEXT NOT NULL, time INTEGER NOT NULL, payload TEXT NOT NULL
       );
@@ -432,6 +434,16 @@ export class Store {
       this.db.prepare('INSERT INTO scan_observations VALUES (?,?,?,?,?,?,0)')
         .run(observationId, id, scannedAt, JSON.stringify(report), sbom, platform);
       linkScanResources(this.db, observationId, id);
+      if (id !== 'host' && this.getMeta(telegramKey)) {
+        for (const resource of this.resources(id)) {
+          if (!this.settings('resource', resource.key)!.effective.notifyNewCve) continue;
+          const prior = this.db.prepare(`SELECT s.report_json FROM scan_observations s JOIN scan_observation_resources r ON r.observation_id=s.id
+            JOIN runtime_instances i ON i.resource_id=r.resource_id JOIN containers c ON c.id=i.container_id
+            WHERE c.target_id=? AND c.project=? AND c.name=? AND s.id<>? ORDER BY s.scanned_at DESC,s.rowid DESC LIMIT 1`).get(id, resource.project, resource.name, observationId);
+          const known: Report | null = prior ? JSON.parse(String(prior.report_json)) : null;
+          enqueueTelegram(this, `Container ${[resource.project, resource.name].filter(Boolean).join('/')}`, report.findings.map(f => f.id), known?.findings.map(f => f.id) ?? []);
+        }
+      }
       this.recordDiscoveries(id, report, scannedAt);
       const previous = this.report(id);
       if (previous && previous.coverage !== report.coverage) {

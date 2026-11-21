@@ -59,13 +59,21 @@ try {
       return route.fulfill({json:{ok:true}});
     }
     return route.fulfill({json:{
-    apps:[{id:'app',slug:'Fixture scanner',owner_login:'fixture',status:'connected',repository_count:1,urls:{setup:`${origin}/api/github/install/callback`},webhook_mode:'polling'}],
-    connections:[{id:'access',label:'Fixture installation',owner_login:'fixture',app_id:'app',auth_kind:'github_app',health:'ready',repository_count:1},{id:'token',label:'Backup token',auth_kind:'pat',health:'ready',repository_count:0}]
+    apps:[{id:'app',github_id:'123',setup_status:'cancelled',slug:'Fixture scanner',owner_login:'fixture',status:'connected',repository_count:1,urls:{setup:`${origin}/api/github/install/callback`},webhook_mode:'polling'}],
+    connections:[{id:'access',label:'Fixture installation',owner_login:'fixture',app_id:'app',auth_kind:'github_app',health:'connected',repository_count:1},{id:'token',label:'Backup token',auth_kind:'pat',health:'connected',repository_count:0}]
   }}); });
   await browserContext.grantPermissions(['clipboard-read','clipboard-write'],{origin});
   await page.goto(origin+'/settings?tab=integrations');
+  await page.getByRole('button',{name:'Add connection'}).click();
+  await page.getByRole('menuitem',{name:'Create a GitHub App'}).click();
+  await page.getByLabel('GitHub username or organization').waitFor();
+  assert.equal(await page.getByRole('searchbox',{name:'Search apps and connections'}).count(),0);
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
   await page.getByRole('link',{name:/Fixture scanner/}).click();
-  await page.getByRole('heading',{name:'Registration recovery'}).waitFor();
+  await page.getByRole('region',{name:'Connection status'}).getByText('Connected',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('region',{name:'Connection status'}).getByRole('button').count(),0);
+  assert.equal(await page.getByText(/Last setup attempt/).count(),0);
+  await page.getByText('Configuration URLs',{exact:true}).click();
   await page.getByRole('button',{name:'Copy setup URL'}).click();
   await page.getByText('Copied',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),`${origin}/api/github/install/callback`);

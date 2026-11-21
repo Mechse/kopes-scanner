@@ -16,6 +16,7 @@ import { inventory } from '../server/docker';
 import { runtime } from '../server/runtime';
 import { isAdministrator, requireSameOrigin, requireSession } from '../server/auth';
 import { accessIdentifier } from '../lib/user-access';
+import { telegramSettings } from '../server/telegram-settings';
 import { handleAuthSettings } from '../server/auth-settings';
 
 async function handle({ request }: { request: Request }) {
@@ -36,6 +37,7 @@ async function handle({ request }: { request: Request }) {
   if (action === 'repositories') return handleRepositories(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin, undefined, config.secret, isAdmin ? (await githubContext(request)).recheck : undefined);
   if (action === 'source') return handleSource(request, store, { userId: session.user.id, administrator: isAdmin }, { ...config, recheck: isAdmin ? (await githubContext(request)).recheck : undefined });
   if (action === 'projects') return handleProjects(request, store, { userId: session.user.id, administrator: isAdmin }, config.origin);
+  if (action === 'telegram-settings') return telegramSettings(request, isAdmin, store, baseConfig);
   if (action === 'auth-settings') return handleAuthSettings(request, isAdmin, session.user.accessId?.startsWith('microsoft:') ? 'microsoft' : session.user.accessId ? 'google' : 'github', store, baseConfig);
   if (request.method === 'GET' && action === 'advisory') {
     if (!isCve(id)) return new Response('Invalid CVE identifier.', { status: 400 });

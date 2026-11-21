@@ -526,6 +526,8 @@ The host inherits the same built-in defaults. Choices are daily, weekly, every
 manual requests remain available. Containers sharing an image use the shortest
 active interval, but their notification preferences remain independent.
 
+Workspace administrators can connect one Telegram chat under **Settings → Notifications**. Create a bot with @BotFather, start it in a direct chat or add it to the destination group, enter its token and numeric chat ID, then choose **Test and save**. Everyone in that chat can see workspace resource names and CVE IDs. Each tracked repository or container gets a summary of newly detected CVEs, including on its first scan; connecting does not replay old scans. Container alerts respect the resource’s effective **New CVE detected** setting. Failed deliveries are retried; disconnecting or replacing the connection clears pending messages.
+
 Pulse groups notifications by project. Newly detected CVEs include older CVEs
 first found in a scan. Fix notifications fire when a fixed package version is
 first detected, including on the initial scan, without upgrade restrictions.
