@@ -29,14 +29,11 @@ export function AuthMethodsSettings({ section }: { section: string }) {
     } catch (error) { setError(error instanceof Error ? error.message : 'Could not save sign-in settings.'); }
     finally { setBusy(false); }
   }
-  return <section className="max-w-2xl py-6" aria-labelledby="auth-settings-heading">
-    <h2 id="auth-settings-heading" className="mt-0! text-base font-medium">Sign-in methods</h2>
-    <p className="mt-2 text-sm leading-6 text-muted-foreground">Saved changes apply immediately. Secrets are encrypted and never displayed again.</p>
-    <p className="mt-2 text-sm leading-6 text-muted-foreground">Your current sign-in method is protected. Sign in through another method before changing or disabling it. Accounts remain tied to their original provider.</p>
+  return <section className="max-w-2xl py-6">
     {result?.error && <p role="alert" className="mt-4 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading sign-in methods…" layout="settings" /> : <div key={version}>
       {data.providers.filter(provider => provider.provider === section).map(provider => <ProviderForm key={provider.provider} data={provider} origin={data.origin} locked={provider.provider === data.currentProvider} busy={busy} submit={submit} />)}
-      {section === 'email' && <div className="border-t border-border py-5">
+      {section === 'email' && <div>
         <SectionHeading title="Microsoft email verification" status={data.mail.configured ? 'Configured' : 'Not configured'} />
       <form className="mt-4" onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
@@ -65,7 +62,7 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const name = providerNames[data.provider], callback = `${origin}/api/auth/callback/${data.provider}`;
-  return <div className="border-t border-border py-5">
+  return <div>
     <SectionHeading title={name} status={`${data.enabled ? 'Enabled' : 'Not enabled'}${locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}`} />
     <form className="mt-4" onSubmit={event => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
@@ -87,5 +84,5 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
   </div>;
 }
 function SectionHeading({ title, status }: { title: string; status: string }) {
-  return <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="m-0! text-sm font-medium">{title}</h3><span className="text-xs text-muted-foreground">{status}</span></div>;
+  return <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="m-0! text-base font-medium">{title}</h2><span className="text-xs text-muted-foreground">{status}</span></div>;
 }

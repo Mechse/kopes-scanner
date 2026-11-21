@@ -68,7 +68,7 @@ function SettingsPage() {
     </nav>
     {inventory?.error && <p role="alert" className="mt-4 rounded-lg border border-critical/20 bg-critical/5 p-4 text-sm text-critical">{inventory.error}</p>}
     {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <>
-      <header className="py-6"><h1 className="mb-1 text-xl font-medium tracking-tight">Settings</h1><p className="text-sm text-muted-foreground">Manage workspace connections, sign-in methods, and access.</p></header>
+      <h1 className="sr-only">Settings</h1>
       <SettingsTabs value={current}>
         <SettingsPanel value="integrations">{current !== 'integrations' ? null : currentSection === 'github' ? <GithubSettings setupNotice={githubSetup} /> : <CoolifySettings />}</SettingsPanel>
         <SettingsPanel value="auth">{current === 'auth' && <AuthMethodsSettings section={currentSection!} />}</SettingsPanel>
