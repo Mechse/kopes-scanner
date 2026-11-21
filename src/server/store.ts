@@ -1,5 +1,5 @@
 import { normalizeAncestry, preserveAncestry } from '../lib/ancestry';
-import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections } from './source/schema';
+import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections, migrateGithubPollingSchedule } from './source/schema';
 import { randomUUID } from 'node:crypto';
 import { migrateProjects, syncResources, linkScanResources } from './project-store';
 import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
@@ -20,7 +20,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 15) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 17) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -121,6 +121,15 @@ export class Store {
       this.db.exec('PRAGMA user_version=14');
     });
     if (version.user_version < 15) this.transaction(() => migrateGithubConnections(this.db));
+    if (version.user_version < 16) this.transaction(() => migrateGithubPollingSchedule(this.db));
+    if (version.user_version < 17) this.transaction(() => this.db.exec(`
+      CREATE TABLE IF NOT EXISTS selected_containers (id TEXT PRIMARY KEY);
+      DELETE FROM selected_containers;
+      INSERT INTO selected_containers SELECT i.container_id FROM runtime_instances i JOIN resources r ON r.id=i.resource_id WHERE r.project_id IS NOT NULL;
+      UPDATE runtime_instances SET active=0 WHERE container_id NOT IN (SELECT id FROM selected_containers);
+      DELETE FROM containers WHERE id NOT IN (SELECT id FROM selected_containers);
+      DELETE FROM targets WHERE kind='image' AND id NOT IN (SELECT target_id FROM containers);
+      PRAGMA user_version=17`));
     if (!this.getMeta('pulseInitialized')) this.transaction(() => {
       for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
         this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));
@@ -239,6 +248,27 @@ export class Store {
       history: this.db.prepare('SELECT * FROM access_history ORDER BY seq DESC LIMIT 100').all() as AccessData['history'] };
   }
   recover() { this.db.exec("UPDATE targets SET status='queued', requested=1 WHERE status='scanning'"); }
+  selectedContainers() {
+    return this.db.prepare('SELECT id FROM selected_containers ORDER BY id').all().map(row => String(row.id));
+  }
+  trackedContainers(projectId: string | null = null) {
+    return this.db.prepare(`SELECT s.id, coalesce(c.name,r.name,s.id) AS name, coalesce(c.image,'Not in running inventory') AS image
+      FROM selected_containers s LEFT JOIN containers c ON c.id=s.id LEFT JOIN runtime_instances i ON i.container_id=s.id
+      LEFT JOIN resources r ON r.id=i.resource_id WHERE (? IS NULL OR r.project_id=?) ORDER BY name,s.id`).all(projectId, projectId);
+  }
+  untrackContainer(id: string) {
+    return this.transaction(() => {
+      if (!this.db.prepare('DELETE FROM selected_containers WHERE id=?').run(id).changes) return false;
+      this.db.prepare('DELETE FROM containers WHERE id=?').run(id);
+      this.db.prepare('UPDATE runtime_instances SET active=0 WHERE container_id=?').run(id);
+      this.db.prepare(`DELETE FROM targets WHERE id=(SELECT target_id FROM runtime_instances WHERE container_id=?)
+        AND kind='image' AND NOT EXISTS (SELECT 1 FROM containers WHERE target_id=targets.id)`).run(id);
+      const labels = JSON.parse(this.getMeta('containerSourceLabels') || '{}');
+      delete labels[id];
+      this.setMeta('containerSourceLabels', JSON.stringify(labels));
+      return true;
+    });
+  }
   syncInventory(containers: Container[]) {
     this.transaction(() => {
       this.db.prepare("INSERT OR IGNORE INTO targets (id, kind, name) VALUES ('host', 'host', 'Host OS')").run();
@@ -246,6 +276,7 @@ export class Store {
       const previous = new Set((this.db.prepare('SELECT id FROM containers').all() as { id: string }[]).map(c => c.id));
       this.db.exec('DELETE FROM containers');
       for (const c of containers) {
+        this.db.prepare('INSERT OR IGNORE INTO selected_containers VALUES (?)').run(c.id);
         this.db.prepare("INSERT INTO targets (id,kind,name,image_id) VALUES (?,'image',?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name")
           .run(c.target_id, c.image, c.target_id.slice(6));
         this.db.prepare('INSERT INTO containers VALUES (?,?,?,?,?,?,?)').run(c.id, c.name, c.image, c.target_id, c.project, c.service, c.manager);

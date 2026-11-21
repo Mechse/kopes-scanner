@@ -69,7 +69,8 @@ test('v5 copied database migration preserves legacy rows and imports reports exa
     s.setMeta('sentinel', 'preserved');
     s.addUser('legacy-member');
     s.db.prepare('INSERT INTO pulse_states VALUES (?,?,?,?,?)').run('member', 'CVE-example', 0, 0, 1);
-    const tables = ['targets', 'containers', 'scan_settings', 'display_names', 'pulse_events', 'pulse_states', 'issue_events', 'allowed_users', 'metadata'];
+    const originalReport = s.report(a.target_id);
+    const tables = [ 'scan_settings', 'display_names', 'pulse_events', 'pulse_states', 'issue_events', 'allowed_users', 'metadata'];
     const before = Object.fromEntries(tables.map(t => [t, s!.db.prepare(`SELECT * FROM ${t}`).all()]));
     // Remove only additive v6 objects to construct a populated v5 migration fixture.
     s.db.exec(`DROP TABLE project_events; DROP TABLE scan_observation_resources; DROP TABLE scan_observations; DROP TABLE runtime_instances;
@@ -77,10 +78,12 @@ test('v5 copied database migration preserves legacy rows and imports reports exa
       DROP TABLE project_members; DROP TABLE projects; PRAGMA user_version=5;`);
     s.db.close(); s = new Store(directory);
     for (const table of tables) assert.deepEqual(s.db.prepare(`SELECT * FROM ${table}`).all(), before[table], table);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 15);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 17);
+    assert.deepEqual(s.selectedContainers(), []);
+    assert.deepEqual(s.dashboard().containers, []);
     const imported = s.db.prepare('SELECT * FROM scan_observations').all();
     assert.equal(imported.length, 1); assert.equal(imported[0].imported, 1);
-    assert.deepEqual(JSON.parse(String(imported[0].report_json)), s.report(a.target_id));
+    assert.deepEqual(JSON.parse(String(imported[0].report_json)), originalReport);
     const resource = s.db.prepare('SELECT * FROM resources').get()!;
     assert.equal(resource.name, 'Display');
     assert.equal(JSON.parse(String(resource.settings_json)).rescanHours, 24);
@@ -99,13 +102,16 @@ for (const missingLinks of [true, false]) test(`v10 upgrade preserves history an
   try {
     s.syncInventory([a]);
     s.complete(a.target_id, report, 'existing-sbom', null, [], '');
+    const projects = new ProjectStore(s.db, admin);
+    projects.move(String(projects.unassigned()[0].id), projects.create('Existing project'));
     const history = s.db.prepare('SELECT * FROM scan_observations').all();
     const resources = s.db.prepare('SELECT * FROM resources').all();
     const links = s.db.prepare('SELECT * FROM scan_observation_resources').all();
     if (missingLinks) s.db.exec('DROP TABLE scan_observation_resources');
     s.db.exec('PRAGMA user_version=10');
     s.db.close(); s = new Store(directory);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 15);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 17);
+    assert.deepEqual(s.selectedContainers(), [a.id]);
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observations').all(), history);
     assert.deepEqual(s.db.prepare('SELECT * FROM resources').all(), resources);
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observation_resources').all(), missingLinks ? [] : links);
@@ -117,6 +123,30 @@ for (const missingLinks of [true, false]) test(`v10 upgrade preserves history an
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observation_resources').all(), newLinks);
     assert.equal(s.db.prepare('SELECT count(*) AS n FROM scan_observations').get()!.n, 2);
   } finally { s.db.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('untracking keeps history and removes the image target only after its last running container', () => {
+  const s = new Store(':memory:');
+  try {
+    const other = { ...a, id: 'other', discoveryKey: 'other' };
+    s.syncInventory([a, other]);
+    const projects = new ProjectStore(s.db, admin), project = projects.create('Selected project');
+    projects.move(String(s.db.prepare('SELECT resource_id FROM runtime_instances WHERE container_id=?').get(a.id)!.resource_id), project);
+    assert.deepEqual(s.trackedContainers(project).map(c => c.id), [a.id]);
+    s.complete(a.target_id, report, 'sbom', null, [], '');
+    assert.equal(s.untrackContainer(a.id), true);
+    assert.deepEqual(s.selectedContainers(), [other.id]);
+    assert.deepEqual(s.dashboard().containers.map(c => c.id), [other.id]);
+    assert.ok(s.db.prepare('SELECT 1 FROM targets WHERE id=?').get(a.target_id));
+    assert.equal(s.untrackContainer(other.id), true);
+    assert.equal(s.untrackContainer(other.id), false);
+    assert.equal(s.db.prepare('SELECT 1 FROM targets WHERE id=?').get(a.target_id), undefined);
+    assert.equal(s.db.prepare('SELECT count(*) AS n FROM scan_observation_resources').get()!.n, 2);
+    s.syncInventory([a]); s.syncInventory([]);
+    assert.deepEqual(s.trackedContainers().map(c => c.id), [a.id]);
+    assert.equal(s.untrackContainer(a.id), true);
+    assert.deepEqual(s.trackedContainers(), []);
+  } finally { s.db.close(); }
 });
 
 test('each completed scan survives target cleanup independently, including same-millisecond scans', () => {
@@ -208,7 +238,7 @@ test('conflicting aliases never silently combine migrated resources', () => {
   }finally{s.db.close();}
 });
 
-test('new and previously unassigned Compose services join their siblings without duplicating the project', () => {
+test('new and previously unassigned Compose services remain unassigned beside an assigned sibling', () => {
   const s = new Store(':memory:');
   try {
     const worker = { ...a, id: 'worker', name: 'worker', service: 'worker', discoveryKey: 'compose:legacy:worker' };
@@ -218,13 +248,13 @@ test('new and previously unassigned Compose services join their siblings without
     projects.move(resourceId, projectId);
     const before = s.db.prepare('SELECT id,settings_json,inherited_json FROM resources ORDER BY id').all();
     s.syncInventory([worker, a]);
-    assert.deepEqual(projects.discoveredGroups(projectId), ['legacy']);
-    assert.equal(projects.detail(projectId).resources.length, 2);
+    assert.deepEqual(projects.discoveredGroups(projectId), []);
+    assert.equal(projects.detail(projectId).resources.length, 1);
     assert.deepEqual(s.db.prepare('SELECT id,settings_json,inherited_json FROM resources ORDER BY id').all(), before);
     s.syncInventory([worker, a]);
-    assert.equal(s.db.prepare("SELECT count(*) AS n FROM project_events WHERE action='discovery-group-expanded'").get()!.n, 1);
+    assert.equal(s.db.prepare("SELECT count(*) AS n FROM project_events WHERE action='discovery-group-expanded'").get()!.n, 0);
     s.syncInventory([worker, a, { ...worker, id: 'new', discoveryKey: 'compose:legacy:new' }]);
-    assert.equal(projects.detail(projectId).resources.length, 3);
+    assert.equal(projects.detail(projectId).resources.length, 1);
     assert.equal(projects.list().length, 1);
     assert.deepEqual(s.db.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { s.db.close(); }

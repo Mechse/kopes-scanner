@@ -6,8 +6,16 @@ export function pythonDependencyInput(path: string) {
 }
 export function sourceInput(path: string) {
   return pythonDependencyInput(path) || ['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'yarn.lock',
+    'bun.lock', 'bun.lockb', 'Cargo.lock', 'Cargo.toml',
     'pyproject.toml', 'Pipfile', 'setup.py', 'setup.cfg'].includes(path.split('/').at(-1)!);
 }
-export function sourcePackageType(file: string) { return pythonDependencyInput(file) ? 'python-pkg' : 'npm'; }
+export function sourcePackageType(file: string) { return pythonDependencyInput(file) ? 'python-pkg' : ['Cargo.lock', 'Cargo.toml'].includes(file.split('/').at(-1)!) ? 'cargo' : 'npm'; }
+export function analyzerPackageType(type: unknown) {
+  if (typeof type !== 'string') return undefined;
+  if (['npm', 'node-pkg', 'pnpm', 'yarn', 'bun'].includes(type)) return 'npm';
+  if (['python-pkg', 'pip', 'pipenv', 'poetry', 'uv', 'pylock'].includes(type)) return 'python-pkg';
+  if (type === 'cargo') return 'cargo';
+  return undefined;
+}
 
 export const pythonFilePattern = 'pip:(^|/)requirements[-_][A-Za-z0-9._-]+\\.txt$';

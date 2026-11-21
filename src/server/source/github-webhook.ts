@@ -10,8 +10,10 @@ export async function githubWebhook(request: Request, store: Store, secret: stri
   const headers = { 'Cache-Control':'no-store' };
   try {
     const app = appRecord(store,appId), raw = await boundedBytes(request,1024*1024);
+    const hookSecret = app.webhook_secret ? appSecret(app,secret,'webhook_secret') : '';
+    if (!hookSecret) return new Response('Webhook unavailable.',{status:401,headers});
     const signature = request.headers.get('x-hub-signature-256') ?? '';
-    if (!/^sha256=[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature.slice(7),'hex'),createHmac('sha256',appSecret(app,secret,'webhook_secret')).update(raw).digest())) return new Response('Invalid signature.',{status:401,headers});
+    if (!/^sha256=[a-f0-9]{64}$/.test(signature) || !timingSafeEqual(Buffer.from(signature.slice(7),'hex'),createHmac('sha256',hookSecret).update(raw).digest())) return new Response('Invalid signature.',{status:401,headers});
     const delivery = request.headers.get('x-github-delivery') ?? '', event = request.headers.get('x-github-event') ?? '';
     if (!/^[a-zA-Z0-9-]{1,100}$/.test(delivery) || !/^[a-z_]{1,80}$/.test(event)) throw new Error();
     const payload = JSON.parse(raw.toString('utf8'));

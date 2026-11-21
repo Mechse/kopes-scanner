@@ -1,3 +1,5 @@
+import { SelectField } from './ui/select-field';
+import { SelectItem } from './ui/select';
 import { useState } from 'react';
 
 export const providerNames = { github: 'GitHub', google: 'Google', microsoft: 'Microsoft' };
@@ -12,9 +14,9 @@ export function AuthSetup({ origin }: { origin: string }) {
     <h1>Set up sign-in</h1>
     <p className="mt-3 text-muted-foreground">Your installation is running. Configure a sign-in provider to open your workspace. Only your administrator and people they add will have access.</p>
     <label className="mt-6 block text-sm font-medium" htmlFor="auth-provider">Sign-in provider</label>
-    <select id="auth-provider" className="mt-2 w-full rounded-md border border-border bg-background p-3" value={provider} onChange={event => setProvider(event.target.value as AuthProvider)}>
-      {Object.entries(providerNames).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-    </select>
+    <SelectField id="auth-provider" className="mt-2 w-full" value={provider} onValueChange={value => setProvider(value as AuthProvider)}>
+      {Object.entries(providerNames).map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+    </SelectField>
     <ol className="mt-6 list-decimal space-y-4 pl-5 text-sm leading-relaxed">
       <li>{provider === 'github' ? <>Open <a className="underline" href="https://github.com/settings/developers" target="_blank" rel="noreferrer">GitHub developer settings</a> and create an OAuth App. Set its homepage URL to <code className="break-all">{origin}</code>. No repository access is needed.</>
         : provider === 'google' ? <>Open <a className="underline" href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noreferrer">Google Auth Platform</a>, select or create a project, and configure Branding and Audience. Create a Web application OAuth client under Clients. While in testing, add your users as test users; publish the app when ready.</>

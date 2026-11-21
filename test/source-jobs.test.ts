@@ -4,6 +4,7 @@ import { Store } from '../src/server/store';
 import { ProjectStore } from '../src/server/project-store';
 import {enqueueSource} from '../src/server/source/service';
 import {recoverSourceJobs,queueDueSources,needsSourceAnalysis} from '../src/server/source/jobs';
+import { sourceAnalyzerVersion } from '../src/server/source/version';
 test('jobs deduplicate, recover interrupted work and refuse disconnected or archived bindings',()=>{
   const s=new Store(':memory:');try{
     const p=new ProjectStore(s.db,{userId:'admin',administrator:true}),project=p.create('P');
@@ -38,9 +39,10 @@ test('changed branches, daily advisory refreshes and manual scans trigger analys
 
 test('unchanged-head polls retry failed analysis and outdated adapters', () => {
   const now = 200_000_000;
-  const current = { analyzer: 'trivy:0.76.1;adapter:4' };
+  const current = { analyzer: sourceAnalyzerVersion };
   assert.equal(needsSourceAnalysis('poll', 'a', 'a', now - 1000, now, current), false);
   assert.equal(needsSourceAnalysis('poll', 'a', 'a', now - 1000, now, { ...current, error: 'Previous analysis failed' }), true);
   assert.equal(needsSourceAnalysis('poll', 'a', 'a', now - 1000, now, { analyzer: 'trivy:0.76.1;adapter:1' }), true);
+  assert.equal(needsSourceAnalysis('poll', 'a', 'a', now - 1000, now, { analyzer: 'trivy:0.76.1;adapter:4' }), true);
   assert.equal(needsSourceAnalysis('poll', 'a', 'a', now - 1000, now, {}), true);
 });

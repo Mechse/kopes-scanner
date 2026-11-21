@@ -1,3 +1,5 @@
+import { SelectField } from './ui/select-field';
+import { SelectItem } from './ui/select';
 import { DetectionBadge, DetectionFilter } from './finding-evidence';
 import { matchesSource, sourceDetection, type Detection, type SourceEvidence } from '../lib/finding-evidence';
 import { ContentSkeleton, LoadingStatus } from "./ui/loading";
@@ -112,15 +114,17 @@ export function Pulse({ data, revision }: { data: Dashboard; revision: number; t
     </article>;
   }
   return <section aria-label="Pulse updates">
-    <div className="flex flex-wrap items-center justify-between gap-3 py-4">
+    <div className="flex flex-wrap items-center gap-3 py-4">
       <nav aria-label="Pulse views" className="flex flex-wrap gap-2">
         {['Relevant', 'Recent', 'Fix available'].map(label => <button key={label} onClick={() => setTab(label)} aria-pressed={tab === label}
           className="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-sunken aria-pressed:bg-sunken aria-pressed:font-medium aria-pressed:text-foreground">{label}</button>)}
       </nav>
-      <DetectionFilter value={source} onChange={setSource} />
-      <select aria-label="Filter Pulse updates" value={filter} onChange={e => setFilter(e.target.value)} className="rounded-md border border-border bg-raised px-3 py-2 text-xs text-muted-foreground">
-        {['All updates', 'Bookmarks', 'Dismissed'].map(value => <option key={value}>{value}</option>)}
-      </select>
+      <div role="group" aria-label="Pulse filters" className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
+        <DetectionFilter value={source} onChange={setSource} />
+        <SelectField aria-label="Filter Pulse updates" value={filter} onValueChange={setFilter}>
+          {['All updates', 'Bookmarks', 'Dismissed'].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+        </SelectField>
+      </div>
     </div>
     <div className="mx-auto max-w-[800px] px-1 pt-4 pb-12 sm:px-6 sm:pt-6">
       {tab === 'Relevant' && <p className="mb-5 text-xs text-muted-foreground">Highest risks and available fixes first.</p>}

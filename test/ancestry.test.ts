@@ -57,7 +57,9 @@ test('v13 migration backs up exact reports and is idempotent on reopen', () => {
   let store = new Store(dir);
   try {
     const raw = JSON.stringify(empty());
-    store.db.prepare("INSERT INTO targets(id,kind,name,image_id,report_json) VALUES ('image:test','image','test','test',?)").run(raw);
+    store.syncInventory([{id:'fixture',target_id:'image:test',name:'test',image:'test',project:'demo',service:'',manager:'Docker'}]);
+    store.db.exec("INSERT INTO projects(id,name,created_at) VALUES ('demo','Demo',0); UPDATE resources SET project_id='demo'");
+    store.db.prepare("UPDATE targets SET report_json=? WHERE id='image:test'").run(raw);
     store.db.exec('PRAGMA user_version=13');
     store.db.close(); store = new Store(dir);
     assert.equal(store.db.prepare('SELECT report_json FROM ancestry_migration_backup WHERE target=?').get('image:test')?.report_json, raw);

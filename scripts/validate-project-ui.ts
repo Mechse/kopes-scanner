@@ -17,7 +17,7 @@ import { appendEvidence } from '../src/server/source/provenance';
 import { readFileSync } from 'node:fs';
 const { chromium } = await import(pathToFileURL(resolve(process.env.KOPES_BROWSER_DRIVER ?? '/tmp/kopes-browser-tools/node_modules/playwright-core/index.mjs')).href);
 const directory=await mkdtemp(join(tmpdir(),'kopes-project-browser-'));
-const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
+const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url?.split('?')[0]==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
 docker.listen(0,'127.0.0.1');await once(docker,'listening');
 const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');const port=(probe.address() as {port:number}).port;await new Promise<void>(r=>probe.close(()=>r()));
 const origin=`http://localhost:${port}`;
@@ -30,6 +30,7 @@ try {
   const user=await context.internalAdapter.createUser({name:'Alice',email:'alice@example.test',githubLogin:'alice',emailVerified:true},{method:'oauth',oauth:{providerId:'github',profile:{login:'alice'}}});
   const session=await context.internalAdapter.createSession(user.id);
   const value=`${session.token}.${createHmac('sha256',config.secret).update(session.token).digest('base64')}`;
+  store.db.prepare('INSERT INTO selected_containers VALUES (?)').run('a'.repeat(64));
   store.db.close();
   child=spawn(process.execPath,['.output/server/index.mjs'],{cwd:directory,env,stdio:'ignore'});
   let ready=false;for(let n=0;n<80;n++){try{if((await fetch(origin+'/healthz')).ok){ready=true;break;}}catch{}await delay(100);}assert.ok(ready);

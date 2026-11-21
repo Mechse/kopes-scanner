@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { Users } from 'lucide-react';
 import { useResource } from '../lib/use-resource';
 import { useWorkspace } from './app-shell';
 import { Button } from './ui/button';
@@ -36,12 +34,7 @@ export function CoolifySettings() {
     finally { setBusy(''); }
   }
   return <section className="max-w-2xl py-6" aria-labelledby="app-settings-heading">
-    <h1 id="app-settings-heading" className="text-xl font-medium tracking-tight">Settings</h1>
-    <div className="mt-6 border-b border-border pb-6">
-      <Button asChild variant="outline"><Link to="/settings/users"><Users aria-hidden="true" />User access</Link></Button>
-      <p className="mt-2 text-sm text-muted-foreground">Manage who can sign in and access the workspace.</p>
-    </div>
-    <h2 className="mt-6 text-base font-medium">Coolify connection</h2>
+    <h2 id="app-settings-heading" className="mt-0! text-base font-medium">Coolify connection</h2>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">Show the app names from Coolify automatically. Create an API token with read permission in Coolify’s Keys &amp; Tokens, and enable API access.</p>
     {result?.error && <p role="alert" className="mt-4 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading Coolify connection…" layout="settings" /> : <form className="mt-5" onSubmit={event => { event.preventDefault(); if (!busy) void submit('save'); }}>
@@ -56,7 +49,7 @@ export function CoolifySettings() {
         </label>
         <p id="coolify-token-help" className="text-xs text-muted-foreground">The token is stored encrypted and is never displayed again. Changing the URL requires a new token.</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" busy={busy === 'save'}>Save connection</Button>
+          <Button type="submit" busy={busy === 'save'}>Save changes</Button>
           <Button type="button" variant="outline" busy={busy === 'test'} onClick={() => void submit('test')}>Test connection</Button>
           {data.enabled && <Button type="button" variant="ghost" busy={busy === 'disconnect'} onClick={() => void submit('disconnect')}>Disconnect</Button>}
         </div>

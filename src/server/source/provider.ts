@@ -1,4 +1,5 @@
 import { sourceInput } from '../../lib/source-inputs';
+import { SourceError } from './errors';
 import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
@@ -61,18 +62,35 @@ const inputName = sourceInput;
 export class GitProvider {
   constructor(private connection: Connection, private read: ReadJson) {}
   async repository(locator: string): Promise<Repository> {
-    const repo = await this.read(this.connection, this.connection.provider === 'github'
+    let repo = await this.read(this.connection, this.connection.provider === 'github'
       ? /^\d+$/.test(locator) ? `/repositories/${locator}` : `/repos/${locator.split('/').map(segment).join('/')}`
       : `/api/v4/projects/${segment(locator)}`);
-    if (!repo.id || typeof (repo.full_name ?? repo.path_with_namespace) !== 'string' || typeof repo.default_branch !== 'string') throw new Error('Incomplete repository identity.');
-    if (this.connection.provider==='github' && (!/^[1-9][0-9]{0,19}$/.test(String(repo.id)) || typeof repo.id==='number' && !Number.isSafeInteger(repo.id))) throw new Error('Invalid repository identity.');
+    if (this.connection.provider === 'github') {
+      const validate = (value: any) => {
+        if (!value || !/^[1-9][0-9]{0,19}$/.test(String(value.id)) || typeof value.id === 'number' && !Number.isSafeInteger(value.id)) throw new SourceError('repository-identity');
+        if (typeof value.full_name !== 'string' || !/^[a-z\d-]+\/[a-z\d_.-]+$/i.test(value.full_name) || ['.','..'].includes(value.full_name.split('/')[1])) throw new SourceError('repository-response');
+      };
+      validate(repo);
+      if (/^\d+$/.test(locator)) {
+        if (String(repo.id) !== locator) throw new SourceError('repository-identity');
+        // If ID lookup omits the branch, read full details through the canonical
+        // endpoint using the same credentials, then recheck the ID.
+        if (typeof repo.default_branch !== 'string' || !repo.default_branch) {
+          repo = await this.read(this.connection, `/repos/${repo.full_name.split('/').map(segment).join('/')}`);
+          validate(repo);
+          if (String(repo.id) !== locator) throw new SourceError('repository-identity');
+        }
+      }
+    }
+    if (!repo?.id || typeof (repo.full_name ?? repo.path_with_namespace) !== 'string') throw new SourceError('repository-response');
+    if (typeof repo.default_branch !== 'string' || !repo.default_branch) throw new SourceError('default-branch');
     return { providerId: String(repo.id), name: repo.full_name ?? repo.path_with_namespace, branch: repo.default_branch };
   }
   private root(repo: Repository) { return this.connection.provider === 'github' ? `/repos/${repo.name.split('/').map(segment).join('/')}` : `/api/v4/projects/${segment(repo.providerId)}`; }
   async head(repo: Repository, branch: string) {
     const result = await this.read(this.connection, `${this.root(repo)}${this.connection.provider === 'github' ? '/branches/' : '/repository/branches/'}${segment(branch)}`);
-    const sha = result.commit?.sha ?? result.commit?.id;
-    if (!fullSha(sha)) throw new Error('Provider did not return an immutable commit.');
+    const sha = result?.commit?.sha ?? result?.commit?.id;
+    if (!fullSha(sha)) throw new SourceError('branch-head');
     return sha;
   }
   async history(repo: Repository, commit: string) {
@@ -131,7 +149,8 @@ export class GitProvider {
       if (file.encoding !== 'base64' || typeof file.content !== 'string' || file.type === 'symlink') throw new Error('Dependency input is not a regular file.');
       const bytes = Buffer.from(file.content, 'base64'); size += bytes.length;
       if (bytes.length > 2 * 1024 * 1024 || size > 8 * 1024 * 1024) throw new Error('Dependency input size limit exceeded.');
-      files[entry.path] = bytes.toString('utf8');
+      // Binary Bun locks are evidence of an unsupported input, never worker text.
+      files[entry.path] = entry.path.split('/').at(-1) === 'bun.lockb' ? `sha256:${createHash('sha256').update(bytes).digest('hex')}` : bytes.toString('utf8');
     }
     const hash = createHash('sha256').update(JSON.stringify(Object.entries(files).sort(([a],[b]) => a.localeCompare(b)))).digest('hex');
     return { commit, files, hash, collectedAt: Date.now() };

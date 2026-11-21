@@ -1,4 +1,5 @@
 import { GithubError, githubErrorMessage, githubHttp, type GithubHttp } from './github-http';
+import { SourceError, sourceErrorMessage } from './errors';
 import { credentialProvider, connectionRevision } from './github-app';
 import { sourceAnalyzerVersion } from './version';
 import { enrichLegacyCvss } from './legacy-cvss';
@@ -14,7 +15,7 @@ import { z } from 'zod';
 import type { Store } from '../store';
 import type { Config } from '../config';
 import { enqueueSource, sourceFlags, sourcePolicy } from './service';
-import { GitProvider, providerReader, type ReadJson } from './provider';
+import { GitProvider, ProviderError, providerReader, type ReadJson } from './provider';
 const text = z.string().max(4096);
 const scope = z.enum(['runtime','development','optional','peer','unknown']);
 export const resultSchema = z.object({ ok: z.literal(true), bundleHash: z.string().regex(/^[a-f0-9]{64}$/), sbom: z.string().max(8*1024*1024), analyzer: text,
@@ -24,7 +25,7 @@ export const resultSchema = z.object({ ok: z.literal(true), bundleHash: z.string
     edges: z.array(z.object({ from: text, to: text, scope, requestedName: text.optional(), specifier: text.optional() })).max(200_000),
     roots: z.array(z.object({ id: text, workspace: text, manifest: text, name: text, declarations: z.record(text,z.unknown()).optional() })).max(1000),
     findings: z.array(z.object({ cvss: z.object({ score: z.number().min(0).max(10), version: z.union([z.literal(2), z.literal(3), z.literal(4)]), source: text, vector: text.optional() }).optional(), advisory: text, aliases: z.array(text).max(100), node: text, package: text, version: text, fixed: text, severity: text, title: text, file: text })).max(100_000),
-    warnings: z.array(text).max(5000), manager: z.enum(['npm','pnpm','python','mixed','unknown']), folder: text, analyzerPackages: z.array(z.unknown()).max(100_000),
+    warnings: z.array(text).max(5000), manager: z.enum(['npm','pnpm','bun','python','mixed','unknown']), folder: text, analyzerPackages: z.array(z.unknown()).max(100_000),
     coverage: z.object({ inputs: z.enum(['complete','partial']), inventory: z.enum(['complete','unknown']), graph: z.enum(['complete','partial']), runtime: z.literal('unknown') }),
   }), paths: z.record(text, z.object({ paths: z.array(z.array(text).max(80)).max(100), truncated: z.boolean(), relationship: z.enum(['known','unknown']) })),
 });
@@ -75,15 +76,19 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
   const accessCurrent = () => { try { return connectionRevision(store,String(job.connection_id),String(job.provider_id))===accessRevision; } catch { return false; } };
   const active = () => accessCurrent() && !signal.aborted && Boolean(store.db.prepare(`SELECT 1 FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id JOIN source_connections c ON c.id=b.connection_id LEFT JOIN projects p ON p.id=b.project_id
     WHERE (b.project_id IS NULL OR p.archived=0) AND j.id=? AND j.state='running' AND b.enabled=1 AND b.access_status='active' AND c.disconnected=0 AND c.credential_version=? AND b.connection_id=? AND b.access_revision=?`).get(jobId, job.credential_version,job.connection_id,job.binding_revision));
-  let stage = 'Repository access';
+  let stage = 'Repository credentials';
   try {
     const { provider } = credentialProvider(store,String(job.connection_id),config.secret,read,String(job.provider_id),http);
+    stage = 'Repository metadata lookup';
     const repo = await provider.repository(String(job.provider_id));
     if (!active()) return true;
-    if (repo.providerId !== String(job.provider_id)) throw new Error('Repository identity changed.');
+    if (repo.providerId !== String(job.provider_id)) throw new SourceError('repository-identity');
     const historical = String(job.kind).startsWith('deployed:');
+    stage = 'Saving repository branch';
     if (!historical) store.db.prepare('UPDATE source_bindings SET branch=? WHERE id=?').run(repo.branch, job.binding_id);
+    stage = 'Default branch lookup';
     const commit = historical ? String(job.commit_sha) : await provider.head(repo, repo.branch);
+    stage = 'Scan history lookup';
     const last = historical ? undefined : store.db.prepare("SELECT s.observed_at,s.snapshot_id,s.result_json,s.analyzer FROM source_scans s JOIN source_jobs j ON j.id=s.job_id WHERE s.binding_id=? AND j.kind NOT LIKE 'deployed:%' ORDER BY s.observed_at DESC LIMIT 1").get(job.binding_id);
     if (!active()) return true;
     if (!needsSourceAnalysis(String(job.kind), job.head_sha === null ? null : String(job.head_sha), commit, last ? Number(last.observed_at) : undefined, Date.now(), { error: job.binding_error || job.error, analyzer: last ? String(last.analyzer) : undefined })) {
@@ -153,7 +158,11 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
         recordStorageError(store,failure.reason);
         return true;
       }
-      const error = failure instanceof GithubError ? githubErrorMessage(failure) : `${stage} failed. Retry the scan; if it continues, check the source worker and provider connection. Coverage is unknown; historical scans are retained.`;
+      const detail = failure instanceof SourceError ? sourceErrorMessage(failure)
+        : failure instanceof GithubError ? githubErrorMessage(failure)
+        : failure instanceof ProviderError ? new ProviderError(failure.status).message
+        : 'Retry the scan; if it continues, report this scan stage and check the application configuration.';
+      const error = `${stage} failed. ${detail} Coverage is unknown; historical scans are retained.`;
       const attempts = Number(job.attempts)+1;
       store.db.prepare("UPDATE source_jobs SET state=?,error=?,available_at=? WHERE id=?").run(attempts >= 3 ? 'failed' : 'queued', error, failure instanceof GithubError && failure.retryAt ? failure.retryAt : Date.now()+Math.min(3600_000, 60_000*2**attempts), jobId);
       store.db.prepare('UPDATE source_bindings SET error=? WHERE id=?').run(error, job.binding_id);

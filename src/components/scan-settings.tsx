@@ -1,3 +1,5 @@
+import { SelectField } from './ui/select-field';
+import { SelectItem } from './ui/select';
 import { ContentSkeleton } from "./ui/loading";
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -6,6 +8,7 @@ import { cadenceLabels, type ScanSettings, type SettingsData } from '../lib/sett
 import { useResource } from '../lib/use-resource';
 import { useWorkspace } from './app-shell';
 import { Button } from './ui/button';
+import { SettingsTabs, SettingsPanel } from './settings-tabs';
 import { Tooltip } from './ui/tooltip';
 export function ScanSettingsLink({ project, target, app, iconOnly = false }: { project?: string; target?: string; app?: string; iconOnly?: boolean }) {
   const link = <Button asChild variant={iconOnly ? 'ghost' : 'outline'} size="sm" className={iconOnly ? 'size-8 p-0' : undefined}><Link to="/settings" search={{ project, target, app }} aria-label={iconOnly ? 'Settings' : undefined}><Settings size={14} aria-hidden="true" />{!iconOnly && 'Settings'}</Link></Button>;
@@ -15,7 +18,7 @@ export function ScanSettingsLink({ project, target, app, iconOnly = false }: { p
 const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-raised px-3 py-2 text-sm disabled:opacity-50';
 const rowClass = 'grid min-w-0 gap-3 py-4 @min-[580px]:grid-cols-[minmax(0,1fr)_260px] @min-[580px]:items-center';
 
-export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
+export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTabChange }: { tab?: string; onTabChange: (tab: string) => void; scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
   const { revision, refresh } = useWorkspace();
   const path = `settings?scope=${scope}&key=${encodeURIComponent(settingsKey)}`;
   const result = useResource<SettingsData>(path, revision);
@@ -60,10 +63,12 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
           : `Use ${data?.project === null ? 'workspace' : 'container'} defaults or choose a value for this resource.`}
       </p>
     </header>
+    <SettingsTabs value={tab === 'notifications' ? tab : 'general'} onValueChange={onTabChange} tabs={[{ value: 'general', label: 'General' }, { value: 'notifications', label: 'Notifications' }]}>
     {result?.error && <p role="alert" className="mb-4 rounded-md border border-critical/20 bg-critical/5 p-3 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : (
       <form onSubmit={event => { event.preventDefault(); if (!busy && changed) void save(); }}>
-        <fieldset disabled={busy} className="min-w-0 border-t border-border py-4">
+        <SettingsPanel value="general">
+        <fieldset disabled={busy} className="min-w-0 py-5">
           <legend className="sr-only">Display name</legend>
           <label htmlFor="display-name" className="text-sm font-medium">Display name</label>
           <p id="display-name-help" className="mt-1 mb-3 text-xs leading-5 text-muted-foreground">Shared with everyone in this workspace. Leave blank to use the detected name.</p>
@@ -78,13 +83,19 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
               <label htmlFor="rescan-frequency" className="text-sm">Rescan frequency</label>
               <p id="rescan-help" className="mt-1 text-xs leading-5 text-muted-foreground">How often to check for new vulnerabilities.</p>
             </div>
-            <select id="rescan-frequency" aria-describedby="rescan-help" className={fieldClass} value={inherited('rescanHours') ? 'inherit' : String(values.rescanHours)} onChange={event => update('rescanHours', event.target.value === 'inherit' ? undefined : Number(event.target.value))}>
-              {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {cadenceLabels[data.defaults.rescanHours]}</option>}
-              {Object.entries(cadenceLabels).sort(([a], [b]) => Number(a) - Number(b)).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <SelectField id="rescan-frequency" aria-describedby="rescan-help" className="w-full min-w-0" value={inherited('rescanHours') ? 'inherit' : String(values.rescanHours)} onValueChange={value => update('rescanHours', value === 'inherit' ? undefined : Number(value))}>
+              {scope === 'resource' && <SelectItem value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {cadenceLabels[data.defaults.rescanHours]}</SelectItem>}
+              {Object.entries(cadenceLabels).sort(([a], [b]) => Number(a) - Number(b)).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+            </SelectField>
           </div>
         </fieldset>
-        <fieldset disabled={busy} className="min-w-0 border-t border-border pt-4">
+        <details className="mb-4 text-xs text-muted-foreground">
+          <summary className="w-fit rounded-sm">How scanning works</summary>
+          <p className="mt-3 max-w-prose leading-5">New resources and container starts are still scanned. Shared images use the shortest active rescan interval. Changes apply to future scans.</p>
+        </details>
+        </SettingsPanel>
+        <SettingsPanel value="notifications">
+        <fieldset disabled={busy} className="min-w-0 pt-5">
           <legend className="sr-only">Pulse notifications</legend>
           <h2 className="m-0! text-sm! font-medium">Pulse notifications</h2>
           <div className="divide-y divide-border/60">
@@ -97,24 +108,24 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
                   <label htmlFor={key} className="text-sm">{title}</label>
                   <p id={`${key}-help`} className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
                 </div>
-                <select id={key} aria-describedby={`${key}-help`} className={fieldClass} value={inherited(key) ? 'inherit' : String(values[key])} onChange={event => update(key, event.target.value === 'inherit' ? undefined : event.target.value === 'true')}>
-                  {scope === 'resource' && <option value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {data.defaults[key] ? 'On' : 'Off'}</option>}
-                  <option value="true">On</option><option value="false">Off</option>
-                </select>
+                <SelectField id={key} aria-describedby={`${key}-help`} className="w-full min-w-0" value={inherited(key) ? 'inherit' : String(values[key])} onValueChange={value => update(key, value === 'inherit' ? undefined : value === 'true')}>
+                  {scope === 'resource' && <SelectItem value="inherit">{data.project === null ? 'Workspace' : 'Container'} default · {data.defaults[key] ? 'On' : 'Off'}</SelectItem>}
+                  <SelectItem value="true">On</SelectItem><SelectItem value="false">Off</SelectItem>
+                </SelectField>
               </div>
             ))}
           </div>
         </fieldset>
         <details className="group border-t border-border py-3 text-xs text-muted-foreground">
           <summary className="flex w-fit list-none items-center gap-1.5 rounded-sm [&::-webkit-details-marker]:hidden">
-            <ChevronDown size={14} className="-rotate-90 group-open:rotate-0" aria-hidden="true" />How these settings work
+            <ChevronDown size={14} className="-rotate-90 group-open:rotate-0" aria-hidden="true" />How Pulse works
           </summary>
           <div className="mt-3 max-w-prose space-y-2 leading-5">
-            <p>New resources and container starts are still scanned. Shared images use the shortest active rescan interval.</p>
             <p>Pulse includes all severities, grouped by container. Older CVEs can be newly detected, and fixes can trigger a notification on first detection. Unchanged findings do not send repeat notifications.</p>
             <p>Changes apply to future scans.</p>
           </div>
         </details>
+        </SettingsPanel>
         <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
           {message && <p role="status" className="mr-auto flex items-center gap-1.5 text-xs text-brand-ink"><Check size={14} aria-hidden="true" />{message}</p>}
           {changed && <p className="mr-auto text-xs text-muted-foreground">Unsaved changes</p>}
@@ -123,5 +134,6 @@ export function SettingsForm({ scope, settingsKey, name, detectedName }: { scope
         {error && <p role="alert" className="mt-3 rounded-md border border-critical/20 bg-critical/5 p-3 text-sm text-critical">{error}</p>}
       </form>
     )}
+    </SettingsTabs>
   </div>;
 }

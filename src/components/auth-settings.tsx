@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useResource } from '../lib/use-resource';
 import { Button } from './ui/button';
 import { ContentSkeleton } from './ui/loading';
@@ -28,18 +29,19 @@ export function AuthMethodsSettings() {
     } catch (error) { setError(error instanceof Error ? error.message : 'Could not save sign-in settings.'); }
     finally { setBusy(false); }
   }
-  return <section className="max-w-2xl border-t border-border py-6" aria-labelledby="auth-settings-heading">
-    <h2 id="auth-settings-heading" className="text-base font-medium">Sign-in methods</h2>
-    <p className="mt-2 text-sm leading-6 text-muted-foreground">Create an OAuth application with each provider, then enter its credentials here. Changes apply immediately. Secrets are encrypted and never displayed again.</p>
+  return <section className="max-w-2xl py-6" aria-labelledby="auth-settings-heading">
+    <h2 id="auth-settings-heading" className="mt-0! text-base font-medium">Sign-in methods</h2>
+    <p className="mt-2 text-sm leading-6 text-muted-foreground">Choose a provider to manage sign-in. Saved changes apply immediately. Secrets are encrypted and never displayed again.</p>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">Your current sign-in method is protected. Sign in through another method before changing or disabling it. Accounts remain tied to their original provider.</p>
     {result?.error && <p role="alert" className="mt-4 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading sign-in methods…" layout="settings" /> : <div key={version}>
       {data.providers.map(provider => <ProviderForm key={provider.provider} data={provider} origin={data.origin} locked={provider.provider === data.currentProvider} busy={busy} submit={submit} />)}
-      <form className="mt-6 rounded-lg border border-border p-4" onSubmit={event => {
+      <details className="group border-b border-border py-5">
+        <summary className="flex flex-wrap items-center justify-between gap-2 rounded-sm text-sm font-medium [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><ChevronDown size={14} aria-hidden="true" className="-rotate-90 group-open:rotate-0" />Microsoft email verification</span><span className="text-xs font-normal text-muted-foreground">{data.mail.configured ? 'Configured' : 'Not configured'}</span></summary>
+      <form className="mt-4" onSubmit={event => {
         event.preventDefault(); const form = new FormData(event.currentTarget);
         void submit({ action: 'mail', smtpUrl: form.get('smtpUrl'), mailFrom: form.get('mailFrom') });
       }}>
-        <h3 className="text-sm font-medium">Microsoft email verification</h3>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">Microsoft users must verify their mailbox before their first sign-in. Configure email delivery before enabling Microsoft. Use your mail service’s SMTP credentials, URL-encode special characters, and use an approved sender address.</p>
         {data.currentProvider === 'microsoft' && <p className="mt-2 text-xs">Sign in with another method to change email delivery.</p>}
         <fieldset disabled={busy || data.currentProvider === 'microsoft'} className="mt-4 space-y-4">
@@ -49,10 +51,11 @@ export function AuthMethodsSettings() {
           <label className="block text-sm" htmlFor="auth-from">Sender email
             <input id="auth-from" name="mailFrom" type="email" required defaultValue={data.mail.mailFrom} className={fieldClass} placeholder="security@example.com" />
           </label>
-          <Button type="submit">Save email delivery</Button>
+          <Button type="submit">Save changes</Button>
         </fieldset>
         <p className="mt-3 text-xs text-muted-foreground">{data.mail.configured ? 'Email delivery is configured. Verify delivery with a Microsoft sign-in.' : 'Email delivery is not configured.'}</p>
       </form>
+      </details>
     </div>}
     {message && <p role="status" className="mt-4 text-sm">{message}</p>}
     {error && <p role="alert" className="mt-4 text-sm text-critical">{error}</p>}
@@ -62,11 +65,12 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const name = providerNames[data.provider], callback = `${origin}/api/auth/callback/${data.provider}`;
-  return <form className="mt-6 rounded-lg border border-border p-4" onSubmit={event => {
+  return <details className="group border-b border-border py-5">
+    <summary className="flex flex-wrap items-center justify-between gap-2 rounded-sm text-sm font-medium [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><ChevronDown size={14} aria-hidden="true" className="-rotate-90 group-open:rotate-0" />{name}</span><span className="text-xs font-normal text-muted-foreground">{data.enabled ? 'Enabled' : 'Not enabled'}{locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}</span></summary>
+    <form className="mt-4" onSubmit={event => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     void submit({ action: 'save', provider: data.provider, clientId: form.get('clientId'), clientSecret: form.get('clientSecret'), administrator: form.get('administrator') });
   }}>
-    <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-medium">{name}</h3><span className="text-xs text-muted-foreground">{data.enabled ? 'Enabled' : 'Not enabled'}{locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}</span></div>
     <p className="mt-3 text-xs leading-5 text-muted-foreground"><a className="underline" href={registration[data.provider]} target="_blank" rel="noreferrer">Open {name} application settings</a>. {data.provider === 'github' ? 'Create an OAuth App; no repository access is needed.' : data.provider === 'google' ? 'Create a Web application OAuth client. While in testing, add your users as test users.' : 'Register an application for accounts in any organization and personal Microsoft accounts. Use a Web redirect URI and copy the secret value, not its ID.'}</p>
     <p className="mt-3 text-xs text-muted-foreground">Callback URL</p>
     <div className="mt-1 flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{callback}</code><Button type="button" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(callback); setCopied(true); setCopyError(false); } catch { setCopyError(true); } }}>{copied ? 'Copied' : 'Copy'}</Button></div>
@@ -76,8 +80,9 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
       <label className="block text-sm" htmlFor={`${data.provider}-secret`}>Client secret<input id={`${data.provider}-secret`} name="clientSecret" type="password" required={!data.hasSecret} className={fieldClass} autoComplete="new-password" placeholder={data.hasSecret ? 'Saved — leave blank to keep' : 'Paste client secret'} /></label>
       <p className="text-xs text-muted-foreground">Changing the client ID requires a new secret.</p>
       <label className="block text-sm" htmlFor={`${data.provider}-admin`}>{data.provider === 'github' ? 'Administrator GitHub username' : 'Administrator email'}<input id={`${data.provider}-admin`} name="administrator" type={data.provider === 'github' ? 'text' : 'email'} required defaultValue={data.administrator} className={fieldClass} /></label>
-      {data.provider !== 'github' && <p className="text-xs text-muted-foreground">Google and Microsoft share the same administrator email. Add other people on the User access page.</p>}
-      <div className="flex flex-wrap gap-2"><Button type="submit">Save {name}</Button>{data.enabled && <Button type="button" variant="ghost" onClick={() => void submit({ action: 'disable', provider: data.provider })}>Disable {name}</Button>}</div>
+      {data.provider !== 'github' && <p className="text-xs text-muted-foreground">Google and Microsoft share the same administrator email. Manage other people in the Users tab.</p>}
+      <div className="flex flex-wrap gap-2"><Button type="submit">Save changes</Button>{data.enabled && <Button type="button" variant="ghost" onClick={() => void submit({ action: 'disable', provider: data.provider })}>Disable {name}</Button>}</div>
     </fieldset>
-  </form>;
+  </form>
+  </details>;
 }

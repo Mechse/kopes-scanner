@@ -1,3 +1,5 @@
+import { SelectField } from './ui/select-field';
+import { SelectItem } from './ui/select';
 import { Box, Code2, Server, CircleHelp } from 'lucide-react';
 import { Tooltip } from './ui/tooltip';
 import { isCve, safeUrl, type Advisory } from '../lib/advisory';
@@ -24,7 +26,7 @@ export function DetectionBadge({ detection, packageName }: { detection: Detectio
   </span></Tooltip>;
 }
 export function DetectionFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <select aria-label="Filter by detection source" value={value} onChange={e => onChange(e.target.value)} className="rounded-md border border-border bg-raised px-3 py-2 text-xs"><option value="all">All detection sources</option>{Object.entries(detectionLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>;
+  return <SelectField aria-label="Filter by detection source" value={value} onValueChange={onChange}><SelectItem value="all">All detection sources</SelectItem>{Object.entries(detectionLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectField>;
 }
 export function EmptyDetection() {
   return <p role="status" className="my-5 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">No findings match this detection source.</p>;

@@ -69,29 +69,6 @@ export function syncResources(db: DatabaseSync, containers: Container[]) {
       resource_id=excluded.resource_id,target_id=excluded.target_id,last_seen=excluded.last_seen,active=1`)
       .run(c.id, id, c.target_id, now, now);
   }
-  // A newly discovered Compose service belongs with its already assigned siblings.
-  // Use runtime membership, never a matching project/repository display name.
-  const groups = new Map<string, Set<string>>();
-  for (const c of containers) {
-    if (c.manager !== 'Compose' || !c.project) continue;
-    const id = String(db.prepare('SELECT resource_id FROM runtime_instances WHERE container_id=?').get(c.id)!.resource_id);
-    const members = groups.get(c.project) ?? new Set<string>();
-    members.add(id);
-    groups.set(c.project, members);
-  }
-  for (const [group, ids] of groups) {
-    const members = [...ids].map(id => db.prepare('SELECT id,project_id FROM resources WHERE id=?').get(id)!);
-    const owners = new Set(members.map(r => r.project_id).filter(Boolean));
-    if (owners.size !== 1) continue; // Split groups require explicit assignment.
-    const projectId = String([...owners][0]);
-    if (!db.prepare('SELECT 1 FROM projects WHERE id=? AND archived=0').get(projectId)) continue;
-    if ([...ids].some(id => db.prepare('SELECT 1 FROM resource_identity_conflicts WHERE resource_id=? OR candidate_id=?').get(id, id))) continue;
-    const unassigned = members.filter(r => r.project_id === null);
-    if (!unassigned.length) continue;
-    for (const r of unassigned) db.prepare('UPDATE resources SET project_id=? WHERE id=?').run(projectId, r.id);
-    db.prepare('INSERT INTO project_events(project_id,actor_id,action,detail_json,observed_at) VALUES (?,?,?,?,?)')
-      .run(projectId, 'system', 'discovery-group-expanded', JSON.stringify({ group, resources: unassigned.map(r => r.id) }), now);
-  }
 }
 
 export function linkScanResources(db: DatabaseSync, observationId: string, targetId: string) {
@@ -233,7 +210,7 @@ export class ProjectStore {
   unassigned() {
     this.admin();
     return this.db.prepare(`SELECT r.*, EXISTS(SELECT 1 FROM resource_identity_conflicts c WHERE c.resource_id=r.id OR c.candidate_id=r.id) AS identity_warning, (SELECT group_concat(legacy_key) FROM legacy_resource_keys k WHERE k.resource_id=r.id) AS legacy_keys
-      FROM resources r WHERE project_id IS NULL ORDER BY r.name,r.id`).all().map(r => ({ ...r, id: String(r.id), legacyGroups: this.db.prepare('SELECT legacy_key FROM legacy_resource_keys WHERE resource_id=?').all(r.id).map(k => { try { return String(JSON.parse(String(k.legacy_key))[0]); } catch { return 'Unknown discovery group'; } }) }));
+      FROM resources r WHERE project_id IS NULL AND EXISTS (SELECT 1 FROM runtime_instances i JOIN selected_containers s ON s.id=i.container_id WHERE i.resource_id=r.id) ORDER BY r.name,r.id`).all().map(r => ({ ...r, id: String(r.id), legacyGroups: this.db.prepare('SELECT legacy_key FROM legacy_resource_keys WHERE resource_id=?').all(r.id).map(k => { try { return String(JSON.parse(String(k.legacy_key))[0]); } catch { return 'Unknown discovery group'; } }) }));
   }
   previewMove(resourceId: string, projectId: string) {
     this.admin(); this.requireProject(projectId);

@@ -8,8 +8,9 @@ import { validatePat } from './github-pat';
 import { appRecord, appSeal, appSecret, verifyApp, invalidateConnection, auditGithub, type GithubApp } from './github-app';
 import { githubHttp, githubId, GithubError, githubErrorMessage, type GithubHttp } from './github-http';
 import { startSetup, resumeSetup, ownerSchema, expireSetup, setupHeaders, type GithubContext } from './github-setup';
-import { githubRepositoryPicker } from './github-repository-picker';
 import { reconcileInstallation, reconcilePatConnection } from './github-reconcile';
+import { githubSettingsFailure } from './github-settings-error';
+import { githubRepositoryPicker } from './github-repository-picker';
 
 const id = z.string().min(1).max(200), credential = z.string().max(20000).regex(/^[^\r\n]*$/);
 const pat = { connectionId:id.optional(), label:z.string().trim().min(1).max(120),owner:ownerSchema,token:credential,repository:z.string().max(300),history:z.boolean().default(false),expiresAt:z.number().int().positive().nullable().default(null) };
@@ -56,8 +57,10 @@ export async function handleGithub(request: Request, store: Store, context: Gith
   }
   if (request.method!=='POST') return json({error:'Method not allowed.'},405);
   if (request.headers.get('origin')!==config.origin) return json({error:'Origin not allowed.'},403);
+  let stage = 'request';
   try {
     const body = command.parse(JSON.parse(await boundedBody(request,80000)));
+    stage = body.action;
     await context.recheck();
     if (body.action==='start') return json(await startSetup(store,context,config,body));
     if (body.action==='resume') return json(await resumeSetup(store,body.appId,context,config,http));
@@ -86,7 +89,8 @@ export async function handleGithub(request: Request, store: Store, context: Gith
       if (previous && (previous.github_id !== body.githubId || previous.client_id !== body.clientId || previous.owner_login.toLowerCase() !== body.owner.toLowerCase())) throw new Error();
       const candidate: GithubApp = {id:appId,github_id:githubId(body.githubId),client_id:body.clientId,slug:previous?.slug ?? '',owner_id:previous?.owner_id ?? '',owner_login:body.owner,owner_type:body.ownerType,origin:config.origin,
         private_key:body.privateKey ? appSeal(body.privateKey,config.secret,appId,'private_key') : previous?.private_key ?? '',client_secret:body.clientSecret ? appSeal(body.clientSecret,config.secret,appId,'client_secret') : previous?.client_secret ?? '',webhook_secret:body.webhookSecret ? appSeal(body.webhookSecret,config.secret,appId,'webhook_secret') : previous?.webhook_secret ?? '',credential_revision:previous?.credential_revision ?? 1,history:Number(body.history),webhook_mode:body.webhookMode,status:'registered'};
-      appSecret(candidate,config.secret,'client_secret'); appSecret(candidate,config.secret,'webhook_secret');
+      appSecret(candidate,config.secret,'client_secret');
+      if (candidate.webhook_secret) appSecret(candidate,config.secret,'webhook_secret');
       const verified = await verifyApp(candidate,config.secret,http); await context.recheck();
       store.transaction(()=>{
         if (previous && store.db.prepare('SELECT credential_revision FROM github_apps WHERE id=?').get(appId)?.credential_revision !== previous.credential_revision) throw new Error();
@@ -128,5 +132,8 @@ export async function handleGithub(request: Request, store: Store, context: Gith
       store.db.prepare("UPDATE source_connections SET health='connected',validated_at=? WHERE id=?").run(Date.now(),c.id);
     }
     await context.recheck(); return json(githubSettings(store,config.origin));
-  } catch (error) { if(error instanceof GithubError) return json({error:githubErrorMessage(error),reason:error.reason},400); return json({error:'GitHub operation failed. Check owner, read permissions, approval, credentials and callback URLs. Existing credentials and historical scans are retained. Resume or import an App after interrupted registration.'},400); }
+  } catch (error) {
+    if(error instanceof GithubError) return json({error:githubErrorMessage(error),reason:error.reason},400);
+    const failure = githubSettingsFailure(error,stage); return json(failure.body,failure.status);
+  }
 }

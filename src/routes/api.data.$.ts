@@ -11,6 +11,7 @@ import { projectSettingsSchema, resourceSettingsSchema } from '../lib/settings';
 import { createFileRoute } from '@tanstack/react-router';
 import { lookupAdvisory } from '../server/advisory';
 import { isCve } from '../lib/advisory';
+import { inventory } from '../server/docker';
 import { runtime } from '../server/runtime';
 import { isAdministrator, requireSameOrigin, requireSession } from '../server/auth';
 import { accessIdentifier } from '../lib/user-access';
@@ -18,7 +19,7 @@ import { handleAuthSettings } from '../server/auth-settings';
 import { handleCoolifySettings } from '../server/coolify-settings';
 
 async function handle({ request }: { request: Request }) {
-  const { auth, store, config, baseConfig } = await runtime();
+  const { auth, store, config, baseConfig, syncSelected } = await runtime();
   const session = await requireSession(request, auth, config, store);
   const isAdmin = isAdministrator(session.user, config);
   const url = new URL(request.url);
@@ -35,6 +36,25 @@ async function handle({ request }: { request: Request }) {
   if (request.method === 'GET' && action === 'advisory') {
     if (!isCve(id)) return new Response('Invalid CVE identifier.', { status: 400 });
     return Response.json(await lookupAdvisory(id), { headers: { 'Cache-Control': 'private, no-store' } });
+  }
+  if (action === 'machine-containers') {
+    if (!isAdmin) return new Response('Administrator access required.', { status: 403 });
+    if (request.method === 'POST') {
+      requireSameOrigin(request, config.origin);
+      const body = await request.json().catch(() => null);
+      if (typeof body?.id !== 'string' || !/^[a-f0-9]{64}$/.test(body.id)) return new Response('Invalid container ID.', { status: 400 });
+      if (body.action === 'remove') return await syncSelected(body.id, 'remove') ? new Response(null, { status: 204 }) : new Response('Container is not tracked.', { status: 404 });
+      if (body.action !== undefined && body.action !== 'add') return new Response('Invalid action.', { status: 400 });
+      try {
+        return await syncSelected(body.id) ? new Response(null, { status: 204 }) : new Response('Container is no longer running.', { status: 409 });
+      } catch { return new Response('Could not add the container. Check Docker connectivity and retry.', { status: 503 }); }
+    }
+    if (url.searchParams.get('view') === 'tracked') return Response.json(store.trackedContainers(url.searchParams.get('projectId')),  { headers: { 'Cache-Control': 'private, no-store' } });
+    try {
+      const tracked = new Set(store.selectedContainers());
+      const rows = (await inventory(config.docker)).filter(c => !tracked.has(c.id)).map(({ id, name, image }) => ({ id, name, image }));
+      return Response.json(rows, { headers: { 'Cache-Control': 'private, no-store' } });
+    } catch { return new Response('Could not list running containers. Check Docker connectivity and retry.', { status: 503 }); }
   }
   if (action === 'users') {
     if (!isAdmin) return new Response('Administrator access required.', { status: 403 });

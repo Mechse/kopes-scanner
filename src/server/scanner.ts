@@ -41,6 +41,7 @@ export async function scanTarget(config: Config, store: Store, target: Target, s
       if (report.packages.length !== expected) throw new Error('The matcher did not recognize the full release-source inventory.');
       report.coverage = 'release-source';
       report.ancestry = { state: 'incomplete', reasons: ['source-only'], checkedAt: Date.now() };
+      signal.throwIfAborted();
       store.complete(target.id, report, sbom, platform, [], '');
       return;
     }
@@ -152,6 +153,7 @@ export async function scanTarget(config: Config, store: Store, target: Target, s
         note = 'Image recommendations unavailable: registry may be private, unreachable, or rate-limited. The installed-image scan succeeded.';
       }
     }
+    signal.throwIfAborted();
     suggestions.sort((a, b) => (b.removed - b.introduced) - (a.removed - a.introduced));
     store.complete(target.id, report, sbom, platform, baseComparison ? suggestions.slice(0, 1) : suggestions, note + provenanceNote);
   } finally { await rm(work, { recursive: true, force: true }); }

@@ -6,19 +6,21 @@ import { parseDocument } from 'yaml';
 import { satisfies, valid, validRange } from 'semver';
 import { posix } from 'node:path';
 import type { Bundle } from './provider';
+import { analyzeBun } from './bun-cargo';
 export type Scope = 'runtime' | 'development' | 'optional' | 'peer' | 'unknown';
-export type Node = { id: string; name: string; version: string; file: string; location: string; dev: boolean; raw?: unknown };
+export type Node = { id: string; name: string; version: string; file: string; location: string; dev: boolean; source?: string; raw?: unknown };
 export type Edge = { from: string; to: string; scope: Scope; requestedName?: string; specifier?: string };
 export type Root = { id: string; workspace: string; manifest: string; name: string; declarations?: Record<string, unknown> };
 export type SourceFinding = { cvss?: Finding['cvss']; advisory: string; aliases: string[]; node: string; package: string; version: string; fixed: string; severity: string; title: string; file: string };
 export type Analysis = { nodes: Node[]; edges: Edge[]; roots: Root[]; findings: SourceFinding[]; warnings: string[];
   coverage: { inputs: 'complete' | 'partial'; inventory: 'complete' | 'unknown'; graph: 'complete' | 'partial'; runtime: 'unknown' };
-  analyzerPackages: unknown[]; manager: 'npm' | 'pnpm' | 'python' | 'mixed' | 'unknown'; folder: string };
+  analyzerPackages: unknown[]; manager: 'npm' | 'pnpm' | 'bun' | 'cargo' | 'python' | 'mixed' | 'unknown'; folder: string };
 const groups = { dependencies: 'runtime', devDependencies: 'development', optionalDependencies: 'optional', peerDependencies: 'peer' } as const;
 function object(value: any): Record<string, any> { if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected dependency object.'); return value; }
 function yaml(raw: string) { const doc = parseDocument(raw, { uniqueKeys: true }); if (doc.errors.length) throw new Error('Malformed YAML input.'); return object(doc.toJS({ maxAliasCount: 0 })); }
 function versionRange(range: string) { return range.startsWith('npm:') ? range.slice(range.lastIndexOf('@') + 1) : range; }
 function pnpmPackage(key: string) {
+  if (key.startsWith('/')) key = key.slice(1);
   const split = key.lastIndexOf('@', key.indexOf('(') < 0 ? key.length : key.indexOf('('));
   return { name: key.slice(0, split), version: key.slice(split + 1).split('(')[0] };
 }
@@ -28,28 +30,37 @@ export function analyzeBundle(bundle: Bundle, report: any, folder = ''): Analysi
   const addEdge = (from: string, to: string, scope: Scope, requestedName: string, specifier: string) => { if (result.edges.length >= 200_000) throw new Error('Dependency edge limit exceeded.'); result.edges.push({ from, to, scope, requestedName, specifier }); };
   const files = Object.entries(bundle.files);
   const locks = files.filter(([p]) => p.endsWith('package-lock.json') || p.endsWith('pnpm-lock.yaml'));
+  const bunFiles = files.filter(([p]) => posix.basename(p) === 'bun.lock');
+  const binaryBun = files.filter(([p]) => posix.basename(p) === 'bun.lockb');
+  for (const [file] of binaryBun) {
+    result.coverage.inventory = 'unknown';
+    warn(`Unsupported binary Bun lockfile: ${file}. Commit a text bun.lock and remove the legacy bun.lockb.`);
+  }
   const pythonFiles = files.filter(([p]) => pythonDependencyInput(p));
-  if (!locks.length && !pythonFiles.length) warn(files.some(([p]) => p.endsWith('yarn.lock')) ? 'Yarn compatibility is not yet validated.' : 'No supported lockfile found.');
+  if (!locks.length && !bunFiles.length && !binaryBun.length && !pythonFiles.length) warn(files.some(([p]) => p.endsWith('yarn.lock')) ? 'Yarn compatibility is not yet validated.' : 'No supported lockfile found.');
   for (const [file, raw] of locks) {
     const directory = posix.dirname(file) === '.' ? '' : posix.dirname(file) + '/';
     try {
       const npm = file.endsWith('package-lock.json');
       const lock = npm ? object(JSON.parse(raw)) : yaml(raw);
-      if (npm ? ![2,3].includes(lock.lockfileVersion) : String(lock.lockfileVersion) !== '9.0' && String(lock.lockfileVersion) !== '9') { warn(`Unsupported lockfile version: ${file}`); continue; }
+      const pnpm6 = !npm && ['6','6.0'].includes(String(lock.lockfileVersion));
+      if (npm ? ![2,3].includes(lock.lockfileVersion) : !pnpm6 && !['9','9.0'].includes(String(lock.lockfileVersion))) { warn(`Unsupported lockfile version: ${file}`); continue; }
       if (result.manager !== 'unknown' && result.manager !== (npm ? 'npm' : 'pnpm')) warn('Multiple package managers require separate interpretation.');
       result.manager = npm ? 'npm' : 'pnpm';
-      const records = object(npm ? lock.packages : lock.snapshots);
+      const records = object(npm || pnpm6 ? lock.packages : lock.snapshots);
       const nodes = new Map<string, Node>();
       for (const [location, pkgValue] of Object.entries(records)) {
         const pkg = object(pkgValue);
         if (npm && (!location.includes('node_modules/') || pkg.link)) continue;
         const identity = npm ? { name: pkg.name || location.split('node_modules/').at(-1), version: pkg.version } : pnpmPackage(location);
         if (typeof identity.name !== 'string' || typeof identity.version !== 'string' || !valid(identity.version)) { warn(`Unresolved/local package in ${file}: ${location}`); continue; }
-        const node: Node = { id: `${file}#${location}`, name: identity.name, version: identity.version, file, location, dev: pkg.dev === true, raw: npm ? pkg : { snapshot: pkg, package: lock.packages?.[identity.name+'@'+identity.version] } };
+        const node: Node = { id: `${file}#${location}`, name: identity.name, version: identity.version, file, location, dev: pkg.dev === true, raw: npm ? pkg : { snapshot: pkg, package: pnpm6 ? pkg : lock.packages?.[identity.name+'@'+identity.version] } };
         if (result.nodes.length >= 50_000) throw new Error('Dependency node limit exceeded.');
         nodes.set(location, node); result.nodes.push(node);
       }
-      const importers = npm ? Object.fromEntries(Object.entries(records).filter(([p]) => !p.includes('node_modules/'))) : object(lock.importers);
+      // v6 keeps a single project's importer at the root and installed package
+      // records (including peer variants) in packages; v9 separates snapshots.
+      const importers = npm ? Object.fromEntries(Object.entries(records).filter(([p]) => !p.includes('node_modules/'))) : object(lock.importers ?? (pnpm6 ? { '.': lock } : undefined));
       const workspaceTargets = new Map<string, { id: string; version: string }>();
       for (const [workspace] of Object.entries(importers)) {
         const location = workspace === '.' ? '' : workspace;
@@ -76,17 +87,20 @@ export function analyzeBundle(bundle: Bundle, report: any, folder = ''): Analysi
           const version = typeof value === 'string' ? value : value?.version;
           if (typeof version !== 'string') return;
           if (version.startsWith('link:')) return workspaceTargets.get(posix.normalize(posix.join(from, version.slice(5))));
-          return nodes.get(`${name}@${version}`) ?? nodes.get(version);
+          return nodes.get(`${pnpm6 ? '/' : ''}${name}@${version}`) ?? nodes.get(version) ?? (pnpm6 ? nodes.get('/'+version) : undefined);
         }
       }
       const linkDependencies = (from: string, location: string, declared: Record<string, any>) => {
         for (const [group, scope] of Object.entries(groups)) for (const [name, value] of Object.entries(declared[group] ?? {})) {
+          // v6 records include peer *constraints*. Actual installed peers are
+          // resolved in dependencies and labelled using the package metadata.
+          if (!npm && nodes.has(location) && group === 'peerDependencies') continue;
           const target = resolve(location, name, value);
           if (!target && group === 'peerDependencies' && declared.peerDependenciesMeta?.[name]?.optional === true) {
             result.warnings.push(`Optional peer is not installed: ${name} in ${file}:${location || '.'}`); continue;
           }
           if (!target) { warn(`Unresolved ${scope} dependency ${name} in ${file}:${location || '.'}`); continue; }
-          const metadata = !npm && nodes.has(location) ? lock.packages?.[nodes.get(location)!.name+'@'+nodes.get(location)!.version] : undefined;
+          const metadata = !npm && nodes.has(location) ? pnpm6 ? records[location] : lock.packages?.[nodes.get(location)!.name+'@'+nodes.get(location)!.version] : undefined;
           addEdge(from, target.id, metadata?.peerDependencies?.[name] ? 'peer' : scope, name, String(typeof value === 'string' ? value : (value as any)?.specifier ?? (value as any)?.version ?? 'unknown'));
           if (npm && typeof value === 'string' && !value.startsWith('file:') && !value.startsWith('workspace:')) {
             const range = versionRange(value);
@@ -125,6 +139,10 @@ export function analyzeBundle(bundle: Bundle, report: any, folder = ''): Analysi
       }
     } catch { warn(`Unable to interpret ${file}; dependency coverage is unknown.`); }
   }
+  for (const [file] of bunFiles) {
+    try { analyzeBun(bundle, file, result, warn); }
+    catch { result.coverage.inventory = 'unknown'; warn(`Unable to interpret ${file}. Regenerate and commit a Bun text lockfile (version 0 or 1).`); }
+  }
   // Use Trivy's statically parsed Python inventory. No installation, resolution, or
   // repository code execution, and no invented direct/transitive relationships.
   for (const [file] of pythonFiles) {
@@ -155,14 +173,14 @@ export function analyzeBundle(bundle: Bundle, report: any, folder = ''): Analysi
   for (const target of report.Results) {
     if (Array.isArray(target.Packages)) result.analyzerPackages.push(...target.Packages.map((p: any) => ({ target: target.Target, ...p })));
     for (const vulnerability of target.Vulnerabilities ?? []) {
-      const matches = result.nodes.filter(n => n.name === vulnerability.PkgName && n.version === vulnerability.InstalledVersion && (n.file === target.Target || String(target.Target).endsWith('/' + n.file)));
+      const matches = result.nodes.filter(n => n.name === vulnerability.PkgName && n.version === vulnerability.InstalledVersion && (n.file === target.Target || posix.basename(n.file) !== 'bun.lock' && String(target.Target).endsWith('/' + n.file)));
       if (!matches.length) { warn('Analyzer finding could not be attributed to a package instance.'); continue; }
       const cvss = readCvss(vulnerability);
       for (const node of matches) result.findings.push({ ...(cvss && { cvss }), advisory: String(vulnerability.VulnerabilityID), aliases: Array.isArray(vulnerability.Aliases) ? vulnerability.Aliases.filter((a: unknown) => typeof a === 'string') : [], node: node.id, package: node.name, version: node.version, fixed: String(vulnerability.FixedVersion ?? ''), severity: String(vulnerability.Severity ?? 'UNKNOWN'), title: String(vulnerability.Title ?? ''), file: node.file });
     }
   }
-  if (result.nodes.length && !result.analyzerPackages.length || (!locks.length && !pythonFiles.length) || !result.roots.length) result.coverage.inventory = 'unknown';
-  for (const node of result.nodes) if (!result.analyzerPackages.some((p: any) => p.Name === node.name && p.Version === node.version)) { result.coverage.inventory = 'unknown'; warn('Analyzer inventory does not cover every resolved package.'); break; }
+  if (result.nodes.length && !result.analyzerPackages.length || (!locks.length && !bunFiles.length && !pythonFiles.length) || !result.roots.length) result.coverage.inventory = 'unknown';
+  for (const node of result.nodes) if (!result.analyzerPackages.some((p: any) => p.Name === node.name && p.Version === node.version && (posix.basename(node.file) !== 'bun.lock' || p.target === node.file))) { result.coverage.inventory = 'unknown'; warn('Analyzer inventory does not cover every resolved package.'); break; }
   result.findings = [...new Map(result.findings.map(f => [JSON.stringify([f.advisory, f.node]), f])).values()];
   return scopeFindings(result);
 }

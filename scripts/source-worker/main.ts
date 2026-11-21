@@ -1,3 +1,4 @@
+import { stageSourceInput } from '../../src/server/source/lock-inputs';
 import { sourceAnalyzerVersion } from '../../src/server/source/version';
 import { sourceInput, pythonFilePattern } from '../../src/lib/source-inputs';
 import { createReadStream } from 'node:fs';
@@ -48,6 +49,7 @@ for (;;) {
       for (const [path, content] of files) {
         if (!safeInputPath(path) || !sourceInput(path) || typeof content !== 'string') throw new Error('Unsafe input path.');
         size += Buffer.byteLength(content); if (Buffer.byteLength(content) > 2 * 1024 * 1024 || size > 8 * 1024 * 1024) throw new Error('Input size exceeded.');
+        if (/^(bun\.lockb?)$/.test(path.split('/').at(-1)!) && !stageSourceInput(path, content)) continue;
         const destination = join(scratch, 'inputs', path); await mkdir(join(destination, '..'), { recursive: true }); await writeFile(destination, content, { flag: 'wx' });
       }
       const reportPath = join(scratch, 'report.json');

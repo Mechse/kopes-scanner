@@ -68,13 +68,23 @@ export async function dockerJson(base: string, path: string, signal?: AbortSigna
   if (!response.ok) throw new Error(`Docker proxy returned HTTP ${response.status}. Check socket access and proxy permissions.`);
   return response.json();
 }
-export async function inventory(base: string, lookup?: () => Promise<CoolifyLookup>) {
-  const data = await dockerJson(base, '/containers/json');
+export async function inventory(base: string, lookup?: () => Promise<CoolifyLookup>, ids?: string[]): Promise<Container[]> {
+  if (ids?.length === 0) return [];
+  // Keep Docker filter URLs below the socket proxy's request-line limit.
+  if (ids && ids.length > 50) {
+    const rows: Container[] = [];
+    for (let i = 0; i < ids.length; i += 50) rows.push(...await inventory(base, lookup, ids.slice(i, i + 50)));
+    return rows;
+  }
+  const filter = ids ? `?filters=${encodeURIComponent(JSON.stringify({ id: ids }))}` : '';
+  const data = await dockerJson(base, `/containers/json${filter}`);
   if (!Array.isArray(data)) throw new Error('Docker inventory is not a list.');
-  const containers = data.map(containerInfo);
+  const selected = ids ? new Set(ids) : null;
+  const rows = selected ? data.filter(row => selected.has(row.Id)) : data;
+  const containers = rows.map(containerInfo);
   const resolve = await lookup?.();
   return containers.map((container, index) => {
-    const labels = data[index].Labels ?? {};
+    const labels = rows[index].Labels ?? {};
     const project = !labels['kopes.project']?.trim() && resolve?.(labels);
     return project ? { ...container, project, manager: 'Coolify' } : container;
   });

@@ -14,7 +14,7 @@ import { readConfig } from '../src/server/config';
 import { createAuth, migrateAuth } from '../src/server/auth';
 const { chromium } = await import(pathToFileURL(resolve(process.env.KOPES_BROWSER_DRIVER ?? '/tmp/kopes-browser-tools/node_modules/playwright-core/index.mjs')).href);
 const directory=await mkdtemp(join(tmpdir(),'kopes-project-browser-'));
-const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
+const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url?.split('?')[0]==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
 docker.listen(0,'127.0.0.1');await once(docker,'listening');
 const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');const port=(probe.address() as {port:number}).port;await new Promise<void>(r=>probe.close(()=>r()));
 const origin=`http://localhost:${port}`;
@@ -35,54 +35,36 @@ try {
   await browserContext.addCookies([{name:context.authCookies.sessionToken.name,value:encodeURIComponent(value),url:origin,httpOnly:true,sameSite:'Lax'}]);
   const page=await browserContext.newPage();const errors:string[]=[];page.on('pageerror',(e:Error)=>errors.push(e.message));
 
-  await page.goto(origin+'/?view=apps&project=Legacy%20group');
-  await page.getByRole('link',{name:'Open report for Fixture API',exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Container members',exact:true}).count(),0);
-  await page.getByRole('button',{name:'Container settings',exact:true}).click();
-  await page.getByRole('heading',{name:'Container members',exact:true}).waitFor();
-  const projectId = new URL(page.url()).searchParams.get('managedId')!;
-  assert.ok(projectId);
-  const create = await browserContext.request.post(origin+'/api/data/projects', {headers:{Origin:origin},data:{action:'create',name:'Repo only'}});
-  assert.equal(create.ok(),true);
-  const repoOnlyId = (await create.json()).id;
-  await page.route('**/api/data/repositories', async route => {
-    const response = await route.fetch(); const json = await response.json();
-    json.bindings = [
-      {id:'fixture-repo',project_id:projectId,repository:'fixture/app',branch:'main',error:null,resources:[],scans:[],jobs:[]},
-      {id:'repo-only',project_id:repoOnlyId,repository:'fixture/source',branch:'main',error:null,resources:[],scans:[],jobs:[]},
-    ];
-    await route.fulfill({response,json});
-  });
-  await page.getByRole('link',{name:'Back to project',exact:true}).click();
-  await page.reload();
+  await page.goto(origin+'/?view=apps');
+  await page.getByRole('button',{name:'Add container',exact:true}).click();
+  await page.getByRole('button',{name:'Add Fixture API',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  const report = page.getByRole('link',{name:'Open report for Fixture API',exact:true});
+  await report.waitFor();
   for (const width of [1440,390]) {
     await page.setViewportSize({width,height:900});
     for (const view of ['Grid','Line']) {
       await page.getByRole('button',{name:view,exact:true}).click();
-      await page.getByRole('link',{name:'Open report for Fixture API',exact:true}).waitFor();
-      await page.getByRole('button',{name:'fixture/app',exact:true}).waitFor();
-      assert.equal(await page.getByRole('heading',{name:'Container members',exact:true}).count(),0);
-      assert.equal(await page.getByRole('button',{name:'Save project',exact:true}).count(),0);
+      await report.waitFor();
+      assert.equal(await page.getByRole('link',{name:'Legacy group',exact:true}).count(),0);
+      assert.equal(await page.getByRole('region',{name:'Hosts',exact:true}).count(),0);
+      assert.equal(await page.getByRole('link',{name:'Open report for Host OS',exact:true}).count(),0);
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
-      const colors = await page.getByRole('button',{name:'Add repo',exact:true}).evaluate(e=>[getComputedStyle(e).color,getComputedStyle(e.querySelector('svg')!).color]);
-      assert.equal(colors[0],colors[1]);
       await page.screenshot({path:`/tmp/kopes-project-${width}-${view}.png`,fullPage:true});
     }
   }
   await page.getByRole('button',{name:'Add Fixture API to favourites',exact:true}).click();
   await page.getByRole('region',{name:'Favourites',exact:true}).getByRole('link',{name:'Open report for Fixture API',exact:true}).waitFor();
   assert.equal(await page.getByRole('link',{name:'Open report for Fixture API',exact:true}).count(),1);
+  await report.click();
+  assert.equal(await page.getByRole('navigation',{name:'Breadcrumb'}).getByRole('link',{name:'Legacy group'}).count(),0);
   await page.getByRole('link',{name:'Activity',exact:true}).click();
   await page.getByRole('region',{name:'Activity',exact:true}).waitFor();
-  await page.getByRole('link',{name:'Resources',exact:true}).click();
-  await page.getByRole('button',{name:'Container settings',exact:true}).click();
-  await page.getByRole('heading',{name:'Container members',exact:true}).waitFor();
-  await page.getByRole('link',{name:'Back to project',exact:true}).click();
   await page.locator('main').getByRole('link',{name:'Containers',exact:true}).click();
-  await page.getByRole('link',{name:'Repo only',exact:true}).click();
-  await page.getByRole('button',{name:'fixture/source',exact:true}).waitFor();
-  assert.equal(await page.getByText('No running resources discovered.',{exact:true}).count(),0);
-  assert.equal(await page.getByRole('heading',{name:'Container members',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Untrack container',exact:true}).click();
+  await page.getByRole('button',{name:'Untrack Fixture API',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  await report.waitFor({state:'hidden'});
   assert.deepEqual(errors,[]);
-  console.log('Passed: discovered/saved/repo-only projects, settings navigation, desktop/mobile Grid/Line, favourites, Activity, and plus color.');
+  console.log('Passed: flat container inventory, add/untrack, desktop/mobile Grid/Line, favourites and report navigation.');
 } finally {await browser?.close();child?.kill('SIGTERM');if(child&&child.exitCode===null)await once(child,'exit');await new Promise<void>(r=>docker.close(()=>r()));await rm(directory,{recursive:true,force:true});}

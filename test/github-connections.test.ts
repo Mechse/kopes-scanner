@@ -12,6 +12,8 @@ import { appRecord, appSeal, appJwt, appSecret, credentialProvider, installation
 import { GithubError, githubHttp, githubId, githubPages, type GithubHttp } from '../src/server/source/github-http';
 import { startSetup, resumeSetup, setupState, claimSetup, setupCallback, expireSetup, manifest, type GithubContext } from '../src/server/source/github-setup';
 import { handleGithub, githubSettings } from '../src/server/source/github-connections';
+import { githubSettingsFailure } from '../src/server/source/github-settings-error';
+import { githubSetupNotice } from '../src/lib/github';
 import { validatePat } from '../src/server/source/github-pat';
 import { reconcileInstallation, restrictInstallation, reconcileGithub } from '../src/server/source/github-reconcile';
 import { githubWebhook, recoverGithubDeliveries } from '../src/server/source/github-webhook';
@@ -57,6 +59,57 @@ function callback(step:string,state:string,extra:Record<string,string>={}) {retu
 function hook(payload: unknown,event='installation',delivery='delivery-1',signature=true) {
   const raw = JSON.stringify(payload);return new Request(`${config.origin}/api/github/webhooks/app`,{method:'POST',headers:{'x-github-event':event,'x-github-delivery':delivery,'x-hub-signature-256':`sha256=${signature?createHmac('sha256','hook-secret').update(raw).digest('hex'):'0'.repeat(64)}`},body:raw});
 }
+
+test('prepare registration accepts trimmed owner on local HTTP polling without contacting GitHub',async t=>{
+  const s=new Store(':memory:');t.after(()=>s.db.close());
+  const local={...config,origin:'http://localhost:3100'};
+  const request=new Request(local.origin+'/api/data/github',{method:'POST',headers:{origin:local.origin},body:JSON.stringify({action:'start',owner:'  owner  ',ownerType:'User',history:false,webhookMode:'polling'})});
+  const response=await handleGithub(request,s,context,local,never), result=await response.json();
+  assert.equal(response.status,200);assert.equal(result.manifest.url,local.origin);
+  assert.equal(Object.hasOwn(result.manifest,'hook_attributes'),false);assert.deepEqual(result.manifest.default_events,[]);
+  assert.equal(result.manifest.redirect_url,local.origin+'/api/github/manifest/callback');
+  assert.equal(result.manifest.setup_url,local.origin+'/api/github/install/callback');
+  assert.deepEqual(result.manifest.callback_urls,[local.origin+'/api/github/authorize/callback']);
+  const app=appRecord(s,result.appId);assert.equal(app.owner_login,'owner');
+  const state=new URL(result.action).searchParams.get('state')!;
+  assert.equal(claimSetup(s,state,'manifest',context)!.owner_login,'owner');
+  assert.throws(()=>claimSetup(s,state,'manifest',context));
+});
+test('prepare registration distinguishes invalid input, local webhooks, schema and write failures without leaking data',async t=>{
+  const s=new Store(':memory:');t.after(()=>s.db.close());
+  const body={action:'start',owner:'owner',ownerType:'User',webhookMode:'polling'};
+  for(const invalid of ['@owner','https://github.com/owner','Owner Name']) {
+    const response=await handleGithub(post({...body,owner:invalid}),s,context,config,never), result=await response.json();
+    assert.equal(response.status,400);assert.equal(result.reason,'invalid-input');assert.match(result.error,/without @/);assert.ok(!result.error.includes(invalid));
+  }
+  const local={...config,origin:'http://localhost:3100'};
+  const response=await handleGithub(new Request(local.origin+'/api/data/github',{method:'POST',headers:{origin:local.origin},body:JSON.stringify({...body,webhookMode:'webhook'})}),s,context,local,never);
+  assert.equal((await response.json()).reason,'webhook-origin');
+  const malformed=await handleGithub(new Request(config.origin+'/api/data/github',{method:'POST',headers:{origin:config.origin},body:'{"token":"secret-invalid-json'}),s,context,config,never);
+  const invalidJson=await malformed.json();assert.equal(invalidJson.reason,'invalid-json');assert.ok(!JSON.stringify(invalidJson).includes('secret-invalid-json'));
+  assert.equal(s.db.prepare('SELECT count(*) n FROM github_apps').get()!.n,0);
+  s.db.exec('PRAGMA query_only=ON');
+  const readonly=await handleGithub(post(body),s,context,config,never);
+  assert.equal(readonly.status,500);assert.equal((await readonly.json()).reason,'database-write');
+  s.db.exec('PRAGMA query_only=OFF; ALTER TABLE github_apps RENAME COLUMN webhook_mode TO old_webhook_mode');
+  const schema=await handleGithub(post(body),s,context,config,never);
+  assert.equal(schema.status,500);assert.equal((await schema.json()).reason,'database-schema');
+});
+test('settings errors redact arbitrary messages, SQL and authorization response bodies',async t=>{
+  for(const [error,reason] of [
+    [new Error('secret-token https://private.example/?state=secret-code'),'unexpected'],
+    [Object.assign(new Error('secret SQL'),{code:'ERR_SQLITE_ERROR',errcode:5}),'database-busy'],
+    [Object.assign(new Error('secret SQL'),{code:'ERR_SQLITE_ERROR',errcode:13}),'storage-full'],
+    [Object.assign(new Error('secret SQL'),{code:'ERR_SQLITE_ERROR',errcode:1032}),'database-write'],
+    [new Response('secret session details',{status:403}),'administrator-session'],
+  ] as const) {
+    const failure=githubSettingsFailure(error,'start');assert.equal(failure.body.reason,reason);assert.ok(!JSON.stringify(failure).includes('secret'));
+  }
+  const s=new Store(':memory:');t.after(()=>s.db.close());let checks=0;
+  const response=await handleGithub(post({action:'start',owner:'owner',ownerType:'User'}),s,{...context,recheck:async()=>{if(++checks>1)throw new Response('secret',{status:403});}},config,never);
+  assert.equal(response.status,403);assert.equal((await response.json()).reason,'administrator-session');
+  assert.equal(s.db.prepare('SELECT count(*) n FROM github_apps').get()!.n,0);
+});
 
 test('v15 migration keeps legacy secrets, history and identity, backfills kinds and reopens idempotently',()=>{
   const db = new DatabaseSync(':memory:');
@@ -132,19 +185,77 @@ test('single-use setup state is session/user/step bound, expires, survives reads
 test('manifest registration uses canonical URLs and polling mode, persists encrypted credentials before failed verification',async t=>{
   const s=new Store(':memory:');t.after(()=>s.db.close());
   const start=await startSetup(s,context,config,{owner:'owner',ownerType:'User',history:false,webhookMode:'polling'});
-  assert.equal(start.manifest.public,false);assert.deepEqual(start.manifest.default_events,[]);assert.equal(start.manifest.hook_attributes.active,false);
+  assert.equal(start.manifest.public,false);assert.deepEqual(start.manifest.default_events,[]);assert.equal(Object.hasOwn(start.manifest,'hook_attributes'),false);
   const state=new URL(start.action).searchParams.get('state')!;let conversions=0;
   const http:GithubHttp=async r=>{if(r.path.includes('/conversions')){conversions++;return {...remoteApp,pem,client_secret:'client-secret',webhook_secret:'hook-secret'};}throw new GithubError(503,'temporary');};
   const result=await setupCallback(callback('manifest',state,{code:'conversion-code'}),s,context,config,http);
-  assert.equal(result.status,303);assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(result.headers.get('Location'),config.origin+'/settings');
+  assert.equal(result.status,303);assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(result.headers.get('Location'),config.origin+'/settings?tab=integrations&githubSetup=verification');
   const saved=appRecord(s,start.appId);assert.equal(saved.status,'verification-failed');assert.equal(appSecret(saved,config.secret,'private_key'),pem);
   await setupCallback(callback('manifest',state,{code:'conversion-code'}),s,context,config,http);assert.equal(conversions,1);
   const resumed=await resumeSetup(s,start.appId,context,config,api);assert.match(resumed.url,/installations\/new\?state=/);
+});
+test('polling manifest conversion accepts absent webhook secrets and still saves App credentials securely',async t=>{
+  for (const webhook_secret of [null,undefined,'']) {
+    const s=new Store(':memory:');t.after(()=>s.db.close());
+    const start=await startSetup(s,context,config,{owner:'owner',ownerType:'User',history:false,webhookMode:'polling'});
+    const state=new URL(start.action).searchParams.get('state')!;let conversions=0;
+    const http:GithubHttp=async r=>{
+      if(r.path.includes('/conversions')) {conversions++;return {...remoteApp,pem,client_secret:'client-secret',webhook_secret};}
+      return api(r);
+    };
+    const result=await setupCallback(callback('manifest',state,{code:'one-use-code'}),s,context,config,http);
+    assert.match(result.headers.get('Location')!,/^https:\/\/github.com\/apps\/kopes-test\/installations\/new\?state=/);
+    const saved=appRecord(s,start.appId);assert.equal(saved.status,'pending-installation');assert.equal(saved.webhook_secret,'');
+    assert.notEqual(saved.private_key,pem);assert.equal(appSecret(saved,config.secret,'private_key'),pem);assert.equal(appSecret(saved,config.secret,'client_secret'),'client-secret');
+    assert.equal(s.db.prepare('SELECT count(*) n FROM source_connections').get()!.n,0);
+    await setupCallback(callback('manifest',state,{code:'one-use-code'}),s,context,config,http);assert.equal(conversions,1);
+  }
+});
+test('webhook mode retains converted credentials but blocks installation without a webhook secret',async t=>{
+  const s=new Store(':memory:');t.after(()=>s.db.close());
+  const start=await startSetup(s,context,config,{owner:'owner',ownerType:'User',history:false,webhookMode:'webhook'});
+  const state=new URL(start.action).searchParams.get('state')!;
+  const result=await setupCallback(callback('manifest',state,{code:'one-use-code'}),s,context,config,async()=>({...remoteApp,pem,client_secret:'client-secret',webhook_secret:null}));
+  assert.equal(new URL(result.headers.get('Location')!).searchParams.get('githubSetup'),'verification');
+  assert.equal(appSecret(appRecord(s,start.appId),config.secret,'private_key'),pem);
+  const resume=await handleGithub(post({action:'resume',appId:start.appId}),s,context,config,never);
+  assert.equal(resume.status,400);assert.equal((await resume.json()).reason,'webhook-secret');
+  assert.equal(s.db.prepare('SELECT count(*) n FROM source_connections').get()!.n,0);
+});
+test('polling App imports need no webhook secret and empty secrets cannot authenticate webhooks',async t=>{
+  const s=new Store(':memory:');t.after(()=>s.db.close());
+  const body={action:'import-app',githubId:'42',clientId:'client-id',owner:'owner',ownerType:'User',privateKey:pem,clientSecret:'client-secret',webhookSecret:'',webhookMode:'polling',urlsConfirmed:true};
+  const response=await handleGithub(post(body),s,context,config,api);assert.equal(response.status,200);
+  const {appId}=await response.json();assert.equal(appRecord(s,appId).webhook_secret,'');
+  const enabled=await handleGithub(post({...body,appId,webhookMode:'webhook'}),s,context,config,api);
+  assert.equal(enabled.status,400);assert.equal((await enabled.json()).reason,'webhook-secret');assert.equal(appRecord(s,appId).webhook_mode,'polling');
+  for (const stored of ['',appSeal('',config.secret,appId,'webhook_secret')]) {
+    s.db.prepare('UPDATE github_apps SET webhook_secret=? WHERE id=?').run(stored,appId);
+    const raw='{}',signature=createHmac('sha256','').update(raw).digest('hex');
+    const request=new Request(config.origin+'/api/github/webhooks/'+appId,{method:'POST',headers:{'x-hub-signature-256':'sha256='+signature,'x-github-event':'ping','x-github-delivery':'empty-secret'},body:raw});
+    assert.equal((await githubWebhook(request,s,config.secret,appId)).status,401);
+  }
+  assert.equal(s.db.prepare('SELECT count(*) n FROM github_webhook_deliveries').get()!.n,0);
+});
+test('callback failures redirect with fixed notices and never expose provider errors or callback secrets',async t=>{
+  const s=new Store(':memory:');t.after(()=>s.db.close());
+  for (const phase of ['exchange','credentials'] as const) {
+    const start=await startSetup(s,context,config,{owner:'owner',ownerType:'User',history:false,webhookMode:'polling'});
+    const state=new URL(start.action).searchParams.get('state')!;
+    const result=await setupCallback(callback('manifest',state,{code:'secret-code'}),s,context,config,async()=>{if(phase==='exchange')throw new Error('secret-provider-response');return {pem:'secret-key'};});
+    const location=result.headers.get('Location')!;
+    assert.equal(location,config.origin+'/settings?tab=integrations&githubSetup='+phase);assert.ok(!location.includes('secret'));assert.ok(!location.includes(state));
+    assert.equal(result.headers.get('Referrer-Policy'),'no-referrer');assert.equal(appRecord(s,start.appId).private_key,'');
+  }
+  assert.equal(githubSetupNotice('verification'),'verification');
+  for(const value of ['secret-code','__proto__','constructor',null,{}])assert.equal(githubSetupNotice(value),undefined);
 });
 test('organization manifest requests only selected permissions; domain changes block resume',async t=>{
   const s=new Store(':memory:');t.after(()=>s.db.close());
   const result=await startSetup(s,context,config,{owner:'org',ownerType:'Organization',history:true,webhookMode:'webhook'});
   assert.match(result.action,/organizations\/org\/settings\/apps\/new/);assert.deepEqual(result.manifest.default_permissions,{contents:'read',pull_requests:'read'});
+  assert.deepEqual(result.manifest.hook_attributes,{url:`${config.origin}/api/github/webhooks/${result.appId}`,active:true});
+  assert.deepEqual(result.manifest.default_events,['push']);
   const app=appRecord(s,result.appId);assert.ok(Object.values(manifest(app)).length);
   await assert.rejects(resumeSetup(s,result.appId,context,{...config,origin:'https://other.example'},api),/origin/);
 });
@@ -314,7 +425,7 @@ test('encrypted App credentials survive database reopen; pending setup can be ex
 });
 
 // These are deterministic worker-protocol simulations, NOT live GitHub or Trivy validation.
-for(const race of ['input-collection','worker-dispatch','analysis-running','final-publication','successful-scan'] as const)test(`scan publication fence with simulated worker: ${race}`,async t=>{
+for(const race of ['input-collection','worker-dispatch','analysis-running','final-publication','successful-scan','summary-metadata-scan'] as const)test(`scan publication fence with simulated worker: ${race}`,async t=>{
   const s=fixture(t),spool=await mkdtemp(join(tmpdir(),'github-job-race-'));
   const keys=['KOPES_SOURCE_PILOT','KOPES_SOURCE_SCAN_PILOT','KOPES_SOURCE_SPOOL'],old=keys.map(k=>process.env[k]);
   Object.assign(process.env,{KOPES_SOURCE_PILOT:'1',KOPES_SOURCE_SCAN_PILOT:'1',KOPES_SOURCE_SPOOL:spool});
@@ -334,14 +445,46 @@ for(const race of ['input-collection','worker-dispatch','analysis-running','fina
         await new Promise(resolve=>setTimeout(resolve,5));
       }
     })();
-    const read:GithubHttp=async r=>{const value=await api(r);if(race==='input-collection'&&r.path.includes('/git/trees/'))restrictInstallation(s,'install','repository-access-changed',['99']);return value;};
+    const read:GithubHttp=async r=>{const value=await api(r);if(race==='input-collection'&&r.path.includes('/git/trees/'))restrictInstallation(s,'install','repository-access-changed',['99']);if(race==='summary-metadata-scan'&&r.path==='/repositories/99')return {id:remoteRepo.id,full_name:remoteRepo.full_name};return value;};
     const admission=async()=>{admissions++;if(race==='worker-dispatch'&&admissions===2||race==='final-publication'&&admissions===3)invalidateConnection(s,'connection','disconnected',true);};
     const result=await runSourceJob(s,readConfig({BETTER_AUTH_URL:config.origin,BETTER_AUTH_SECRET:config.secret}),new AbortController().signal,never,admission,read);
     stopped=true;await worker;assert.equal(result,true);
-    assert.equal(s.db.prepare('SELECT count(*) n FROM source_scans').get()!.n,race==='successful-scan'?1:0);
-    assert.equal(s.db.prepare('SELECT state FROM source_jobs').get()!.state,race==='successful-scan'?'complete':'cancelled');
+    const success=race==='successful-scan'||race==='summary-metadata-scan';
+    assert.equal(s.db.prepare('SELECT count(*) n FROM source_scans').get()!.n,success?1:0);
+    assert.equal(s.db.prepare('SELECT state FROM source_jobs').get()!.state,success?'complete':'cancelled');
     assert.deepEqual(await readdir(join(spool,'in')),[]);assert.deepEqual(await readdir(join(spool,'out')),[]);
   } finally {stopped=true;keys.forEach((k,i)=>{if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i];});await rm(spool,{recursive:true,force:true});}
+});
+
+for (const failure of ['deployment-secret','private-key','token-expiry','metadata','branch','unexpected'] as const) test(`private scan reports safe access diagnostics and retains history: ${failure}`, async t => {
+  const s=fixture(t), spool=await mkdtemp(join(tmpdir(),'github-access-error-'));
+  const keys=['KOPES_SOURCE_PILOT','KOPES_SOURCE_SCAN_PILOT','KOPES_SOURCE_SPOOL'],old=keys.map(k=>process.env[k]);
+  Object.assign(process.env,{KOPES_SOURCE_PILOT:'1',KOPES_SOURCE_SCAN_PILOT:'1',KOPES_SOURCE_SPOOL:spool});
+  try {
+    s.db.exec("INSERT INTO source_jobs(id,binding_id,kind,state,created_at,available_at) VALUES ('old-job','binding','scan','complete',1,1); INSERT INTO source_snapshots VALUES ('old-snapshot','repo','old-commit','old-hash','{}',1); INSERT INTO source_scans VALUES ('old-scan','binding','old-snapshot','old-job',1,'test','{}','{}');");
+    if(failure==='private-key')s.db.prepare("UPDATE github_apps SET private_key=? WHERE id='app'").run(appSeal('invalid-secret-key',config.secret,'app','private_key'));
+    const http: GithubHttp=async request=>{
+      if(failure==='token-expiry'&&request.path.endsWith('/access_tokens'))return {token:'secret-token',expires_at:new Date(Date.now()-1000).toISOString()};
+      if(request.path==='/repositories/99'){
+        if(failure==='metadata')return {id:99,full_name:'private secret response'};
+        if(failure==='unexpected')throw new Error('secret-token private response https://private.example/');
+      }
+      if(failure==='branch'&&request.path.includes('/branches/'))return {commit:{sha:'secret-invalid-commit'}};
+      return api(request);
+    };
+    enqueueSource(s,'binding');
+    await runSourceJob(s,readConfig({BETTER_AUTH_URL:config.origin,BETTER_AUTH_SECRET:failure==='deployment-secret'?'wrong-secret-at-least-32-characters':config.secret}),new AbortController().signal,never,async()=>{},http);
+    const job=s.db.prepare("SELECT state,error FROM source_jobs WHERE id<>'old-job'").get()!;
+    assert.equal(job.state,'queued');
+    const error=String(job.error);
+    const reason={ 'deployment-secret':'credentials-unavailable', 'private-key':'app-private-key', 'token-expiry':'installation-token', metadata:'repository-response', branch:'branch-head', unexpected:'report this scan stage' }[failure];
+    assert.ok(error.includes(reason),error);
+    assert.match(error,failure==='branch'?/Default branch lookup failed/:/Repository metadata lookup failed/);
+    for(const secret of ['secret-token','invalid-secret-key','private response','secret-invalid-commit','https://private.example/'])assert.ok(!error.includes(secret));
+    assert.equal(s.db.prepare("SELECT error FROM source_bindings WHERE id='binding'").get()!.error,error);
+    assert.equal(s.db.prepare('SELECT count(*) n FROM source_scans').get()!.n,1);
+    assert.deepEqual(await readdir(join(spool,'in')),[]);
+  } finally { keys.forEach((k,i)=>{if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i];});await rm(spool,{recursive:true,force:true}); }
 });
 
 test('removing and reimporting the same App retains its local identity and requires fresh installation verification',async t=>{

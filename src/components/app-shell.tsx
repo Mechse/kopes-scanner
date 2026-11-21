@@ -1,4 +1,3 @@
-import { projectName } from '../lib/display-name';
 import { AuthSetup, providerNames, type AuthSettings } from './auth-setup';
 import { ContentSkeleton, LoadingStatus } from "./ui/loading";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -44,38 +43,29 @@ export function WorkspaceBar({
   section,
   actions,
   report,
-  project,
-  managedProject,
   repository,
 }: {
   repository?: string;
   section: string;
   actions?: ReactNode;
   report?: string;
-  project?: string;
-  managedProject?: { id: string; name: string };
 }) {
-  const { inventory } = useWorkspace();
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`${actions || repository || report || managedProject || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&>a]:text-muted-foreground [&>a:hover]:underline [&>svg]:text-muted-foreground`}
+      className={`${actions || repository || report ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-xs [&>a]:text-muted-foreground [&>a:hover]:underline [&>svg]:text-muted-foreground`}
     >
       <Link to="/" search={{}}>
         Workspace
       </Link>
       <ChevronRight size={13} />
-      {repository ? <><Link to="/repositories">Repositories</Link><ChevronRight size={13}/><span aria-current="page" className="truncate" title={repository}>{repository}</span></> : report || managedProject || project !== undefined ? (
+      {repository ? <><Link to="/repositories">Repositories</Link><ChevronRight size={13}/><span aria-current="page" className="truncate" title={repository}>{repository}</span></> : report ? (
         <Link to="/" search={{ view: "apps" }}>
           Containers
         </Link>
       ) : (
         <span>{section}</span>
       )}
-      {managedProject ? <><ChevronRight size={13}/><Link to="/" search={{ view: 'apps', managedId: managedProject.id }} className="truncate">{managedProject.name}</Link></> : project !== undefined && <>
-        <ChevronRight size={13} />
-        <Link to="/" search={{ view: "apps", project }} className="truncate">{projectName(project, inventory?.data)}</Link>
-      </>}
       {report && (
         <>
           <ChevronRight size={13} />

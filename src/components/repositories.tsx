@@ -1,10 +1,11 @@
 import { SelectField } from './ui/select-field';
 import { SelectItem } from './ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from './ui/dropdown-menu';
 import { RepositoryConnectionSelector } from './repository-connection-selector';
 import { Link } from '@tanstack/react-router';
 import { sourceAssessment } from '../lib/source-assessment';
 import { createContext, useContext, useState, useRef, type ReactNode } from 'react';
-import { Dialog, DropdownMenu } from 'radix-ui';
+import { Dialog } from 'radix-ui';
 import { GitBranch, Plus, X, Ellipsis, ArrowUpRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { BusyIndicator } from './ui/loading';
@@ -106,10 +107,11 @@ export function RepositoryActions() {
 export function RepositoryMenu({ label, onSettings, ...context }: Context & { label: string; onSettings?: () => void }) {
   const repos = useRepositories();
   if (!repos.data?.administrator) return null;
-  return <DropdownMenu.Root><DropdownMenu.Trigger asChild><button type="button" aria-label={`Actions for ${label}`} className="relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sunken hover:text-foreground"><Ellipsis size={17}/></button></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="z-50 min-w-44 rounded-lg border border-border bg-raised p-1 shadow-xl">{(context.containerId || context.resourceId) && <DropdownMenu.Item onSelect={() => repos.assign(context)} className="cursor-pointer rounded-md px-3 py-2 text-sm outline-none focus:bg-sunken">Move to container</DropdownMenu.Item>}{onSettings && <DropdownMenu.Item onSelect={onSettings} className="cursor-pointer rounded-md px-3 py-2 text-sm outline-none focus:bg-sunken">Container settings</DropdownMenu.Item>}</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label={`Actions for ${label}`} className="relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sunken hover:text-foreground"><Ellipsis size={17}/></button></DropdownMenuTrigger><DropdownMenuContent align="end">{(context.containerId || context.resourceId) && <DropdownMenuItem onSelect={() => repos.assign(context)}>Move to container</DropdownMenuItem>}{onSettings && <DropdownMenuItem onSelect={onSettings}>Container settings</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>;
 }
 export function RepositoryCard({ binding: b, view = 'grid' }: { binding: Binding; view?: 'grid' | 'line' }) {
   const repos = useRepositories(), item = { scope: 'resource' as const, key: `repo:${b.id}` };
+  const repositoryName = b.repository.split('/').pop() || b.repository;
   const awaitingFirstRun = !b.first_run_finished && !b.scans.length;
   const jobState = b.jobs[0]?.state;
   const scanActive = jobState === 'running' || jobState === 'queued';
@@ -120,7 +122,7 @@ export function RepositoryCard({ binding: b, view = 'grid' }: { binding: Binding
   return <article data-pending={awaitingFirstRun || undefined} className={view === 'grid' ? 'group relative isolate data-[pending]:bg-background data-[pending]:text-muted-foreground flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink' : 'mobile-project-row group relative isolate data-[pending]:bg-background data-[pending]:text-muted-foreground flex min-w-0 items-center gap-4 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50'}>
     <div className={`flex min-w-0 flex-1 ${view === 'grid' ? 'items-start gap-3' : 'items-center gap-2'}`}>
       <span className={view === 'grid' ? 'grid size-10 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground' : 'grid size-8 shrink-0 place-items-center text-muted-foreground'}><GitBranch size={view === 'grid' ? 20 : 17}/></span>
-      <div className="min-w-0 flex-1"><Link to="/repositories/$repository" params={{ repository: b.id }} aria-label={b.repository} title={b.repository} className="block w-full truncate text-left text-sm font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{b.repository}</Link><span className="mt-1 block truncate text-xs text-muted-foreground">{b.branch}</span>{b.connection_label && <span className="mt-1 block truncate text-xs text-muted-foreground">{b.connection_label} · {b.connection_owner} · {b.connection_health}</span>}</div>
+      <div className="min-w-0 flex-1"><Link to="/repositories/$repository" params={{ repository: b.id }} aria-label={b.repository} title={b.repository} className="block w-full truncate text-left text-sm font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{repositoryName}</Link><span className="mt-1 block truncate text-xs text-muted-foreground">{b.branch}</span>{b.connection_label && <span className="mt-1 block truncate text-xs text-muted-foreground">{b.connection_label} · {b.connection_owner} · {b.connection_health}</span>}</div>
       <FavouriteButton name={b.repository} active={repos.favourites.has(item)} disabled={repos.favourites.disabled} onClick={() => void repos.favourites.toggle(item)}/>
       {repos.data?.administrator && <button type="button" aria-label={`Repository settings for ${b.repository}`} onClick={() => repos.edit(b)} className="relative z-10 grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-sunken"><Ellipsis size={17}/></button>}
     </div>

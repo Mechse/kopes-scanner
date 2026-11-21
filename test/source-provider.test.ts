@@ -4,6 +4,50 @@ import { GitProvider, blockedAddress, safeInputPath, validateOrigin } from '../s
 import { seal, unseal, handleSource } from '../src/server/source/service';
 import { Store } from '../src/server/store';
 import { ProjectStore } from '../src/server/project-store';
+import { SourceError } from '../src/server/source/errors';
+
+test('repository ID summaries are hydrated with the same credentials and immutable identity', async () => {
+  const connection = { provider: 'github' as const, origin: 'https://api.github.com', token: 'private-token' };
+  const paths: string[] = [];
+  const provider = new GitProvider(connection, async (c, path) => {
+    assert.equal(c, connection); paths.push(path);
+    if (path === '/repositories/99') return { id: 99, full_name: 'owner/renamed' };
+    assert.equal(path, '/repos/owner/renamed');
+    return { id: 99, full_name: 'owner/renamed', default_branch: 'release/current' };
+  });
+  assert.deepEqual(await provider.repository('99'), { providerId: '99', name: 'owner/renamed', branch: 'release/current' });
+  assert.deepEqual(paths, ['/repositories/99', '/repos/owner/renamed']);
+});
+
+test('repository ID hydration rejects changed identities, unsafe names and absent default branches', async () => {
+  const connection = { provider: 'github' as const, origin: 'https://api.github.com', token: '' };
+  for (const [summary, detail, reason, expectedCalls] of [
+    [{ id: 100, full_name: 'owner/private' }, null, 'repository-identity', 1],
+    [{ id: 99, full_name: 'owner/private' }, { id: 100, full_name: 'owner/private', default_branch: 'main' }, 'repository-identity', 2],
+    [{ id: 99, full_name: 'owner/private' }, { id: 99, full_name: 'owner/private', default_branch: null }, 'default-branch', 2],
+    [{ id: 99, full_name: 'owner/..' }, null, 'repository-response', 1],
+    [{ id: 99, full_name: 'https://private.example/path?token=secret' }, null, 'repository-response', 1],
+  ] as const) {
+    let calls = 0;
+    const provider = new GitProvider(connection, async () => ++calls === 1 ? summary : detail);
+    await assert.rejects(provider.repository('99'), e => e instanceof SourceError && e.reason === reason && !e.message.includes('secret'));
+    assert.equal(calls, expectedCalls);
+  }
+});
+
+test('complete ID metadata needs no hydration, and denied hydration never falls back to anonymous access', async () => {
+  const connection = { provider: 'github' as const, origin: 'https://api.github.com', token: 'private-token' };
+  let calls = 0;
+  const provider = new GitProvider(connection, async () => { calls++; return { id: 99, full_name: 'owner/private', default_branch: 'main' }; });
+  assert.equal((await provider.repository('99')).branch, 'main'); assert.equal(calls, 1);
+  const denied = new Error('private response must remain internal'); calls = 0;
+  const failed = new GitProvider(connection, async (c) => {
+    assert.equal(c.token, 'private-token');
+    if (++calls === 1) return { id: 99, full_name: 'owner/private' };
+    throw denied;
+  });
+  await assert.rejects(failed.repository('99'), e => e === denied); assert.equal(calls, 2);
+});
 
 test('provider inputs reject traversal and unapproved network destinations', () => {
   for (const path of ['../package.json','/package.json','x/../package.json','x\\package.json','x\0/package.json']) assert.equal(safeInputPath(path), false);

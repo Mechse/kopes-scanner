@@ -3,6 +3,8 @@ import type { Store } from '../store';
 import { GitProvider, ProviderError, type Connection, type ReadJson } from './provider';
 import { seal, unseal } from './credentials';
 import { githubHttp, githubId, GithubError, type GithubHttp } from './github-http';
+import { GithubSettingsError } from './github-settings-error';
+import { SourceError } from './errors';
 
 export type GithubApp = { id: string; github_id: string; client_id: string; slug: string; owner_id: string; owner_login: string; owner_type: string; origin: string; private_key: string; client_secret: string; webhook_secret: string; credential_revision: number; history: number; webhook_mode: string; status: string };
 export function appRecord(store: Store, id: string) {
@@ -11,26 +13,27 @@ export function appRecord(store: Store, id: string) {
 }
 export const appSeal = (value: string, secret: string, id: string, kind: string) => seal(value, secret, `kopes.github.v1:${id}:${kind}`);
 export function appSecret(app: GithubApp, secret: string, kind: 'private_key' | 'client_secret' | 'webhook_secret') {
-  try { return unseal(app[kind], secret, `kopes.github.v1:${app.id}:${kind}`); } catch { throw new Error('Credentials unavailable. Restore the matching deployment secret.'); }
+  try { return unseal(app[kind], secret, `kopes.github.v1:${app.id}:${kind}`); } catch { throw new SourceError('credentials-unavailable'); }
 }
 export function appJwt(clientId: string, pem: string, now = Date.now()) {
-  if (!Number.isFinite(now) || now < Date.UTC(2020,0,1)) throw new Error('Check the server clock before authenticating with GitHub.');
+  if (!Number.isFinite(now) || now < Date.UTC(2020,0,1)) throw new SourceError('server-clock');
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const data = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({ iss: clientId, iat: Math.floor(now/1000)-60, exp: Math.floor(now/1000)+540 })}`;
-  try { return `${data}.${sign('RSA-SHA256', Buffer.from(data), pem).toString('base64url')}`; } catch { throw new Error('App private key unavailable or invalid.'); }
+  try { return `${data}.${sign('RSA-SHA256', Buffer.from(data), pem).toString('base64url')}`; } catch { throw new SourceError('app-private-key'); }
 }
 export function appAuthentication(app: GithubApp, secret: string) { return appJwt(app.client_id, appSecret(app, secret, 'private_key')); }
 export function checkPermissions(value: any, history: boolean) {
   if (!value || value.contents !== 'read' || history && value.pull_requests !== 'read' || Object.entries(value).some(([k,v]) => !['contents','metadata','pull_requests'].includes(k) || v !== 'read')) throw new GithubError(403,'access');
 }
 export async function verifyApp(app: GithubApp, secret: string, http: GithubHttp = githubHttp, verifyWebhook = false) {
+  if (app.webhook_mode==='webhook' && (!app.webhook_secret || !appSecret(app,secret,'webhook_secret'))) throw new GithubSettingsError('webhook-secret');
   const remote = await http({ path: '/app', token: appAuthentication(app, secret) });
-  if (githubId(remote.id) !== app.github_id || remote.client_id !== app.client_id || remote.owner?.login?.toLowerCase() !== app.owner_login.toLowerCase() || remote.owner?.type !== app.owner_type || app.owner_id && githubId(remote.owner.id) !== app.owner_id || typeof remote.slug !== 'string' || !/^[a-z0-9-]+$/.test(remote.slug)) throw new Error('App identity or owner does not match.');
-  if (typeof remote.external_url!=='string' || remote.external_url.replace(/\/$/,'')!==app.origin) throw new Error('Update the App homepage and callback URLs for the canonical Kopes origin.');
+  if (githubId(remote.id) !== app.github_id || remote.client_id !== app.client_id || remote.owner?.login?.toLowerCase() !== app.owner_login.toLowerCase() || remote.owner?.type !== app.owner_type || app.owner_id && githubId(remote.owner.id) !== app.owner_id || typeof remote.slug !== 'string' || !/^[a-z0-9-]+$/.test(remote.slug)) throw new GithubSettingsError('app-identity');
+  if (typeof remote.external_url!=='string' || remote.external_url.replace(/\/$/,'')!==app.origin) throw new GithubSettingsError('app-homepage');
   checkPermissions(remote.permissions, !!app.history);
   if (verifyWebhook && app.webhook_mode==='webhook') {
     const hook = await http({path:'/app/hook/config',token:appAuthentication(app,secret)});
-    if (hook.url!==`${app.origin}/api/github/webhooks/${app.id}` || hook.content_type!=='json' || String(hook.insecure_ssl)!=='0') throw new Error('Update the GitHub App webhook URL, JSON content type and TLS verification.');
+    if (hook.url!==`${app.origin}/api/github/webhooks/${app.id}` || hook.content_type!=='json' || String(hook.insecure_ssl)!=='0') throw new GithubSettingsError('app-hook');
   }
   return { ownerId: githubId(remote.owner.id), slug: remote.slug };
 }
@@ -85,7 +88,7 @@ export async function installationToken(store: Store, installationId: string, se
   const pending = (async () => {
     const result = await http({ method: 'POST', path: `/app/installations/${githubId(installation.github_id)}/access_tokens`, token: appAuthentication(app, secret), body: { permissions, ...(repositoryId ? { repository_ids: [Number(githubId(repositoryId))] } : {}) } });
     const expires = Date.parse(result.expires_at);
-    if (typeof result.token !== 'string' || !result.token || /[\r\n]/.test(result.token) || !Number.isFinite(expires) || expires <= Date.now()+120_000) throw new Error('Invalid or expired installation token; check server clock.');
+    if (typeof result.token !== 'string' || !result.token || /[\r\n]/.test(result.token) || !Number.isFinite(expires) || expires <= Date.now()+120_000) throw new SourceError('installation-token');
     return { token: result.token, expires };
   })();
   cached.pending = pending;
@@ -103,7 +106,7 @@ export function credentialProvider(store: Store, id: string, secret: string, rea
     for (let attempt=0; attempt<2; attempt++) {
       let token: string;
       try { token = app ? await installationToken(store,String(row.installation_id),secret,repositoryId,http,attempt>0) : row.credential ? unseal(String(row.credential),secret,`${id}:${row.origin}`) : ''; }
-      catch (e) { if(e instanceof GithubError) throw e; throw new Error('Credentials unavailable; check connection settings and deployment secret.'); }
+      catch (e) { if(e instanceof GithubError || e instanceof SourceError) throw e; throw new SourceError('credentials-unavailable'); }
       current();
       try {
         const result = app || row.auth_kind === 'pat' ? await http({ path, token }) : await read({ ...connection,token },path);

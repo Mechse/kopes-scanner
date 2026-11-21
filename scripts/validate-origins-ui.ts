@@ -17,7 +17,7 @@ import { appendEvidence } from '../src/server/source/provenance';
 import { readFileSync } from 'node:fs';
 const { chromium } = await import(pathToFileURL(resolve(process.env.KOPES_BROWSER_DRIVER ?? '/tmp/kopes-browser-tools/node_modules/playwright-core/index.mjs')).href);
 const directory=await mkdtemp(join(tmpdir(),'kopes-project-browser-'));
-const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'org.opencontainers.image.source':'https://github.com/fixture/repository','com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
+const docker=createServer((req,res)=>{res.setHeader('Content-Type','application/json');res.end(req.url?.split('?')[0]==='/containers/json'?JSON.stringify([{Id:'a'.repeat(64),Names:['/Fixture API'],Image:'fixture:1',ImageID:'sha256:'+'b'.repeat(64),Labels:{'org.opencontainers.image.source':'https://github.com/fixture/repository','com.docker.compose.project':'Legacy group','com.docker.compose.service':'web'}}]):'');});
 docker.listen(0,'127.0.0.1');await once(docker,'listening');
 const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');const port=(probe.address() as {port:number}).port;await new Promise<void>(r=>probe.close(()=>r()));
 const origin=`http://localhost:${port}`;

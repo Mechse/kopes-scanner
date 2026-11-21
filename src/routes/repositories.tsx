@@ -26,7 +26,7 @@ function RepositoriesPage() {
   const omitFavourites = (data?.bindings.length ?? 0) <= 10;
   const regularBindings = omitFavourites ? bindings.filter(b => !favouriteBindings.includes(b)) : bindings;
   const hasFavourites = favouriteBindings.length > 0;
-  const collectionClass = view === 'grid' ? 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-4' : '@container min-w-0';
+  const collectionClass = view === 'grid' ? 'resource-card-grid' : '@container min-w-0';
   return <main id="main" className="min-w-0 bg-raised px-4 pb-8 desktop:rounded-[10px] desktop:border desktop:border-border desktop:pb-12 desktop:shadow-sm desktop:dark:shadow-black/30">
     <WorkspaceBar section="Repositories" actions={<RepositoryActions/>}/>
     <SearchToolbar>

@@ -9,10 +9,15 @@ containers still run, and the vulnerable package stays in place until you update
 **Kopes helps solo developers and small teams see what needs attention on their
 Docker or Coolify VPS.** Install it on the server you want to scan, then review
 known vulnerabilities in its container images and supported Linux host packages
-from one dashboard.
+from one dashboard. Docker containers are opt-in: as an administrator, open
+**Containers → Add container** and choose a running container.
+Restarting the same container keeps it selected; add a replacement
+container again after redeploying. To stop tracking a running or stopped container,
+open **Containers → Untrack container**. This keeps its scan history and leaves
+Docker untouched. Host OS scanning is separate; hosts aren't listed in Containers.
 
-- **Find the affected app.** Group container findings by project, with automatic
-  app names through the optional Coolify connection.
+- **Find the affected app.** Search the container list and open a report directly.
+  The optional Coolify connection supplies app names.
 - **Work out the next step.** Open a finding for affected packages, reported fixed
   versions, and remediation guidance you can review before updating and redeploying.
 - **Keep checking after launch.** Schedule rescans and use Pulse to see newly
@@ -586,7 +591,7 @@ select a configured GitHub App/PAT connection, and inspect
 its **Vulnerabilities**. The list includes advisories with or without CVE IDs,
 affected packages, installed/fixed versions, dependency paths, severity, and
 production/development scope filters. A dependency can have both scopes; incomplete
-paths are labeled unknown. Current lockfile support is npm v2/v3 and pnpm v9.
+paths are labeled unknown. Supported JavaScript lockfiles are npm v2/v3, pnpm v6/v9, and Bun text `bun.lock` v0/v1, including workspaces. For legacy binary `bun.lockb`, migrate to and commit the text lockfile before scanning. The scanner does not run Bun or install repository dependencies.
 
 With the source connection and scanning pilots enabled and the isolated source
 worker running, default branches are checked every 15 minutes. New commits trigger
@@ -622,7 +627,7 @@ This implementation still requires **live personal-account and organization
 acceptance**; automated provider fixtures are not live GitHub evidence. Read the
 [setup, permissions, recovery and validation guide](docs/github-connections.md)
 before enabling private scans. Existing sign-in methods and GitLab connections
-remain independent. Database migration 15 preserves legacy encrypted tokens.
+remain independent. Database migration 15 preserves legacy encrypted tokens; migration 16 repairs early version-15 databases missing the polling schedule column.
 
 ### Underlying container images
 

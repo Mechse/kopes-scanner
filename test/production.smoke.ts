@@ -67,8 +67,10 @@ test('standalone production output: SSR, assets, auth, access control and data',
     assert.doesNotMatch(html, /kopes\.ai/i);
     const usersPage = await fetch(`${origin}/settings/users`);
     assert.equal(usersPage.status, 200);
+    assert.equal(new URL(usersPage.url).pathname, '/settings');
+    assert.equal(new URL(usersPage.url).searchParams.get('tab'), 'users');
     const usersHtml = await usersPage.text();
-    assert.match(usersHtml, /<title>User management · kopes\.dev<\/title>/);
+    assert.match(usersHtml, /<title>Settings · kopes\.dev<\/title>/);
     assert.match(usersHtml, /aria-label="kopes\.dev host security"/);
     assert.doesNotMatch(usersHtml, /Grant access|Revoke access/);
     const asset = html.match(/(?:href|src)="(\/assets\/[^" ]+\.(?:css|js))"/);

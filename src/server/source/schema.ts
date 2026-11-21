@@ -108,3 +108,11 @@ export function migrateGithubConnections(db: DatabaseSync) {
   db.exec(sql);
   if (backfill) db.exec("UPDATE source_connections SET auth_kind=CASE WHEN credential='' THEN 'anonymous' WHEN provider='github' THEN 'legacy_pat' ELSE 'legacy_token' END");
 }
+
+/** v16: repair installations that initialized before v15 gained its PAT polling schedule. */
+export function migrateGithubPollingSchedule(db: DatabaseSync) {
+  if (!db.prepare('PRAGMA table_info(source_connections)').all().some(column => column.name === 'next_check')) {
+    db.exec('ALTER TABLE source_connections ADD COLUMN next_check INTEGER NOT NULL DEFAULT 0');
+  }
+  db.exec('PRAGMA user_version=16');
+}

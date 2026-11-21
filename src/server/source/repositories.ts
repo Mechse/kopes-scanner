@@ -79,7 +79,7 @@ export async function handleRepositories(request: Request, store: Store, princip
       EXISTS(SELECT 1 FROM source_jobs j WHERE j.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' AND j.state IN ('complete','failed')) AS first_run_finished,
       c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
     return json({ administrator: principal.administrator, flags: sourceFlags(), storageError: store.getMeta('source.storage.error') || null,
-      projects: projects.list(), resources: store.db.prepare('SELECT id,name,project_id FROM resources ORDER BY name').all().filter(resourceVisible).map(r => ({ ...r, containerIds: store.db.prepare('SELECT container_id FROM runtime_instances WHERE resource_id=? AND active=1').all(r.id).map(i => i.container_id) })),
+      projects: projects.list(), resources: store.db.prepare('SELECT id,name,project_id FROM resources r WHERE project_id IS NOT NULL OR EXISTS (SELECT 1 FROM runtime_instances i JOIN selected_containers s ON s.id=i.container_id WHERE i.resource_id=r.id) ORDER BY name').all().filter(resourceVisible).map(r => ({ ...r, containerIds: store.db.prepare('SELECT container_id FROM runtime_instances WHERE resource_id=? AND active=1').all(r.id).map(i => i.container_id) })),
       bindings: bindings.map(b => ({ ...b, resources: [],
         jobs: store.db.prepare(`SELECT state,error FROM source_jobs WHERE binding_id=? AND kind NOT LIKE 'deployed:%' ORDER BY CASE state WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END, created_at DESC, rowid DESC LIMIT 1`).all(b.id),
         scans: store.db.prepare(`SELECT s.id,s.binding_id,s.observed_at,s.analyzer,json_array_length(s.result_json,'$.findings') AS occurrences,json_extract(s.result_json,'$.coverage.inventory') AS inventoryCoverage,json_array_length(s.result_json,'$.nodes') AS packageCount,n.commit_sha FROM source_scans s JOIN source_snapshots n ON n.id=s.snapshot_id JOIN source_jobs j ON j.id=s.job_id WHERE s.binding_id=? AND j.kind NOT LIKE 'deployed:%' ORDER BY s.observed_at DESC LIMIT 5`).all(b.id) })) });
@@ -158,6 +158,10 @@ async function addConnectedRepository(store: Store, input: { repository: string;
     }
     store.db.prepare('INSERT OR IGNORE INTO source_repositories(id,provider,origin,provider_id,name) VALUES (?,?,?,?,?)').run(randomUUID(),'github','https://api.github.com',repo.providerId,repo.name);
     const repository = store.db.prepare("SELECT id FROM source_repositories WHERE provider='github' AND origin='https://api.github.com' AND provider_id=?").get(repo.providerId)!;
+    // A retry after a lost response must not create a second binding or switch credentials.
+    const existing = store.db.prepare(`SELECT id FROM source_bindings WHERE repository_id=? AND connection_id=?
+      AND project_id IS ? AND branch=? AND folder='' AND enabled=1`).get(repository.id, connection.id, projectId, repo.branch);
+    if (existing) return { id: existing.id, projectId, queued: sourceFlags().connections && sourceFlags().scanning };
     const id = randomUUID();
     store.db.prepare("INSERT INTO source_bindings(id,project_id,repository_id,connection_id,branch,folder) VALUES (?,?,?,?,?,'')").run(id,projectId,repository.id,connection.id,repo.branch);
     auditGithub(store,actor,'github-repository-bound',id);

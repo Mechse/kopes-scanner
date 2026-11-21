@@ -1,3 +1,4 @@
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from '../components/ui/dropdown-menu';
 import { repositoryCoverageAreas } from '../lib/assessment-coverage';
 import { FindingsSummary } from '../components/findings-summary';
 import { baseImageOptions } from '../lib/base-image-filter';
@@ -10,7 +11,6 @@ import { PackagesSummary, RepositoryPackages } from '../components/repository-pa
 import { repositoryPackages } from '../lib/repository-packages';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { DropdownMenu } from 'radix-ui';
 import { Check, Ellipsis, Info, RefreshCw, Scan as ScanIcon, Search, SlidersHorizontal } from 'lucide-react';
 import { WorkspaceBar, useWorkspace } from '../components/app-shell';
 import { RepositoryWorkspace, useRepositories } from '../components/repositories';
@@ -95,14 +95,14 @@ function RepositoryPage() {
           </div></SheetContent>
         </Sheet>}
         <Button variant="ghost" size="sm" disabled={busy || !repos.data.flags.connections || !repos.data.flags.scanning} aria-busy={busy || undefined} onClick={() => void rescan()}><RefreshCw aria-hidden="true" className={busy ? 'scan-action-icon' : ''}/>{busy ? job?.state === 'queued' ? 'Queued' : 'Scanning' : 'Rescan'}</Button>
-        <DropdownMenu.Root><DropdownMenu.Trigger asChild><Button variant="ghost" size="sm" aria-label="More resource options"><Ellipsis aria-hidden="true"/>More</Button></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={4} className="dropdown-content">
-          <DropdownMenu.Item className="dropdown-item" onSelect={() => setPanel('details')}>Resource details</DropdownMenu.Item>
-          {repos.data.administrator && <DropdownMenu.Item className="dropdown-item" onSelect={() => repos.edit(binding)}>Repository settings</DropdownMenu.Item>}
-          <DropdownMenu.Item className="dropdown-item" onSelect={() => setPanel('scan')}>Scan details and actions</DropdownMenu.Item>
-          <DropdownMenu.Item className="dropdown-item" onSelect={() => update({ view: 'packages' })}>Package inventory</DropdownMenu.Item>
-        </DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
+        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label="More resource options"><Ellipsis aria-hidden="true"/>More</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setPanel('details')}>Resource details</DropdownMenuItem>
+          {repos.data.administrator && <DropdownMenuItem onSelect={() => repos.edit(binding)}>Repository settings</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={() => setPanel('scan')}>Scan details and actions</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => update({ view: 'packages' })}>Package inventory</DropdownMenuItem>
+        </DropdownMenuContent></DropdownMenu>
       </SearchToolbar>
-      {[error, binding.error, job?.error, repos.data.storageError, full?.error].filter(Boolean).map((message, i) => <p key={i} role="alert" className="my-4 text-sm text-critical">{message}</p>)}
+      {[...new Set([error, binding.error, job?.error, repos.data.storageError, full?.error].filter(Boolean))].map((message, i) => <p key={i} role="alert" className="my-4 text-sm text-critical">{message}</p>)}
       {(!repos.data.flags.connections || !repos.data.flags.scanning) && <p role="status" className="my-4 text-sm text-muted-foreground">Repository scanning is currently unavailable. Saved results are shown below.</p>}
       {busy && <p role="status" className="my-4 text-sm text-muted-foreground">{job?.state === 'queued' ? 'Scan queued.' : 'Scanning dependencies…'} {scan && 'Showing the last completed scan.'}</p>}
       {packagesView ? !scan ? <p role="status" className="py-12 text-muted-foreground">Packages will appear here when the first scan completes.</p> : !packages ? !full?.error && <LoadingStatus label="Loading packages…" className="py-12"/> : <RepositoryPackages key={`${scan.id}:${packageQuery}`} packages={packages} query={packageQuery} repository={repository}/> : search.baseImage ? <RepositoryBaseFindings {...imageScans} filters={search}/> : !scan ? <div role="status" className="py-12"><h2>No completed source scan yet.</h2><p className="mt-2 text-muted-foreground">Findings will appear here when a scan completes.</p></div> : !analysis ? !full?.error && <LoadingStatus label="Loading vulnerabilities…" className="py-12"/> : rows.length ? <div className="-mx-4"><FindingsTable repositoryId={repository} repositoryFilters={search} key={JSON.stringify([scan.id, search])} findings={rows} findingSearch={index => ({ finding: index })}/></div> : <div role="status" className="flex flex-col items-center px-5 py-16 text-center">

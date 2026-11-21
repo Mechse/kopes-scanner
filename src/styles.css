@@ -2,6 +2,7 @@
 @import '@fontsource-variable/geist-mono';
 @import './tokens.css';
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @custom-variant mobile (@media (width <= 700px));
@@ -20,6 +21,13 @@
   --color-medium: var(--sev-medium);
   --color-low: var(--sev-low);
   --color-info: var(--sev-info);
+  --color-input: var(--border);
+  --color-ring: var(--brand-ink);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--ink);
+  --color-accent: var(--surface-sunken);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--sev-critical);
   --color-background: var(--surface);
   --color-foreground: var(--ink);
   --color-primary: var(--brand);
@@ -68,22 +76,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
-}
-
-.dropdown-content {
-  @apply z-50 rounded-md border border-border bg-raised p-1 text-sm text-foreground shadow-md;
-}
-.dropdown-item {
-  @apply flex min-h-8 w-full cursor-pointer select-none items-center gap-3 rounded px-3 py-1.5 text-left text-sm leading-5;
-}
-.dropdown-item[data-highlighted] {
-  @apply bg-sunken outline-none;
-}
-.dropdown-item[data-disabled] {
-  @apply pointer-events-none opacity-50;
-}
-@media (width <= 700px) {
-  .dropdown-item { min-height: 44px; }
 }
 
 .findings-search {
@@ -241,6 +233,12 @@
   border-radius: 50%;
   background: currentColor;
 }
+.resource-card-grid {
+  display: grid;
+  gap: 1rem;
+  /* Four cards share the row after accounting for the three gaps. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(280px, calc((100% - 3rem) / 4))), 1fr));
+}
 .inventory-project-rows { padding-left: 8px; }
 .inventory-row {
   display: grid;
@@ -294,7 +292,7 @@
 
 /* Shared dimensions for Activity, Projects, and resource findings controls. */
 .search-toolbar { --toolbar-control-height: 2rem; }
-.search-toolbar :is([data-toolbar-search], [data-toolbar-control], [data-slot="button"]) {
+.search-toolbar :is([data-toolbar-search], [data-toolbar-control], [data-slot="select-trigger"], [data-slot="button"]) {
   height: var(--toolbar-control-height);
 }
 .search-toolbar [data-toolbar-search] { min-width: min(100%, 14rem); }

@@ -1,3 +1,4 @@
+import { Select, SelectTrigger, SelectItem, SelectContent } from './ui/select';
 import { resourceName } from '../lib/display-name';
 import { useSyncExternalStore } from 'react';
 import { Box, Database, Globe, HardDrive, Layers, ListTree, Network, Radar, Server } from 'lucide-react';
@@ -47,16 +48,15 @@ export function ResourceIcon({ container }: { container?: Container }) {
   const type = selected ?? automatic;
   const Icon = icons[type];
   const label = `Change icon for ${container ? resourceName(container) : 'Host OS packages'} (currently ${type})`;
-  return <label className="relative z-10 grid size-8 cursor-pointer place-items-center rounded text-muted-foreground hover:bg-sunken hover:text-foreground focus-within:ring-2 focus-within:ring-brand-ink" title={label}>
-    <Icon size={17} aria-hidden="true" />
-    <select aria-label={label} className="absolute inset-0 size-full cursor-pointer opacity-0" value={selected ?? ''} onChange={event => {
-      const value = event.target.value;
-      if (value) localStorage.setItem(key, value);
-      else localStorage.removeItem(key);
-      window.dispatchEvent(new Event('resource-icon-change'));
-    }}>
-      <option value="">Automatic ({automatic})</option>
-      {Object.keys(icons).map(option => <option key={option}>{option}</option>)}
-    </select>
-  </label>;
+  return <Select value={selected ?? 'automatic'} onValueChange={value => {
+    if (value === 'automatic') localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+    window.dispatchEvent(new Event('resource-icon-change'));
+  }}>
+    <SelectTrigger title={label} aria-label={label} className="relative z-10 gap-0 px-1"><Icon aria-hidden="true" /></SelectTrigger>
+    <SelectContent>
+      <SelectItem value="automatic">Automatic ({automatic})</SelectItem>
+      {Object.keys(icons).map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+    </SelectContent>
+  </Select>;
 }

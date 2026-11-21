@@ -14,7 +14,7 @@ export function sourceEmptyMessage(analysis: {
   };
   if (!analysis.nodes.length) return {
     title: 'Repository not assessed: no supported, resolved dependencies found.',
-    description: 'The ecosystem or dependency format may be unsupported, or dependency versions could not be read. Supported inputs include npm/pnpm lockfiles and Python requirements.txt, Pipfile.lock, poetry.lock, uv.lock, and pylock.toml. This is not a clean scan. Review scan details for the specific limitations.',
+    description: 'The ecosystem or dependency format may be unsupported, or dependency versions could not be read. Supported inputs include npm/pnpm lockfiles, Bun text bun.lock (not binary bun.lockb), and Python requirements.txt, Pipfile.lock, poetry.lock, uv.lock, and pylock.toml. This is not a clean scan. Review scan details for the specific limitations.',
   };
   return {
     title: 'No vulnerabilities found in the assessed packages; coverage is incomplete.',

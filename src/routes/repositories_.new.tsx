@@ -84,7 +84,7 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
       <section className="mt-12" aria-labelledby="github-import">
         <h2 id="github-import" className="text-xl font-semibold tracking-tight">Import from GitHub</h2>
         {settings?.error ? <p role="alert">{settings.error}</p> : !settings?.data ? <p role="status">Loading connections…</p> : !apps.length ?
-          <div className="mt-4 rounded-lg border border-border p-5 text-sm"><p className="mb-3">Connect a GitHub App to browse its repositories.</p><Button variant="outline" size="sm" asChild><Link to="/settings">Manage connections</Link></Button></div> : <>
+          <div className="mt-4 rounded-lg border border-border p-5 text-sm"><p className="mb-3">Connect a GitHub App to browse its repositories.</p><Button variant="outline" size="sm" asChild><Link to="/settings" search={{ tab: 'integrations' }}>Manage connections</Link></Button></div> : <>
           <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(10rem,1fr)_2fr]">
             <SelectField aria-label="GitHub connection" className="h-full min-h-10 w-full" value={account || 'all'} onValueChange={value => { setAccount(value === 'all' ? '' : value); setPage(1); }}>
               <SelectItem value="all">All connections</SelectItem>{apps.map(c => <SelectItem key={c.id} value={c.id}>{c.label || c.owner_login || 'GitHub App'}</SelectItem>)}
