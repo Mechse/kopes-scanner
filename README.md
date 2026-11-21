@@ -17,7 +17,6 @@ open **Containers → Untrack container**. This keeps its scan history and leave
 Docker untouched. Host OS scanning is separate; hosts aren't listed in Containers.
 
 - **Find the affected app.** Search the container list and open a report directly.
-  The optional Coolify connection supplies app names.
 - **Work out the next step.** Open a finding for affected packages, reported fixed
   versions, and remediation guidance you can review before updating and redeploying.
 - **Keep checking after launch.** Schedule rescans and use Pulse to see newly
@@ -87,51 +86,10 @@ needed. Both images build directly from this repository.
 6. Sign in as the configured administrator. Open **User access** to grant/revoke
    access. Members can view scans, download SBOMs and request scans.
 
-### Automatic Coolify app names
-
-The scanner can resolve deployment IDs to the exact names in Coolify, such as
-**Coolify · Kopes Test**, without adding labels to your application services.
-
-1. In Coolify, select the team that owns the apps. Under **Keys & Tokens → API
-   tokens**, create a token with only **read** permission. Enable API access on
-   your self-hosted Coolify instance and allow the scanner's source IP if you use
-   an API IP allowlist.
-2. Sign in to the scanner as an administrator and open **Settings → Coolify
-   connection**. Enter your Coolify URL (for example `https://coolify.example.com`,
-   without `/api/v1`) and paste the read-only token.
-3. Click **Test connection** to check access to applications, services and databases.
-   Testing uses the entered details without saving them. Click **Save connection**
-   to enable automatic names on the next inventory refresh, normally within 30
-   seconds. No restart, service labels or application redeployments are needed.
-
-The token is encrypted in the scanner database using a key derived from
-`BETTER_AUTH_SECRET` and is never returned to the browser. Keep that secret stable;
-if it changes, re-enter the Coolify token. Leave the token field empty when editing
-to retain it; changing the URL requires a new token. **Disconnect** removes the
-saved credentials and disables the integration while Docker scanning continues.
-
-Installations can supply `KOPES_COOLIFY_URL` and `COOLIFY_API_TOKEN` as
-environment variables. In-app settings take precedence, including Disconnect;
-the environment is only used before an in-app connection choice has been saved.
-If you previously configured `COOLIFY_URL`, rename it to `KOPES_COOLIFY_URL`.
-Coolify reserves `COOLIFY_URL` for the deployed application URL; it is not the
-control-plane API address.
-
-Names come from the applications, services and databases API, matched by exact
-UUID or typed legacy Coolify ID. Compose project UUIDs work even when Coolify
-labels are absent. Only resources visible to that token's team can be resolved.
-Lookups refresh every five minutes. Failed lookups retain in-memory cached names;
-without a cached match, Docker label naming still works and scanning continues.
-Check scanner logs for a lookup warning if names do not resolve. API response
-bodies and tokens are not stored in scan results or sent to the browser.
-
-Enabling the integration or renaming a Coolify resource can change its scanner
-group name. Reapply custom project/resource scan settings under the new name;
-existing image scan results are retained. Identically named Coolify resources
-include their UUID to keep their groups distinct.
-
-See [Coolify API permissions](https://coolify.io/docs/api/permissions) for token
-permissions and team scope.
+The scanner reads container names and labels from Docker, not the Coolify API.
+If upgrading from the old connection, revoke the scanner’s API token in Coolify
+and remove it from your deployment environment. Previously resolved group names
+may change; check custom scan settings under the new names. Scan history is retained.
 
 ### Sign-in providers
 

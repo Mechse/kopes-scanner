@@ -45,6 +45,7 @@ export class Store {
         scope TEXT NOT NULL, key TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY(scope,key)
       );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      DELETE FROM metadata WHERE key='connection.coolify';
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
       CREATE TABLE IF NOT EXISTS access_profiles (
         github_id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, name TEXT, email TEXT, image TEXT, last_sign_in INTEGER

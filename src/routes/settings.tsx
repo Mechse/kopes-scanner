@@ -7,7 +7,6 @@ import { useWorkspace } from '../components/app-shell';
 import { SettingsForm } from '../components/scan-settings';
 import { resourceKey } from '../lib/settings';
 import { AuthMethodsSettings } from '../components/auth-settings';
-import { CoolifySettings } from '../components/coolify-settings';
 import { UserAccess } from '../components/user-access';
 import { UntrackContainer } from '../components/add-resource';
 import { SettingsTabs, SettingsPanel } from '../components/settings-tabs';
@@ -44,7 +43,7 @@ function SettingsPage() {
   const back = { view: 'apps' as const, target: targetId, app };
   const sections: SettingsNavData['sections'] = appSettings
     ? [
-      { tab: 'integrations', label: 'Integrations', children: [{ section: 'coolify', label: 'Coolify' }, { section: 'github', label: 'GitHub' }] },
+      { tab: 'integrations', label: 'Integrations', children: [{ section: 'github', label: 'GitHub' }] },
       { tab: 'auth', label: 'Auth', children: [...Object.entries(providerNames).map(([section, label]) => ({ section, label })), { section: 'email', label: 'Email' }] },
       { tab: 'users', label: 'Users' },
     ]
@@ -70,7 +69,7 @@ function SettingsPage() {
     {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <>
       <h1 className="sr-only">Settings</h1>
       <SettingsTabs value={current}>
-        <SettingsPanel value="integrations">{current !== 'integrations' ? null : currentSection === 'github' ? <GithubSettings setupNotice={githubSetup} /> : <CoolifySettings />}</SettingsPanel>
+        <SettingsPanel value="integrations">{current === 'integrations' && <GithubSettings setupNotice={githubSetup} />}</SettingsPanel>
         <SettingsPanel value="auth">{current === 'auth' && <AuthMethodsSettings section={currentSection!} />}</SettingsPanel>
         <SettingsPanel value="users"><div className="pt-6"><p className="mb-4 text-sm text-muted-foreground">Manage who can sign in and access this workspace.</p><UserAccess /></div></SettingsPanel>
       </SettingsTabs>

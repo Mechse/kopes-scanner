@@ -1,6 +1,5 @@
 import { localImage, type LocalImage } from './base-images';
 import type { Container } from '../lib/model';
-import type { CoolifyLookup } from './coolify';
 
 type DockerContainer = { Id: string; Names: string[]; Image: string; ImageID: string; Labels: Record<string, string> };
 
@@ -68,12 +67,12 @@ export async function dockerJson(base: string, path: string, signal?: AbortSigna
   if (!response.ok) throw new Error(`Docker proxy returned HTTP ${response.status}. Check socket access and proxy permissions.`);
   return response.json();
 }
-export async function inventory(base: string, lookup?: () => Promise<CoolifyLookup>, ids?: string[]): Promise<Container[]> {
+export async function inventory(base: string, ids?: string[]): Promise<Container[]> {
   if (ids?.length === 0) return [];
   // Keep Docker filter URLs below the socket proxy's request-line limit.
   if (ids && ids.length > 50) {
     const rows: Container[] = [];
-    for (let i = 0; i < ids.length; i += 50) rows.push(...await inventory(base, lookup, ids.slice(i, i + 50)));
+    for (let i = 0; i < ids.length; i += 50) rows.push(...await inventory(base, ids.slice(i, i + 50)));
     return rows;
   }
   const filter = ids ? `?filters=${encodeURIComponent(JSON.stringify({ id: ids }))}` : '';
@@ -81,13 +80,7 @@ export async function inventory(base: string, lookup?: () => Promise<CoolifyLook
   if (!Array.isArray(data)) throw new Error('Docker inventory is not a list.');
   const selected = ids ? new Set(ids) : null;
   const rows = selected ? data.filter(row => selected.has(row.Id)) : data;
-  const containers = rows.map(containerInfo);
-  const resolve = await lookup?.();
-  return containers.map((container, index) => {
-    const labels = rows[index].Labels ?? {};
-    const project = !labels['kopes.project']?.trim() && resolve?.(labels);
-    return project ? { ...container, project, manager: 'Coolify' } : container;
-  });
+  return rows.map(containerInfo);
 }
 export async function imagePlatform(base: string, image: string) {
   if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw new Error('Invalid immutable image ID.');

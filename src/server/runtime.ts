@@ -13,7 +13,6 @@ import { Store } from './store';
 import { migrateAuth } from './auth';
 import { savedAuthRuntime } from './auth-settings';
 import { inventory, watchEvents } from './docker';
-import { savedCoolifyLookup } from './coolify-settings';
 import { NoPackageCoverage } from './trivy';
 import { scanTarget } from './scanner';
 
@@ -25,7 +24,6 @@ async function initialize() {
     const config = readConfig();
     stage = 'database';
     const store = new Store(config.dataDir);
-    const coolifyLookup = savedCoolifyLookup(store, config);
     stage = 'filesystem';
     await mkdir(join(config.dataDir, 'tmp'), { recursive: true, mode: 0o700 });
     stage = 'authentication';
@@ -58,7 +56,7 @@ async function initialize() {
         }
         const ids = store.selectedContainers();
         if (id && !ids.includes(id)) ids.push(id);
-        const containers = await inventory(config.docker, coolifyLookup, ids);
+        const containers = await inventory(config.docker, ids);
         if (id && !containers.some(c => c.id === id)) return false;
         store.syncInventory(containers, { add: id });
         return true;

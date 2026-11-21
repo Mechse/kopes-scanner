@@ -14,9 +14,9 @@ test('inventory skips Docker with no selections and restricts refreshes to selec
     requests.push(new URL(url));
     return Response.json(ids.map(Id => ({ Id, Names: [], Image: 'test', ImageID: `sha256:${Id}` })));
   });
-  assert.deepEqual(await inventory('http://proxy', undefined, []), []);
+  assert.deepEqual(await inventory('http://proxy', []), []);
   assert.equal(requests.length, 0);
-  assert.deepEqual((await inventory('http://proxy', undefined, [ids[0]])).map(c => c.id), [ids[0]]);
+  assert.deepEqual((await inventory('http://proxy', [ids[0]])).map(c => c.id), [ids[0]]);
   assert.deepEqual(JSON.parse(requests[0].searchParams.get('filters')!), {id: [ids[0]]});
   assert.equal((await inventory('http://proxy')).length, 2);
 });

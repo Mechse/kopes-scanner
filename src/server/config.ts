@@ -17,20 +17,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   const secret = required('BETTER_AUTH_SECRET');
   if (secret.length < 32) throw new Error('BETTER_AUTH_SECRET must contain at least 32 random characters.');
   const optional = (name: string) => env[name]?.trim() ?? '';
-  // COOLIFY_URL is injected by Coolify as the application's own public URL.
-  // Never use it as an API destination or infer an integration from its presence.
-  const coolifyUrl = optional('KOPES_COOLIFY_URL');
-  const coolifyToken = optional('COOLIFY_API_TOKEN');
-  if (!!coolifyUrl !== !!coolifyToken) throw new Error('Set both KOPES_COOLIFY_URL and COOLIFY_API_TOKEN to enable automatic Coolify names.');
-  let coolifyOrigin = '';
-  if (coolifyUrl) {
-    const url = new URL(coolifyUrl);
-    if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
-      !(url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
-      throw new Error('KOPES_COOLIFY_URL must be an HTTPS origin, without /api/v1 (HTTP is allowed only on localhost).');
-    }
-    coolifyOrigin = url.origin;
-  }
   const admin = optional('GITHUB_ADMIN_USER').toLowerCase();
   const adminEmail = optional('AUTH_ADMIN_EMAIL').toLowerCase();
   if (adminEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) throw new Error('AUTH_ADMIN_EMAIL must be an email address.');
@@ -39,7 +25,6 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (docker.protocol !== 'http:' || docker.username || docker.password || docker.pathname !== '/' || docker.search || docker.hash) throw new Error('DOCKER_HOST must be an HTTP socket-proxy origin.');
   return {
     origin: origin.origin, secret, admin, adminEmail,
-    coolifyOrigin, coolifyToken,
     githubId: optional('GITHUB_CLIENT_ID'), githubSecret: optional('GITHUB_CLIENT_SECRET'),
     googleId: optional('GOOGLE_CLIENT_ID'), googleSecret: optional('GOOGLE_CLIENT_SECRET'),
     microsoftId: optional('MICROSOFT_CLIENT_ID'), microsoftSecret: optional('MICROSOFT_CLIENT_SECRET'),

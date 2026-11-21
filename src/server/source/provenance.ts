@@ -26,27 +26,6 @@ export function sourceComparison(previous: Analysis, current: Analysis) {
   });
   return { comparable: true, observations };
 }
-export type DeploymentObservation = { providerId: string; resourceId: string; environment: string | null; commit: string | null; status: string;
-  sourceTime: number | null; observedAt: number; actor: null; strength: 'provider-reported'; image: null };
-export async function deploymentHistory(origin: string, token: string, applicationUuid: string, resourceId: string, environment: string | null, fetcher: typeof fetch = fetch): Promise<DeploymentObservation[]> {
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(applicationUuid)) throw new Error('Invalid application identifier.');
-  const observations: DeploymentObservation[] = [];
-  for (let page = 0; page < 10; page++) {
-    const response = await fetcher(`${origin}/api/v1/deployments/applications/${encodeURIComponent(applicationUuid)}?skip=${page*50}&take=50`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) throw new Error('Deployment history unavailable.');
-    const raw = await response.text(); if (raw.length > 2*1024*1024) throw new Error('Deployment history too large.');
-    const body = JSON.parse(raw), rows = Array.isArray(body) ? body : body.deployments;
-    if (!Array.isArray(rows)) throw new Error('Unrecognized deployment response.');
-    for (const row of rows) {
-      const id = row.deployment_uuid ?? row.uuid; if (typeof id !== 'string' || id.length > 200) continue;
-      const commit = typeof row.commit === 'string' && /^[a-f0-9]{40,64}$/.test(row.commit) ? row.commit : null;
-      const time = typeof row.created_at === 'string' ? Date.parse(row.created_at) : NaN;
-      observations.push({ providerId: id, resourceId, environment, commit, status: ['finished','failed','cancelled','in_progress','queued'].includes(row.status) ? row.status : 'unknown', sourceTime: Number.isFinite(time)?time:null, observedAt: Date.now(), actor: null, strength:'provider-reported',image:null });
-    }
-    if (rows.length < 50) return observations;
-  }
-  throw new Error('Deployment history pagination limit reached; coverage incomplete.');
-}
 export function appendEvidence(store: Store, projectId: string | null, kind: string, evidence: unknown, sourceTime: number | null = null, bindingId: string | null = null, actor: unknown = null) {
   const encoded = JSON.stringify(evidence);
   const id = createHash('sha256').update(JSON.stringify([projectId,bindingId,kind,sourceTime,evidence,actor])).digest('hex');

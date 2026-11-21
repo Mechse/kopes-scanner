@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verification, deploymentHistory, appendEvidence } from '../src/server/source/provenance';
+import { verification, appendEvidence } from '../src/server/source/provenance';
 import { remediationGuidance } from '../src/lib/source-guidance';
 import { Store } from '../src/server/store';
 import { ProjectStore } from '../src/server/project-store';
@@ -14,15 +14,6 @@ test('runtime verification requires current immutable image, relevant coverage a
   assert.equal(verification(finding,{...evidence,currentImages:['sha256:new','sha256:old']}).state,'unavailable');
   assert.equal(verification(finding,{...evidence,packages:[]}).state,'not-detected');
   assert.equal(verification(finding,{...evidence,currentImages:['sha256:old'],scannedImage:'sha256:old',findings:[finding]}).state,'affected');
-});
-test('allowlisted deployment history does not invent actors or image linkage', async () => {
-  const records = await deploymentHistory('https://coolify.example','credential','app','resource','staging',async (url, options)=>{
-    assert.ok(String(url).includes('/deployments/applications/app?skip=0&take=50'));
-    assert.equal(options?.redirect,'error');
-    return Response.json([{deployment_uuid:'d',commit:'a'.repeat(40),status:'finished',created_at:'2026-11-09T12:00:00Z',logs:'private',token:'private',actor:'unvalidated'}]);
-  });
-  assert.equal(records[0].actor,null); assert.equal(records[0].image,null); assert.equal(records[0].strength,'provider-reported');
-  assert.ok(!JSON.stringify(records).includes('private'));
 });
 test('history is append-only and deduplicated independently by project', () => {
   const s = new Store(':memory:'); try {
