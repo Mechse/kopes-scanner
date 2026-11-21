@@ -330,7 +330,7 @@ function AuthError() {
   }, []);
   return failed ? (
     <p className="mb-6 text-critical" role="alert">
-      Sign-in was not completed. If you used Microsoft, check your inbox for a verification link, then sign in again. Otherwise check your invitation and the provider’s callback URL. Use the same provider as your first sign-in.
+      Sign-in was not completed. If you used Microsoft, ask an administrator to approve your Microsoft account in Users, then sign in again. Otherwise check your invitation and the provider’s callback URL. Use the same provider as your first sign-in.
     </p>
   ) : null;
 }

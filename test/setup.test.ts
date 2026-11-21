@@ -12,6 +12,7 @@ for (const terminal of [false, true]) test(`setup shows prompts, protects secret
     await mkdir(join(directory, 'scripts'));
     await mkdir(join(directory, 'src/server'), { recursive: true });
     await cp('scripts/setup.mjs', join(directory, 'scripts/setup.mjs'));
+    await cp('src/lib/microsoft-identity.ts', join(directory, 'src/lib/microsoft-identity.ts'));
     await cp('src/server/config.ts', join(directory, 'src/server/config.ts'));
     const args = terminal ? ['--input-type=module', '--eval', "Object.defineProperty(process.stdin, 'isTTY', { value: true }); await import('./scripts/setup.mjs');"] : ['scripts/setup.mjs'];
     // The TTY fixture needs cursor controls even when the test runner uses TERM=dumb.

@@ -6,11 +6,10 @@ import { ContentSkeleton } from './ui/loading';
 import { providerNames, type AuthProvider } from './auth-setup';
 
 type Provider = { provider: AuthProvider; clientId: string; hasSecret: boolean; administrator: string; enabled: boolean; source: string };
-type Settings = { origin: string; currentProvider: AuthProvider; providers: Provider[]; mail: { configured: boolean; hasSmtpUrl: boolean; mailFrom: string } };
+type Settings = { origin: string; currentProvider: AuthProvider; providers: Provider[] };
 
 const registration = { github: 'https://github.com/settings/developers', google: 'https://console.cloud.google.com/auth/overview', microsoft: 'https://entra.microsoft.com/' };
 
-/** `section`: a provider id, or `email` for Microsoft email verification. */
 export function AuthMethodsSettings({ section }: { section: string }) {
   const result = useResource<Settings>('auth-settings', 0);
   const [saved, setSaved] = useState<Settings>();
@@ -26,7 +25,7 @@ export function AuthMethodsSettings({ section }: { section: string }) {
       const value = await response.json();
       if (!response.ok) throw new Error(value.error || 'Could not save sign-in settings.');
       setSaved(value); setVersion(v => v + 1);
-      setMessage('Settings saved and active. Try a new sign-in to verify the provider and email delivery.');
+      setMessage('Settings saved and active. Try a new sign-in to verify the provider.');
     } catch (error) { setError(error instanceof Error ? error.message : 'Could not save sign-in settings.'); }
     finally { setBusy(false); }
   }
@@ -34,26 +33,6 @@ export function AuthMethodsSettings({ section }: { section: string }) {
     {result?.error && <p role="alert" className="mt-4 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading sign-in methods…" layout="settings" /> : <div key={version}>
       {data.providers.filter(provider => provider.provider === section).map(provider => <ProviderForm key={provider.provider} data={provider} origin={data.origin} locked={provider.provider === data.currentProvider} busy={busy} submit={submit} />)}
-      {section === 'email' && <div>
-        <SectionHeading title="Microsoft email verification" status={data.mail.configured ? 'Configured' : 'Not configured'} />
-      <form className="mt-4" onSubmit={event => {
-        event.preventDefault(); const form = new FormData(event.currentTarget);
-        void submit({ action: 'mail', smtpUrl: form.get('smtpUrl'), mailFrom: form.get('mailFrom') });
-      }}>
-        <p className="mt-2 text-xs leading-5 text-muted-foreground">Microsoft users must verify their mailbox before their first sign-in. Configure email delivery before enabling Microsoft. Use your mail service’s SMTP credentials, URL-encode special characters, and use an approved sender address.</p>
-        {data.currentProvider === 'microsoft' && <p className="mt-2 text-xs">Sign in with another method to change email delivery.</p>}
-        <fieldset disabled={busy || data.currentProvider === 'microsoft'} className="mt-4 space-y-4">
-          <label className="block text-sm" htmlFor="auth-smtp">SMTP URL
-            <SettingsInput id="auth-smtp" name="smtpUrl" type="password" required={!data.mail.hasSmtpUrl} autoComplete="new-password" placeholder={data.mail.hasSmtpUrl ? 'Saved — leave blank to keep' : 'smtps://username:password@mail.example.com:465'} />
-          </label>
-          <label className="block text-sm" htmlFor="auth-from">Sender email
-            <SettingsInput id="auth-from" name="mailFrom" type="email" required defaultValue={data.mail.mailFrom} placeholder="security@example.com" />
-          </label>
-          <Button type="submit">Save changes</Button>
-        </fieldset>
-        <p className="mt-3 text-xs text-muted-foreground">{data.mail.configured ? 'Email delivery is configured. Verify delivery with a Microsoft sign-in.' : 'Email delivery is not configured.'}</p>
-      </form>
-      </div>}
     </div>}
     {message && <p role="status" className="mt-4 text-sm">{message}</p>}
     {error && <p role="alert" className="mt-4 text-sm text-critical">{error}</p>}
@@ -73,8 +52,8 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
       <label className="block text-sm" htmlFor={`${data.provider}-id`}>Client ID<SettingsInput id={`${data.provider}-id`} name="clientId" required defaultValue={data.clientId} autoComplete="off" /></label>
       <label className="block text-sm" htmlFor={`${data.provider}-secret`}>Client secret<SettingsInput id={`${data.provider}-secret`} name="clientSecret" type="password" required={!data.hasSecret} autoComplete="new-password" placeholder={data.hasSecret ? 'Saved — leave blank to keep' : 'Paste client secret'} /></label>
       <p className="text-xs text-muted-foreground">Changing the client ID requires a new secret.</p>
-      <label className="block text-sm" htmlFor={`${data.provider}-admin`}>{data.provider === 'github' ? 'Administrator GitHub username' : 'Administrator email'}<SettingsInput id={`${data.provider}-admin`} name="administrator" type={data.provider === 'github' ? 'text' : 'email'} required defaultValue={data.administrator} /></label>
-      {data.provider !== 'github' && <p className="text-xs text-muted-foreground">Google and Microsoft share the same administrator email. Manage other people in the Users tab.</p>}
+      <label className="block text-sm" htmlFor={`${data.provider}-admin`}>{data.provider === 'github' ? 'Administrator GitHub username' : data.provider === 'microsoft' ? 'Administrator Microsoft identity' : 'Administrator email'}<SettingsInput id={`${data.provider}-admin`} name="administrator" type={data.provider === 'google' ? 'email' : 'text'} required defaultValue={data.administrator} /></label>
+      {data.provider === 'microsoft' && <p className="text-xs text-muted-foreground">Enter microsoft:&lt;tenant ID&gt;:&lt;user object ID&gt; from Microsoft Entra. Approve other accounts in Users after their first sign-in attempt.</p>}
       <div className="flex flex-wrap gap-2"><Button type="submit">Save changes</Button>{data.enabled && <Button type="button" variant="ghost" onClick={() => void submit({ action: 'disable', provider: data.provider })}>Disable {name}</Button>}</div>
     </fieldset>
   </form>

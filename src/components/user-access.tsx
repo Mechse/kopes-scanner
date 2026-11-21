@@ -44,7 +44,7 @@ export function UserAccess() {
       const response = await fetch('/api/data/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, login }) });
       if (!response.ok) throw new Error(await response.text());
       setAccess(await response.json());
-      setNotice(action === 'add' ? `Access granted for ${login}. They can now sign in with GitHub.` : `Access revoked for ${login}.`);
+      setNotice(action === 'add' ? `Access granted for ${login}. They can now sign in.` : `Access revoked for ${login}.`);
       if (action === 'add') { setIdentifier(''); setGrantOpen(false); }
       else setRevoke(null);
     } catch (e) { setError((e as Error).message || 'Unable to update user access.'); }
@@ -78,7 +78,7 @@ export function UserAccess() {
           <Dialog.Close asChild><Button variant="ghost" size="icon" className="absolute top-3 right-3" aria-label="Close grant access" disabled={busy}><X aria-hidden="true" /></Button></Dialog.Close>
           <form className="mt-5" onSubmit={event => { event.preventDefault(); void update('add', identifier); }}>
             <label className="block text-sm">GitHub handle or email<input ref={identifierInput} className={`${field} mt-1.5`} required disabled={busy} maxLength={254} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="@octocat or name@example.com" aria-describedby="access-help" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label>
-            <p id="access-help" className="mt-3 text-xs leading-relaxed text-muted-foreground">Use an email address for Google or Microsoft, or a GitHub handle or verified email for GitHub. No invitation is sent. Microsoft users verify their email when first signing in.</p>
+            <p id="access-help" className="mt-3 text-xs leading-relaxed text-muted-foreground">Use a verified email for Google or GitLab, or a GitHub handle or verified GitHub email. For Microsoft, approve the account under Microsoft requests instead.</p>
             {error && <p className="mt-3 text-sm text-critical" role="alert">{error}</p>}
             <div className="mt-6 flex justify-end gap-2">
               <Dialog.Close asChild><Button variant="outline" disabled={busy}>Cancel</Button></Dialog.Close>
@@ -91,6 +91,7 @@ export function UserAccess() {
     {error && !revoke && !grantOpen && <p className="my-4 text-sm text-critical" role="alert">{error}</p>}
     {notice && <p className="my-4 rounded-md border border-border bg-sunken px-3 py-2 text-sm" role="status">{notice}</p>}
     {!access ? error ? <Button variant="outline" onClick={() => setReload(value => value + 1)}>Try again</Button> : <ContentSkeleton label="Loading user access…" /> : <>
+      {access.pending.length > 0 && <section className="mb-6"><h2>Microsoft requests</h2><p className="text-sm">Verify the tenant and object IDs with the requester. The displayed email is not verified.</p><ul>{access.pending.map(({identifier, email}) => <li key={identifier} className="my-3"><span>{email || 'No email supplied'}</span><code className="block break-all">{identifier}</code><Button size="sm" disabled={busy} onClick={() => void update('add', identifier)}>Approve account</Button></li>)}</ul></section>}
       <div>
         <div className="mb-2 flex items-center gap-2"><h2 className="my-0!">People</h2><span className={pillClass}>{filtered ? `${people.length} of ${access.people.length}` : access.people.length}</span></div>
         <div className="overflow-x-auto" role="region" aria-label="People list" tabIndex={0}>

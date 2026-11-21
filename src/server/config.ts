@@ -1,3 +1,4 @@
+import { microsoftIdentity } from '../lib/microsoft-identity.ts';
 import { resolve } from 'node:path';
 
 export function isGithubUsername(value: unknown): value is string {
@@ -21,6 +22,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   const adminEmail = optional('AUTH_ADMIN_EMAIL').toLowerCase();
   if (adminEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) throw new Error('AUTH_ADMIN_EMAIL must be an email address.');
   if (admin && !isGithubUsername(admin)) throw new Error('GITHUB_ADMIN_USER must be one GitHub username (not an email address).');
+  const microsoftAdmin = optional('MICROSOFT_ADMIN_ID').toLowerCase();
+  if (microsoftAdmin && !microsoftIdentity.test(microsoftAdmin)) throw new Error('MICROSOFT_ADMIN_ID must be microsoft:<tenant UUID>:<object UUID>.');
   const docker = new URL(env.DOCKER_HOST ?? 'http://socket-proxy:2375');
   if (docker.protocol !== 'http:' || docker.username || docker.password || docker.pathname !== '/' || docker.search || docker.hash) throw new Error('DOCKER_HOST must be an HTTP socket-proxy origin.');
   return {
@@ -28,7 +31,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     githubId: optional('GITHUB_CLIENT_ID'), githubSecret: optional('GITHUB_CLIENT_SECRET'),
     googleId: optional('GOOGLE_CLIENT_ID'), googleSecret: optional('GOOGLE_CLIENT_SECRET'),
     microsoftId: optional('MICROSOFT_CLIENT_ID'), microsoftSecret: optional('MICROSOFT_CLIENT_SECRET'),
-    smtpUrl: optional('SMTP_URL'), mailFrom: optional('AUTH_EMAIL_FROM'),
+    microsoftAdmin,
     dataDir: resolve(env.DATA_DIR ?? './data'), hostRoot: resolve(env.HOST_ROOT ?? '/host'),
     docker: docker.origin, trivy: env.TRIVY_BIN ?? 'trivy',
   };
@@ -39,6 +42,6 @@ export function configuredProviders(config: Config) {
   const providers: ('github' | 'google' | 'microsoft')[] = [];
   if (config.githubId && config.githubSecret && config.admin) providers.push('github');
   if (config.googleId && config.googleSecret && config.adminEmail) providers.push('google');
-  if (config.microsoftId && config.microsoftSecret && config.adminEmail && config.smtpUrl && config.mailFrom) providers.push('microsoft');
+  if (config.microsoftId && config.microsoftSecret && config.microsoftAdmin) providers.push('microsoft');
   return providers;
 }

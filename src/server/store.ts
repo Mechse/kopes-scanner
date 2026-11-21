@@ -48,6 +48,7 @@ export class Store {
       );
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       DELETE FROM metadata WHERE key='connection.coolify';
+      CREATE TABLE IF NOT EXISTS microsoft_requests (identifier TEXT PRIMARY KEY, email TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS allowed_users (login TEXT PRIMARY KEY);
       CREATE TABLE IF NOT EXISTS access_profiles (
         github_id TEXT PRIMARY KEY, login TEXT NOT NULL UNIQUE, name TEXT, email TEXT, image TEXT, last_sign_in INTEGER
@@ -200,6 +201,11 @@ export class Store {
   addUser(identifier: string, actor = 'Administrator') {
     let added = false;
     this.transaction(() => {
+      if (identifier.startsWith('microsoft:')) {
+        added = this.db.prepare('INSERT OR IGNORE INTO allowed_users(login,github_id) SELECT identifier,identifier FROM microsoft_requests WHERE identifier=?').run(identifier).changes > 0;
+        if (added) this.accessEvent(actor, 'granted', identifier);
+        return;
+      }
       const profile = this.db.prepare('SELECT github_id FROM access_profiles WHERE login=? OR lower(email)=?').get(identifier, identifier);
       if (profile && this.db.prepare('SELECT 1 FROM allowed_users WHERE github_id=?').get(profile.github_id)) return;
       added = this.db.prepare('INSERT OR IGNORE INTO allowed_users(login) VALUES (?)').run(identifier).changes > 0;
@@ -214,6 +220,7 @@ export class Store {
       const profile = grant.github_id
         ? this.db.prepare('SELECT login, github_id FROM access_profiles WHERE github_id=?').get(grant.github_id)
         : this.db.prepare('SELECT login, github_id FROM access_profiles WHERE login=?').get(identifier);
+      this.db.prepare('DELETE FROM microsoft_requests WHERE identifier=?').run(identifier);
       // Remove all known grants for this account so another entry cannot silently retain access.
       const login = String(profile?.login ?? identifier);
       const grants = this.db.prepare('SELECT login FROM allowed_users WHERE login=? OR login=? OR (github_id IS NOT NULL AND github_id=?)').all(identifier, login, profile?.github_id ?? grant.github_id);
@@ -247,14 +254,16 @@ export class Store {
     });
     return allowed;
   }
-  userAccess(admin: string, adminEmail = ''): AccessData {
-    const rows = this.db.prepare(`SELECT a.login AS identifier, p.login, p.name, p.email, p.image, p.last_sign_in AS lastSignIn
+  userAccess(admin: string, adminEmail = '', microsoftAdmin = ''): AccessData {
+    const rows = this.db.prepare(`SELECT a.login AS identifier, p.login, p.name, coalesce(m.email,p.email) AS email, p.image, p.last_sign_in AS lastSignIn
       FROM allowed_users a LEFT JOIN access_profiles p ON p.github_id=a.github_id OR (a.github_id IS NULL AND p.login=a.login)
-      WHERE a.login<>? ORDER BY a.login`).all(admin);
+      LEFT JOIN microsoft_requests m ON m.identifier=a.login WHERE a.login<>? AND a.login<>? ORDER BY a.login`).all(admin,microsoftAdmin);
     const profile = this.db.prepare('SELECT login,name,email,image,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(admin);
     const administrator = { identifier: admin, login: admin, name: null, email: null, image: null, lastSignIn: null, ...profile, role: 'Administrator' } as AccessPerson;
     const emailProfile = adminEmail ? this.db.prepare('SELECT login,name,email,image,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(adminEmail) : undefined;
-    return { people: [...(admin ? [administrator] : []), ...(adminEmail && adminEmail !== admin ? [{ identifier: adminEmail, login: adminEmail, name: null, email: adminEmail, image: null, lastSignIn: null, ...emailProfile, role: 'Administrator' as const }] : []), ...rows.filter(row => row.identifier !== adminEmail).map(row => ({ ...row, role: 'Member' } as AccessPerson))],
+    const pending = this.db.prepare('SELECT identifier,email FROM microsoft_requests WHERE identifier<>? AND identifier NOT IN (SELECT login FROM allowed_users) ORDER BY identifier').all(microsoftAdmin) as AccessData['pending'];
+    const msAdmin = microsoftAdmin ? [{ ...administrator, identifier: microsoftAdmin, login: microsoftAdmin, name: null, image: null, email: null, lastSignIn: null, ...this.db.prepare('SELECT name,last_sign_in AS lastSignIn FROM access_profiles WHERE login=?').get(microsoftAdmin) }] : [];
+    return { pending, people: [...msAdmin, ...(admin ? [administrator] : []), ...(adminEmail && adminEmail !== admin ? [{ identifier: adminEmail, login: adminEmail, name: null, email: adminEmail, image: null, lastSignIn: null, ...emailProfile, role: 'Administrator' as const }] : []), ...rows.filter(row => row.identifier !== adminEmail).map(row => ({ ...row, role: 'Member' } as AccessPerson))],
       history: this.db.prepare('SELECT * FROM access_history ORDER BY seq DESC LIMIT 100').all() as AccessData['history'] };
   }
   recover() { this.db.exec("UPDATE targets SET status='queued', requested=1 WHERE status='scanning'"); }

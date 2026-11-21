@@ -27,7 +27,7 @@ test('credentials persist encrypted, stay redacted and can be retained only for 
   const directory = await mkdtemp(join(tmpdir(), 'kopes-auth-settings-'));
   let store = new Store(directory);
   try {
-    for (const body of [google, mail]) {
+    for (const body of [google]) {
       const response = await handleAuthSettings(request(body), true, 'github', store, base);
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
@@ -38,15 +38,14 @@ test('credentials persist encrypted, stay redacted and can be retained only for 
     assert.ok(!saved.includes(google.clientSecret)); assert.ok(!saved.includes('private-password'));
     store.db.close(); store = new Store(directory);
     const config = readAuthConfig(store, base);
-    assert.equal(config.googleSecret, google.clientSecret); assert.equal(config.smtpUrl, mail.smtpUrl);
+    assert.equal(config.googleSecret, google.clientSecret);
     assert.equal((await handleAuthSettings(request({ ...google, clientSecret: '' }), true, 'github', store, base)).status, 200);
     assert.equal((await handleAuthSettings(request({ ...google, clientId: 'other', clientSecret: '' }), true, 'github', store, base)).status, 400);
-    assert.equal((await handleAuthSettings(request({ ...mail, smtpUrl: '' }), true, 'github', store, base)).status, 200);
-    assert.equal(readAuthConfig(store, base).smtpUrl, mail.smtpUrl);
+    assert.equal((await handleAuthSettings(request(mail), true, 'github', store, base)).status, 400);
   } finally { store.db.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
-test('current method is protected, including shared administrator and Microsoft mail dependencies', async () => {
+test('current method is protected and Microsoft requires a trusted account identifier', async () => {
   const store = new Store(':memory:');
   try {
     for (const body of [{ action: 'disable', provider: 'github' }, { ...google, provider: 'github', administrator: 'other' }]) assert.equal((await handleAuthSettings(request(body), true, 'github', store, base)).status, 400);
@@ -54,7 +53,7 @@ test('current method is protected, including shared administrator and Microsoft 
     const microsoft = { ...google, provider: 'microsoft' };
     assert.equal((await handleAuthSettings(request(microsoft), true, 'github', store, base)).status, 400);
     assert.equal((await handleAuthSettings(request({ ...mail, smtpUrl: 'https://example.com' }), true, 'github', store, base)).status, 400);
-    await handleAuthSettings(request(mail), true, 'github', store, base);
+    microsoft.administrator = 'microsoft:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000002';
     assert.equal((await handleAuthSettings(request(microsoft), true, 'github', store, base)).status, 200);
     assert.equal((await handleAuthSettings(request(mail), true, 'microsoft', store, base)).status, 400);
     assert.equal((await handleAuthSettings(request({ ...microsoft, administrator: 'other@example.com' }), true, 'google', store, base)).status, 400);

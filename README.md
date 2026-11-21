@@ -95,27 +95,25 @@ may change; check custom scan settings under the new names. Scan history is reta
 
 Configure the first provider through the deployment environment. After signing in
 as an administrator, open **Settings → Sign-in methods** to add or manage GitHub,
-Google and Microsoft credentials and copy their callback URLs. Microsoft email
-delivery can also be configured there. You still create the OAuth application in
+Google and Microsoft credentials and copy their callback URLs. You still create the OAuth application in
 each provider’s dashboard.
 
 Saved settings take effect immediately and override deployment values. Client
-secrets and SMTP credentials are stored encrypted in SQLite using
+secrets are stored encrypted in SQLite using
 `BETTER_AUTH_SECRET`; keep that secret and the data volume when redeploying. Blank
 secret fields retain the saved value; changing a client ID requires a new secret.
 Disabling a provider also overrides its environment configuration. Saving does not
-verify credentials: try a new sign-in to confirm access and email delivery.
+verify credentials: try a new sign-in to confirm access.
 
 The method used for your current session cannot be changed or disabled. Sign in
 through another method before editing it, so an untested configuration cannot
-replace your only working method. Google and Microsoft share an administrator
-email, which cannot be changed while either email provider is enabled.
+replace your only working method.
 
 | Provider | Environment variables | Callback path |
 | --- | --- | --- |
 | GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_ADMIN_USER` | `/api/auth/callback/github` |
 | Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_ADMIN_EMAIL` | `/api/auth/callback/google` |
-| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `AUTH_ADMIN_EMAIL`, `SMTP_URL`, `AUTH_EMAIL_FROM` | `/api/auth/callback/microsoft` |
+| Microsoft | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_ADMIN_ID` | `/api/auth/callback/microsoft` |
 
 Prefix callbacks with `BETTER_AUTH_URL`. Only fully configured providers appear
 on the login page; if none are ready, the setup guide appears. Partial provider
@@ -128,22 +126,18 @@ For Microsoft, register an application supporting **accounts in any organization
 directory and personal Microsoft accounts**, add a Web redirect URI, and use the
 client secret **value**, not its ID. The app uses Microsoft's `common` tenant.
 
-Microsoft sign-in requires local mailbox verification because organization email
-claims are not reliable proof of mailbox ownership. Set `SMTP_URL` to your mail
-service's SMTP connection URL (for example
-`smtps://username:password@smtp.example.com:465`) and `AUTH_EMAIL_FROM` to an approved
-sender address. URL-encode credentials containing special characters. Users follow
-the verification email, then sign in with Microsoft again. No access is granted
-until verification succeeds. Verification links expire after one hour.
+Set `MICROSOFT_ADMIN_ID` to `microsoft:<tenant UUID>:<user object UUID>` using the directory ID and the administrator’s user object ID from Entra (not the app object ID). Other Microsoft users attempt sign-in once, then wait for approval in **Settings → Users → Microsoft requests**. Confirm both IDs independently before approving; the email is only a display label. Approved users sign in again. No SMTP is required.
+
+**Upgrade:** Configure the Microsoft administrator ID before upgrading a Microsoft-only installation. Old Microsoft sessions and email grants do not authorize the new identities. Members need approval again and receive new local user IDs; reassign project memberships and reconnect personal integrations as needed.
 
 There are no public signups or shared admin passwords. `GITHUB_ADMIN_USER` grants
 administrator access by GitHub username; `AUTH_ADMIN_EMAIL` grants administrator
-access by verified Google or locally verified Microsoft email. Both can coexist
+access by verified Google email. Both can coexist
 and can be set when configuring a provider in Settings or the deployment environment.
 Saved Settings values take precedence. Keep these values current.
 
 Only administrators can add members. Use a GitHub handle or verified GitHub email
-(including private secondary addresses), or an email for Google/Microsoft. Grants
+(including private secondary addresses), or a verified email for Google or GitLab. Grants
 bind to the first provider account that successfully signs in. Accounts are not
 automatically linked across providers; keep using the original provider for an
 existing account. Revocation blocks existing sessions immediately and re-granting

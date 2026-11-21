@@ -2,16 +2,24 @@ import { betterAuth, APIError } from 'better-auth';
 import { getMigrations } from 'better-auth/db/migration';
 import { gitlabLogin } from './gitlab-login';
 import { gitlabApp } from './source/gitlab';
-import nodemailer from 'nodemailer';
+import { microsoftIdentity } from '../lib/microsoft-identity';
 import { configuredProviders, isGithubUsername, type Config } from './config';
 import type { Store } from './store';
 
+function microsoftAccount(profile: object) {
+  const { tid, oid } = profile as { tid?: string; oid?: string };
+  const id = `microsoft:${tid}:${oid}`.toLowerCase();
+  if (!microsoftIdentity.test(id)) throw new APIError('FORBIDDEN', { message: 'Missing Microsoft identity.' });
+  return id;
+}
+function microsoftAllowed(id: string, config: Config, store: Store) {
+  return configuredProviders(config).includes('microsoft') && microsoftIdentity.test(id) && (id === config.microsoftAdmin || store.hasUser(id, id));
+}
 export function isAllowed(login: unknown, config: Config, store: Store, githubId?: string) {
   return isGithubUsername(login) && (login.toLowerCase() === config.admin || store.hasUser(login.toLowerCase(), githubId));
 }
 export function createAuth(config: Config, store: Store, gitlabRead?: Parameters<typeof gitlabLogin>[2]) {
   const providers = configuredProviders(config);
-  const mail = providers.includes('microsoft') ? nodemailer.createTransport(config.smtpUrl) : null;
   const mapEmailProfile = (provider: string, id: string, email: unknown) => {
     const login = typeof email === 'string' ? email.toLowerCase() : '';
     if (!id || !login.includes('@') || !(login === config.adminEmail || store.hasUser(login, `${provider}:${id}`))) {
@@ -22,18 +30,13 @@ export function createAuth(config: Config, store: Store, gitlabRead?: Parameters
   return betterAuth({
     appName: 'kopes.dev', baseURL: config.origin, secret: config.secret,
     database: store.db,
-    plugins: gitlabLogin(store,config,gitlabRead),
+    plugins: [...gitlabLogin(store,config,gitlabRead), { id: 'tenant-scoped-microsoft', init(ctx) {
+      const ms = ctx.socialProviders.find(provider => provider.id === 'microsoft');
+      if (ms) ms.accountSubject = ({ profile }) => microsoftAccount(profile);
+    } }],
     trustedOrigins: [config.origin],
     // Startup runs migrations before serving requests; avoid caching a pre-migration schema failure.
     advanced: { database: { validateSchema: false } },
-    emailVerification: {
-      sendOnSignUp: true, sendOnSignIn: true, autoSignInAfterVerification: false,
-      async sendVerificationEmail({ user, url }) {
-        if (!mail) throw new APIError('SERVICE_UNAVAILABLE', { message: 'Email verification is not configured.' });
-        await mail.sendMail({ from: config.mailFrom, to: user.email, subject: 'Verify your kopes.dev sign-in',
-          text: `Verify your email to finish signing in to kopes.dev:\n\n${url}\n\nAfter verification, sign in with Microsoft again. If you did not request this, ignore this email.` });
-      },
-    },
     socialProviders: {
       ...(providers.includes('google') ? { google: {
         clientId: config.googleId, clientSecret: config.googleSecret,
@@ -45,10 +48,13 @@ export function createAuth(config: Config, store: Store, gitlabRead?: Parameters
       } } : {}),
       ...(providers.includes('microsoft') ? { microsoft: {
         clientId: config.microsoftId, clientSecret: config.microsoftSecret, tenantId: 'common',
-        requireEmailVerification: true, disableProfilePhoto: true,
+        disableProfilePhoto: true,
         mapProfileToUser(profile) {
-          // Entra emails are tenant-controlled: always require local mailbox verification.
-          return { ...mapEmailProfile('microsoft', profile.oid, profile.email), emailVerified: false };
+          const id = microsoftAccount(profile);
+          store.db.prepare('INSERT INTO microsoft_requests VALUES (?,?) ON CONFLICT(identifier) DO UPDATE SET email=excluded.email').run(id, typeof profile.email === 'string' ? profile.email.slice(0, 320) : '');
+          if (!microsoftAllowed(id, config, store)) throw new APIError('FORBIDDEN', { message: 'Ask your administrator to approve your Microsoft account, then sign in again.' });
+          // Better Auth requires a unique email. Never use the tenant-supplied label for account lookup.
+          return { email: `${profile.oid}@${profile.tid}.microsoft.invalid`.toLowerCase(), emailVerified: false, accessLogin: id, accessId: id };
         },
       } } : {}),
       ...(providers.includes('github') ? { github: {
@@ -94,7 +100,10 @@ export function createAuth(config: Config, store: Store, gitlabRead?: Parameters
     databaseHooks: { session: { create: { before: async session => {
       const user = store.db.prepare('SELECT * FROM user WHERE id=?').get(session.userId);
       if (!user) return false;
-      if (user.accessId) {
+      if (String(user.accessId).startsWith('microsoft:')) {
+        const id = String(user.accessId);
+        if (!microsoftAllowed(id, config, store) || !store.matchGithubProfile({ id, login: id, name: String(user.name), email: null, image: null }, [], config.microsoftAdmin)) return false;
+      } else if (user.accessId) {
         if (!user.emailVerified || !store.matchGithubProfile({ id: String(user.accessId), login: String(user.accessLogin),
           name: String(user.name), email: String(user.email), image: user.image ? String(user.image) : null },
           [String(user.email).toLowerCase()], config.adminEmail)) return false;
@@ -122,6 +131,11 @@ export async function requireSession(request: Request, auth: ReturnType<typeof c
     const app=gitlabApp(store);
     if (!app?.login || JSON.parse(session.user.accessId.slice(7))[0]!==app.origin) throw new Response('GitLab sign-in unavailable.',{status:401});
   }
+  if (session?.user.accessId?.startsWith('microsoft:')) {
+    const id = session.user.accessId;
+    if (!microsoftAllowed(id, config, store)) throw new Response('Microsoft account not approved.', { status: 401 });
+    return session;
+  }
   if (!session || !(session.user.accessId
     ? session.user.emailVerified && (session.user.accessLogin === config.adminEmail || store.hasUser(session.user.accessLogin ?? '', session.user.accessId))
     : isAllowed(session.user.githubLogin, config, store, session.user.githubId ?? undefined))) throw new Response('Sign in with an allowed account.', { status: 401 });
@@ -131,6 +145,7 @@ export function requireSameOrigin(request: Request, origin: string) {
   if (request.headers.get('origin') !== origin) throw new Response('Origin not allowed.', { status: 403 });
 }
 
-export function isAdministrator(user: { githubLogin?: string | null; accessLogin?: string | null; emailVerified: boolean }, config: Config) {
+export function isAdministrator(user: { accessId?: string | null; githubLogin?: string | null; accessLogin?: string | null; emailVerified: boolean }, config: Config) {
+  if (user.accessId?.startsWith('microsoft:')) return configuredProviders(config).includes('microsoft') && microsoftIdentity.test(user.accessId) && user.accessId === config.microsoftAdmin;
   return Boolean(config.admin && user.githubLogin?.toLowerCase() === config.admin || config.adminEmail && user.emailVerified && user.accessLogin === config.adminEmail);
 }

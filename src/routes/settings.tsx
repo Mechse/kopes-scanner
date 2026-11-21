@@ -46,7 +46,7 @@ function SettingsPage() {
   const sections: SettingsNavData['sections'] = appSettings
     ? [
       { tab: 'integrations', label: 'Integrations', children: [{ section: 'github', label: 'GitHub' },{section:'gitlab',label:'GitLab'}] },
-      { tab: 'auth', label: 'Auth', children: [...Object.entries(providerNames).map(([section, label]) => ({ section, label })), { section: 'email', label: 'Email' }] },
+      { tab: 'auth', label: 'Auth', children: Object.entries(providerNames).map(([section, label]) => ({ section, label })) },
       { tab: 'users', label: 'Users' },
     ]
     : [{ tab: 'general', label: 'General' }, { tab: 'notifications', label: 'Notifications' }, ...(container && data?.isAdmin ? [{ tab: 'danger', label: 'Danger zone' }] : [])];

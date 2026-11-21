@@ -29,7 +29,6 @@
     "clsx": "^2.1.1",
     "confbox": "0.2.4",
     "lucide-react": "^1.68.0",
-    "nodemailer": "^10.4.0",
     "radix-ui": "1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -42,7 +41,6 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.3.4",
     "@types/node": "^24",
-    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/semver": "7.7.1",

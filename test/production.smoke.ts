@@ -170,7 +170,7 @@ test('production starts with no OAuth credentials and exposes only public setup 
     env: { ...process.env, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: String(port), BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: 'test-secret-with-at-least-32-characters',
       GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '', GITHUB_ADMIN_USER: '', GOOGLE_CLIENT_ID: '', GOOGLE_CLIENT_SECRET: '',
-      MICROSOFT_CLIENT_ID: '', MICROSOFT_CLIENT_SECRET: '', AUTH_ADMIN_EMAIL: '', SMTP_URL: '', AUTH_EMAIL_FROM: '',
+      MICROSOFT_CLIENT_ID: '', MICROSOFT_CLIENT_SECRET: '', AUTH_ADMIN_EMAIL: '', MICROSOFT_ADMIN_ID: '',
       DATA_DIR: directory, HOST_ROOT: join(directory, 'missing-host'), TRIVY_BIN: '/nonexistent-test-trivy', DOCKER_HOST: 'http://127.0.0.1:1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

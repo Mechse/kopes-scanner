@@ -67,12 +67,12 @@ async function handle({ request }: { request: Request }) {
       const body = await request.json().catch(() => null);
       const login = accessIdentifier(body?.login);
       if (!login || !['add', 'remove'].includes(body?.action)) return new Response('Supply a GitHub handle or valid email address and add/remove action.', { status: 400 });
-      if (login === config.adminEmail || login === config.admin || body.action === 'add' && store.userAccess(config.admin, config.adminEmail).people.some(person => person.login === config.admin && (person.identifier === login || person.email?.toLowerCase() === login))) return new Response('The administrator is managed in sign-in settings or the deployment environment.', { status: 400 });
+      if (login === config.microsoftAdmin || login === config.adminEmail || login === config.admin || body.action === 'add' && store.userAccess(config.admin, config.adminEmail).people.some(person => person.login === config.admin && (person.identifier === login || person.email?.toLowerCase() === login))) return new Response('The administrator is managed in sign-in settings or the deployment environment.', { status: 400 });
       if (body.action === 'add') {
         if (!store.addUser(login, session.user.githubLogin || session.user.accessLogin || 'Administrator')) return new Response('This person already has an access entry.', { status: 409 });
       } else store.removeUser(login, session.user.githubLogin || session.user.accessLogin || 'Administrator');
     }
-    return Response.json(store.userAccess(config.admin, config.adminEmail), { headers: { 'Cache-Control': 'private, no-store' } });
+    return Response.json(store.userAccess(config.admin, config.adminEmail, config.microsoftAdmin), { headers: { 'Cache-Control': 'private, no-store' } });
   }
   if (request.method === 'GET' && action === 'finding-evidence') return Response.json(findingEvidence(store, { userId: session.user.id, administrator: isAdmin }, url.searchParams.get('issue') || undefined), { headers: { 'Cache-Control': 'private, no-store' } });
   if (action === 'pulse-feed') {

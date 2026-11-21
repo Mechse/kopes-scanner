@@ -81,7 +81,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     if(job.auth_kind!=='gitlab_oauth')return;
     const owner=store.db.prepare('SELECT githubLogin,accessLogin,emailVerified,accessId FROM user WHERE id=?').get(grantUser??null);
     const app=gitlabApp(store), accessId=String(owner?.accessId??'');
-    if(!owner || !isAdministrator({githubLogin:String(owner.githubLogin??''),accessLogin:String(owner.accessLogin??''),emailVerified:!!owner.emailVerified},readAuthConfig(store,config)) || accessId.startsWith('gitlab:') && (!app?.login || JSON.parse(accessId.slice(7))[0]!==app.origin)){
+    if(!owner || !isAdministrator({accessId,githubLogin:String(owner.githubLogin??''),accessLogin:String(owner.accessLogin??''),emailVerified:!!owner.emailVerified},readAuthConfig(store,config)) || accessId.startsWith('gitlab:') && (!app?.login || JSON.parse(accessId.slice(7))[0]!==app.origin)){
       pause(store,String(job.connection_id),!owner,owner?String(job.provider_id):undefined);throw new Error('Reauthorization required');
     }
   };
