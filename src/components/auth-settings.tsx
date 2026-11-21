@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useResource } from '../lib/use-resource';
+import { CallbackRow, SectionHeading, SettingsInput } from './settings-fields';
 import { Button } from './ui/button';
 import { ContentSkeleton } from './ui/loading';
 import { providerNames, type AuthProvider } from './auth-setup';
 
 type Provider = { provider: AuthProvider; clientId: string; hasSecret: boolean; administrator: string; enabled: boolean; source: string };
 type Settings = { origin: string; currentProvider: AuthProvider; providers: Provider[]; mail: { configured: boolean; hasSmtpUrl: boolean; mailFrom: string } };
-const fieldClass = 'mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm';
+
 const registration = { github: 'https://github.com/settings/developers', google: 'https://console.cloud.google.com/auth/overview', microsoft: 'https://entra.microsoft.com/' };
 
 /** `section`: a provider id, or `email` for Microsoft email verification. */
@@ -43,10 +44,10 @@ export function AuthMethodsSettings({ section }: { section: string }) {
         {data.currentProvider === 'microsoft' && <p className="mt-2 text-xs">Sign in with another method to change email delivery.</p>}
         <fieldset disabled={busy || data.currentProvider === 'microsoft'} className="mt-4 space-y-4">
           <label className="block text-sm" htmlFor="auth-smtp">SMTP URL
-            <input id="auth-smtp" name="smtpUrl" type="password" required={!data.mail.hasSmtpUrl} autoComplete="new-password" className={fieldClass} placeholder={data.mail.hasSmtpUrl ? 'Saved — leave blank to keep' : 'smtps://username:password@mail.example.com:465'} />
+            <SettingsInput id="auth-smtp" name="smtpUrl" type="password" required={!data.mail.hasSmtpUrl} autoComplete="new-password" placeholder={data.mail.hasSmtpUrl ? 'Saved — leave blank to keep' : 'smtps://username:password@mail.example.com:465'} />
           </label>
           <label className="block text-sm" htmlFor="auth-from">Sender email
-            <input id="auth-from" name="mailFrom" type="email" required defaultValue={data.mail.mailFrom} className={fieldClass} placeholder="security@example.com" />
+            <SettingsInput id="auth-from" name="mailFrom" type="email" required defaultValue={data.mail.mailFrom} placeholder="security@example.com" />
           </label>
           <Button type="submit">Save changes</Button>
         </fieldset>
@@ -59,8 +60,6 @@ export function AuthMethodsSettings({ section }: { section: string }) {
   </section>;
 }
 function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; origin: string; locked: boolean; busy: boolean; submit: (body: object) => Promise<void> }) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
   const name = providerNames[data.provider], callback = `${origin}/api/auth/callback/${data.provider}`;
   return <div>
     <SectionHeading title={name} status={`${data.enabled ? 'Enabled' : 'Not enabled'}${locked ? ' · Current sign-in' : data.source === 'environment' && data.enabled ? ' · Deployment settings' : ''}`} />
@@ -69,20 +68,15 @@ function ProviderForm({ data, origin, locked, busy, submit }: { data: Provider; 
     void submit({ action: 'save', provider: data.provider, clientId: form.get('clientId'), clientSecret: form.get('clientSecret'), administrator: form.get('administrator') });
   }}>
     <p className="mt-3 text-xs leading-5 text-muted-foreground"><a className="underline" href={registration[data.provider]} target="_blank" rel="noreferrer">Open {name} application settings</a>. {data.provider === 'github' ? 'Create an OAuth App; no repository access is needed.' : data.provider === 'google' ? 'Create a Web application OAuth client. While in testing, add your users as test users.' : 'Register an application for accounts in any organization and personal Microsoft accounts. Use a Web redirect URI and copy the secret value, not its ID.'}</p>
-    <p className="mt-3 text-xs text-muted-foreground">Callback URL</p>
-    <div className="mt-1 flex items-center gap-2"><code className="min-w-0 flex-1 break-all text-xs">{callback}</code><Button type="button" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(callback); setCopied(true); setCopyError(false); } catch { setCopyError(true); } }}>{copied ? 'Copied' : 'Copy'}</Button></div>
-    {copyError && <p role="status" className="mt-2 text-xs">Select and copy the callback URL above.</p>}
+    <CallbackRow label="Callback URL" url={callback} />
     <fieldset disabled={busy || locked} className="mt-4 space-y-4">
-      <label className="block text-sm" htmlFor={`${data.provider}-id`}>Client ID<input id={`${data.provider}-id`} name="clientId" required defaultValue={data.clientId} className={fieldClass} autoComplete="off" /></label>
-      <label className="block text-sm" htmlFor={`${data.provider}-secret`}>Client secret<input id={`${data.provider}-secret`} name="clientSecret" type="password" required={!data.hasSecret} className={fieldClass} autoComplete="new-password" placeholder={data.hasSecret ? 'Saved — leave blank to keep' : 'Paste client secret'} /></label>
+      <label className="block text-sm" htmlFor={`${data.provider}-id`}>Client ID<SettingsInput id={`${data.provider}-id`} name="clientId" required defaultValue={data.clientId} autoComplete="off" /></label>
+      <label className="block text-sm" htmlFor={`${data.provider}-secret`}>Client secret<SettingsInput id={`${data.provider}-secret`} name="clientSecret" type="password" required={!data.hasSecret} autoComplete="new-password" placeholder={data.hasSecret ? 'Saved — leave blank to keep' : 'Paste client secret'} /></label>
       <p className="text-xs text-muted-foreground">Changing the client ID requires a new secret.</p>
-      <label className="block text-sm" htmlFor={`${data.provider}-admin`}>{data.provider === 'github' ? 'Administrator GitHub username' : 'Administrator email'}<input id={`${data.provider}-admin`} name="administrator" type={data.provider === 'github' ? 'text' : 'email'} required defaultValue={data.administrator} className={fieldClass} /></label>
+      <label className="block text-sm" htmlFor={`${data.provider}-admin`}>{data.provider === 'github' ? 'Administrator GitHub username' : 'Administrator email'}<SettingsInput id={`${data.provider}-admin`} name="administrator" type={data.provider === 'github' ? 'text' : 'email'} required defaultValue={data.administrator} /></label>
       {data.provider !== 'github' && <p className="text-xs text-muted-foreground">Google and Microsoft share the same administrator email. Manage other people in the Users tab.</p>}
       <div className="flex flex-wrap gap-2"><Button type="submit">Save changes</Button>{data.enabled && <Button type="button" variant="ghost" onClick={() => void submit({ action: 'disable', provider: data.provider })}>Disable {name}</Button>}</div>
     </fieldset>
   </form>
   </div>;
-}
-function SectionHeading({ title, status }: { title: string; status: string }) {
-  return <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="m-0! text-base font-medium">{title}</h2><span className="text-xs text-muted-foreground">{status}</span></div>;
 }

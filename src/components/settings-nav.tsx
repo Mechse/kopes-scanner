@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router';
 import { ArrowLeft, Bell, KeyRound, Mail, Plug, Settings2, TriangleAlert, Users } from 'lucide-react';
-import { GithubIcon, GoogleIcon, MicrosoftIcon } from './brand-icons';
+import { GithubIcon, GitlabIcon, GoogleIcon, MicrosoftIcon } from './brand-icons';
 import { navLinkClass, useWorkspace } from './app-shell';
 
 /** `scroll`: sections are anchors on one page (by element id) instead of `?tab=` subpages. */
@@ -10,7 +10,7 @@ export type SettingsNavData = { back: LinkProps & { label: string }; sections: {
 export type SettingsNavChild = { section: string; label: string };
 
 const icons = { general: Settings2, notifications: Bell, danger: TriangleAlert, integrations: Plug, auth: KeyRound, users: Users } as Record<string, typeof Settings2>;
-const childIcons = { github: GithubIcon, google: GoogleIcon, microsoft: MicrosoftIcon, email: Mail } as Record<string, (props: { size?: number }) => React.ReactNode>;
+const childIcons = { github: GithubIcon, gitlab: GitlabIcon, google: GoogleIcon, microsoft: MicrosoftIcon, email: Mail } as Record<string, (props: { size?: number }) => React.ReactNode>;
 
 /** Active section: the `?tab=` value when listed, otherwise the first section. */
 export function activeTab(tab: string | undefined, sections: SettingsNavData['sections']) {
