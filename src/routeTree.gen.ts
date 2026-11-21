@@ -14,6 +14,7 @@ import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as RepositoriesRouteImport } from './routes/repositories'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ContainersNewRouteImport } from './routes/containers.new'
 import { Route as IssuesIssueRouteImport } from './routes/issues.$issue'
 import { Route as RepositoriesRepositoryRouteImport } from './routes/repositories_.$repository'
 import { Route as RepositoriesNewRouteImport } from './routes/repositories_.new'
@@ -23,6 +24,7 @@ import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
 import { Route as ApiGithubSplatRouteImport } from './routes/api.github.$'
 import { Route as ApiSourceHookSplatRouteImport } from './routes/api.source-hook.$'
 import { Route as ImagesTargetImageRouteImport } from './routes/images.$target.$image'
+import { Route as RepositoriesRepositorySettingsRouteImport } from './routes/repositories_.$repository_.settings'
 import { Route as RepositoriesRepositoryPackagesPackageRouteImport } from './routes/repositories_.$repository_.packages.$package'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,6 +50,11 @@ const RepositoriesRoute = RepositoriesRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContainersNewRoute = ContainersNewRouteImport.update({
+  id: '/containers/new',
+  path: '/containers/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IssuesIssueRoute = IssuesIssueRouteImport.update({
@@ -95,6 +102,12 @@ const ImagesTargetImageRoute = ImagesTargetImageRouteImport.update({
   path: '/images/$target/$image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RepositoriesRepositorySettingsRoute =
+  RepositoriesRepositorySettingsRouteImport.update({
+    id: '/repositories_/$repository_/settings',
+    path: '/repositories/$repository/settings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const RepositoriesRepositoryPackagesPackageRoute =
   RepositoriesRepositoryPackagesPackageRouteImport.update({
     id: '/repositories_/$repository_/packages/$package',
@@ -108,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
+  '/containers/new': typeof ContainersNewRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories/$repository': typeof RepositoriesRepositoryRoute
   '/repositories/new': typeof RepositoriesNewRoute
@@ -117,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
   '/images/$target/$image': typeof ImagesTargetImageRoute
+  '/repositories/$repository/settings': typeof RepositoriesRepositorySettingsRoute
   '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +140,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
+  '/containers/new': typeof ContainersNewRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories/$repository': typeof RepositoriesRepositoryRoute
   '/repositories/new': typeof RepositoriesNewRoute
@@ -134,6 +150,7 @@ export interface FileRoutesByTo {
   '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
   '/images/$target/$image': typeof ImagesTargetImageRoute
+  '/repositories/$repository/settings': typeof RepositoriesRepositorySettingsRoute
   '/repositories/$repository/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRoutesById {
@@ -143,6 +160,7 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/repositories': typeof RepositoriesRoute
   '/settings': typeof SettingsRoute
+  '/containers/new': typeof ContainersNewRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories_/$repository': typeof RepositoriesRepositoryRoute
   '/repositories_/new': typeof RepositoriesNewRoute
@@ -152,6 +170,7 @@ export interface FileRoutesById {
   '/api/github/$': typeof ApiGithubSplatRoute
   '/api/source-hook/$': typeof ApiSourceHookSplatRoute
   '/images/$target/$image': typeof ImagesTargetImageRoute
+  '/repositories_/$repository_/settings': typeof RepositoriesRepositorySettingsRoute
   '/repositories_/$repository_/packages/$package': typeof RepositoriesRepositoryPackagesPackageRoute
 }
 export interface FileRouteTypes {
@@ -162,6 +181,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/repositories'
     | '/settings'
+    | '/containers/new'
     | '/issues/$issue'
     | '/repositories/$repository'
     | '/repositories/new'
@@ -171,6 +191,7 @@ export interface FileRouteTypes {
     | '/api/github/$'
     | '/api/source-hook/$'
     | '/images/$target/$image'
+    | '/repositories/$repository/settings'
     | '/repositories/$repository/packages/$package'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -179,6 +200,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/repositories'
     | '/settings'
+    | '/containers/new'
     | '/issues/$issue'
     | '/repositories/$repository'
     | '/repositories/new'
@@ -188,6 +210,7 @@ export interface FileRouteTypes {
     | '/api/github/$'
     | '/api/source-hook/$'
     | '/images/$target/$image'
+    | '/repositories/$repository/settings'
     | '/repositories/$repository/packages/$package'
   id:
     | '__root__'
@@ -196,6 +219,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/repositories'
     | '/settings'
+    | '/containers/new'
     | '/issues/$issue'
     | '/repositories_/$repository'
     | '/repositories_/new'
@@ -205,6 +229,7 @@ export interface FileRouteTypes {
     | '/api/github/$'
     | '/api/source-hook/$'
     | '/images/$target/$image'
+    | '/repositories_/$repository_/settings'
     | '/repositories_/$repository_/packages/$package'
   fileRoutesById: FileRoutesById
 }
@@ -214,6 +239,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   RepositoriesRoute: typeof RepositoriesRoute
   SettingsRoute: typeof SettingsRoute
+  ContainersNewRoute: typeof ContainersNewRoute
   IssuesIssueRoute: typeof IssuesIssueRoute
   RepositoriesRepositoryRoute: typeof RepositoriesRepositoryRoute
   RepositoriesNewRoute: typeof RepositoriesNewRoute
@@ -223,6 +249,7 @@ export interface RootRouteChildren {
   ApiGithubSplatRoute: typeof ApiGithubSplatRoute
   ApiSourceHookSplatRoute: typeof ApiSourceHookSplatRoute
   ImagesTargetImageRoute: typeof ImagesTargetImageRoute
+  RepositoriesRepositorySettingsRoute: typeof RepositoriesRepositorySettingsRoute
   RepositoriesRepositoryPackagesPackageRoute: typeof RepositoriesRepositoryPackagesPackageRoute
 }
 
@@ -261,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/containers/new': {
+      id: '/containers/new'
+      path: '/containers/new'
+      fullPath: '/containers/new'
+      preLoaderRoute: typeof ContainersNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issues/$issue': {
@@ -326,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImagesTargetImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/repositories_/$repository_/settings': {
+      id: '/repositories_/$repository_/settings'
+      path: '/repositories/$repository/settings'
+      fullPath: '/repositories/$repository/settings'
+      preLoaderRoute: typeof RepositoriesRepositorySettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/repositories_/$repository_/packages/$package': {
       id: '/repositories_/$repository_/packages/$package'
       path: '/repositories/$repository/packages/$package'
@@ -342,6 +383,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   RepositoriesRoute: RepositoriesRoute,
   SettingsRoute: SettingsRoute,
+  ContainersNewRoute: ContainersNewRoute,
   IssuesIssueRoute: IssuesIssueRoute,
   RepositoriesRepositoryRoute: RepositoriesRepositoryRoute,
   RepositoriesNewRoute: RepositoriesNewRoute,
@@ -351,6 +393,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGithubSplatRoute: ApiGithubSplatRoute,
   ApiSourceHookSplatRoute: ApiSourceHookSplatRoute,
   ImagesTargetImageRoute: ImagesTargetImageRoute,
+  RepositoriesRepositorySettingsRoute: RepositoriesRepositorySettingsRoute,
   RepositoriesRepositoryPackagesPackageRoute:
     RepositoriesRepositoryPackagesPackageRoute,
 }

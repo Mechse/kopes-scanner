@@ -146,7 +146,7 @@ function WorkspaceContent() {
         section={heading}
         actions={view === "apps" || inventory?.error || data?.inventoryError ? (
           <div className="flex shrink-0 items-center gap-2">
-            {data?.isAdmin && view === 'apps' && !id && <AddResource refresh={refresh}/>}
+            {data?.isAdmin && view === 'apps' && !id && <AddResource/>}
             {(inventory?.error || data?.inventoryError) && (
               <Popover.Root>
                 <Popover.Trigger asChild>
