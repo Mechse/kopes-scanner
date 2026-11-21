@@ -269,8 +269,13 @@ export class Store {
       return true;
     });
   }
-  syncInventory(containers: Container[]) {
+  /** With `tracked`, drop containers untracked since the Docker snapshot was taken (only `tracked.add` may be newly selected). */
+  syncInventory(containers: Container[], tracked?: { add?: string }) {
     this.transaction(() => {
+      if (tracked) {
+        const selected = new Set(this.selectedContainers());
+        containers = containers.filter(c => selected.has(c.id) || c.id === tracked.add);
+      }
       this.db.prepare("INSERT OR IGNORE INTO targets (id, kind, name) VALUES ('host', 'host', 'Host OS')").run();
       syncResources(this.db, containers);
       const previous = new Set((this.db.prepare('SELECT id FROM containers').all() as { id: string }[]).map(c => c.id));

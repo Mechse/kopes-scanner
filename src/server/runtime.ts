@@ -60,7 +60,7 @@ async function initialize() {
         if (id && !ids.includes(id)) ids.push(id);
         const containers = await inventory(config.docker, coolifyLookup, ids);
         if (id && !containers.some(c => c.id === id)) return false;
-        store.syncInventory(containers);
+        store.syncInventory(containers, { add: id });
         return true;
       });
       pending = task.then(() => {}, () => {});

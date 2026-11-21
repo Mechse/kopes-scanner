@@ -142,6 +142,8 @@ test('untracking keeps history and removes the image target only after its last 
     assert.equal(s.untrackContainer(other.id), false);
     assert.equal(s.db.prepare('SELECT 1 FROM targets WHERE id=?').get(a.target_id), undefined);
     assert.equal(s.db.prepare('SELECT count(*) AS n FROM scan_observation_resources').get()!.n, 2);
+    s.syncInventory([a, other], { add: a.id });
+    assert.deepEqual(s.selectedContainers(), [a.id], 'a stale snapshot must not re-track untracked containers');
     s.syncInventory([a]); s.syncInventory([]);
     assert.deepEqual(s.trackedContainers().map(c => c.id), [a.id]);
     assert.equal(s.untrackContainer(a.id), true);
