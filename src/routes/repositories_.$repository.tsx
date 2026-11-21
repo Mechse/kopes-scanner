@@ -97,7 +97,7 @@ function RepositoryPage() {
         <Button variant="ghost" size="sm" disabled={busy || !repos.data.flags.connections || !repos.data.flags.scanning} aria-busy={busy || undefined} onClick={() => void rescan()}><RefreshCw aria-hidden="true" className={busy ? 'scan-action-icon' : ''}/>{busy ? job?.state === 'queued' ? 'Queued' : 'Scanning' : 'Rescan'}</Button>
         <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label="More resource options"><Ellipsis aria-hidden="true"/>More</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setPanel('details')}>Resource details</DropdownMenuItem>
-          {repos.data.administrator && <DropdownMenuItem onSelect={() => repos.edit(binding)}>Repository settings</DropdownMenuItem>}
+          {repos.data.administrator && <DropdownMenuItem asChild><Link to="/repositories/$repository/settings" params={{ repository }}>Repository settings</Link></DropdownMenuItem>}
           <DropdownMenuItem onSelect={() => setPanel('scan')}>Scan details and actions</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => update({ view: 'packages' })}>Package inventory</DropdownMenuItem>
         </DropdownMenuContent></DropdownMenu>
