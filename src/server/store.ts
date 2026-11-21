@@ -290,11 +290,45 @@ export class Store {
       return true;
     });
   }
-  /** With `tracked`, drop containers untracked since the Docker snapshot was taken (only `tracked.add` may be newly selected). */
-  syncInventory(containers: Container[], tracked?: { add?: string }) {
+  /** Match by stable resource, not by the number of saved container IDs from past deploys. */
+  private followReplacements(containers: Container[], selected: Set<string>) {
+    const running = new Set(containers.map(c => c.id));
+    const candidates = new Map<string, Container[]>();
+    for (const c of containers) if (c.discoveryKey) {
+      const group = candidates.get(c.discoveryKey) ?? [];
+      group.push(c);
+      candidates.set(c.discoveryKey, group);
+    }
+    const groups = new Map<string, { saved: Set<string>; live: Set<string> }>();
+    const matches = this.db.prepare(`SELECT s.id, i.resource_id, a.alias FROM selected_containers s
+      JOIN runtime_instances i ON i.container_id=s.id JOIN resource_aliases a ON a.resource_id=i.resource_id
+      WHERE NOT EXISTS (SELECT 1 FROM resource_identity_conflicts f WHERE f.alias=a.alias)`);
+    for (const { id, resource_id, alias } of matches.all()) {
+      const key = String(resource_id);
+      const group = groups.get(key) ?? { saved: new Set<string>(), live: new Set<string>() };
+      group.saved.add(String(id));
+      if (running.has(String(id))) group.live.add(String(id));
+      for (const c of candidates.get(String(alias)) ?? []) group.live.add(c.id);
+      groups.set(key, group);
+    }
+    const known = this.db.prepare('SELECT 1 FROM runtime_instances WHERE container_id=?');
+    const remove = this.db.prepare('DELETE FROM selected_containers WHERE id=?');
+    for (const { saved, live } of groups.values()) {
+      if (live.size !== 1) continue;
+      const [next] = live;
+      if (!saved.has(next) && known.get(next)) continue; // Never revive an explicitly untracked instance.
+      for (const old of saved) if (old !== next) {
+        remove.run(old);
+        selected.delete(old);
+      }
+      selected.add(next); // syncInventory persists this ID in the same transaction.
+    }
+  }
+  syncInventory(containers: Container[], tracked?: { add?: string; fullSnapshot?: boolean }) {
     this.transaction(() => {
       if (tracked) {
         const selected = new Set(this.selectedContainers());
+        if (tracked.fullSnapshot) this.followReplacements(containers, selected);
         containers = containers.filter(c => selected.has(c.id) || c.id === tracked.add);
       }
       this.db.prepare("INSERT OR IGNORE INTO targets (id, kind, name) VALUES ('host', 'host', 'Host OS')").run();
@@ -516,6 +550,7 @@ export class Store {
     const names = this.displayNames('resource');
     return { projectNames: this.displayNames('project'), targets: (this.db.prepare('SELECT id, kind, name, image_id, platform, status, scanned_at, attempted_at, error, summary_json, suggestions_json, recommendation_note FROM targets ORDER BY kind DESC, name').all() as TargetRow[]).map(row => this.decode(row)),
       containers: (this.db.prepare('SELECT * FROM containers ORDER BY project, name').all() as Container[]).map(c => ({ ...c, sourceRepository: JSON.parse(this.getMeta('containerSourceLabels') || '{}')[c.id], displayName: names[resourceKey(c)] ?? '' })),
+      selectedContainerCount: Number(this.db.prepare('SELECT count(*) AS n FROM selected_containers').get()!.n),
       inventoryAt: Number(this.getMeta('inventoryAt')) || null, inventoryError: this.getMeta('inventoryError') || null, intervalHours };
   }
 }

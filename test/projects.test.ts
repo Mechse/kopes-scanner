@@ -125,6 +125,46 @@ for (const missingLinks of [true, false]) test(`v10 upgrade preserves history an
   } finally { s.db.close(); rmSync(directory, { recursive: true, force: true }); }
 });
 
+test('a refresh follows an identifiable redeploy without selecting unrelated or ambiguous containers', () => {
+  const s = new Store(':memory:');
+  try {
+    const next = { ...a, id: 'replacement', target_id: 'image:new' };
+    const unrelated = { ...a, id: 'same-name', discoveryKey: undefined };
+    s.syncInventory([a], { add: a.id });
+    s.syncInventory([next, { ...next, id: 'replica' }, unrelated], { fullSnapshot: true });
+    assert.deepEqual(s.selectedContainers(), [a.id]);
+    assert.equal(s.dashboard().selectedContainerCount, 1);
+    assert.equal(s.dashboard().containers.length, 0);
+    s.syncInventory([next, unrelated], { fullSnapshot: true });
+    assert.deepEqual(s.selectedContainers(), [next.id]);
+    assert.deepEqual(s.dashboard().containers.map(c => c.target_id), [next.target_id]);
+    s.untrackContainer(next.id);
+    s.syncInventory([next, unrelated], { fullSnapshot: true });
+    assert.deepEqual(s.selectedContainers(), []);
+  } finally { s.db.close(); }
+});
+
+test('several saved deployments of one service follow its sole replacement and stay untracked after removal', () => {
+  const s = new Store(':memory:');
+  try {
+    s.syncInventory([a], { add: a.id });
+    const second = { ...a, id: 'second' };
+    s.syncInventory([second], { add: second.id });
+    assert.deepEqual(s.selectedContainers(), [a.id, second.id]);
+    const next = { ...a, id: 'third', target_id: 'image:third' };
+    const refresh = { fullSnapshot: true };
+    s.syncInventory([next, { ...next, id: 'replica' }], refresh);
+    assert.deepEqual(s.selectedContainers(), [a.id, second.id]);
+    s.syncInventory([next], refresh);
+    assert.deepEqual(s.selectedContainers(), [next.id]);
+    assert.deepEqual(s.dashboard().containers.map(c => c.id), [next.id]);
+    assert.equal(s.db.prepare('SELECT count(*) AS n FROM runtime_instances').get()!.n, 3);
+    s.untrackContainer(next.id);
+    s.syncInventory([{ ...a, id: 'fourth' }], refresh);
+    assert.deepEqual(s.selectedContainers(), []);
+  } finally { s.db.close(); }
+});
+
 test('untracking keeps history and removes the image target only after its last running container', () => {
   const s = new Store(':memory:');
   try {

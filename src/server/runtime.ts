@@ -57,9 +57,12 @@ async function initialize() {
         }
         const ids = store.selectedContainers();
         if (id && !ids.includes(id)) ids.push(id);
-        const containers = await inventory(config.docker, ids);
+        let containers = await inventory(config.docker, ids);
         if (id && !containers.some(c => c.id === id)) return false;
-        store.syncInventory(containers, { add: id });
+        const missing = containers.length < ids.length;
+        if (missing) containers = await inventory(config.docker);
+        if (id && !containers.some(c => c.id === id)) return false;
+        store.syncInventory(containers, { add: id, fullSnapshot: missing });
         return true;
       });
       pending = task.then(() => {}, () => {});

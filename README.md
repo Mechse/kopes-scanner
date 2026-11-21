@@ -11,8 +11,9 @@ Docker or Coolify VPS.** Install it on the server you want to scan, then review
 known vulnerabilities in its container images and supported Linux host packages
 from one dashboard. Docker containers are opt-in: as an administrator, open
 **Containers → Add container** and choose a running container.
-Restarting the same container keeps it selected; add a replacement
-container again after redeploying. To stop tracking a running or stopped container,
+Restarting the same container keeps it selected. After a redeploy, Kopes follows
+an unambiguous replacement with the same stable Compose or Coolify identity.
+If that identity is missing or ambiguous, add the replacement manually. To stop tracking a running or stopped container,
 open **Containers → Untrack container**. This keeps its scan history and leaves
 Docker untouched. Host OS scanning is separate; hosts aren't listed in Containers.
 

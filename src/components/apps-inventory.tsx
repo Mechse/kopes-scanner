@@ -55,6 +55,6 @@ export function ContainersInventory({ data }: { data: Dashboard }) {
     {favourites.error && <p role="alert">{favourites.error}</p>}
     {starred.length > 0 && <section aria-label="Favourites" className="mb-9"><h2 className="mb-4">Favourites</h2><div className={collectionClass}>{starred.map(renderContainer)}</div></section>}
     {regular.length > 0 && <section aria-label="Containers">{starred.length > 0 && <h2 className="mb-4">{repeat ? 'All containers' : 'Containers'}</h2>}<div className={collectionClass}>{regular.map(renderContainer)}</div></section>}
-    {!containers.length && <p role="status" className="rounded-lg border border-dashed border-border px-4 py-7 text-sm text-muted-foreground">{needle ? 'No containers match your search.' : 'No containers added yet. An administrator can add a running container.'}</p>}
+    {!containers.length && <p role="status" className="rounded-lg border border-dashed border-border px-4 py-7 text-sm text-muted-foreground">{needle ? 'No containers match your search.' : data.selectedContainerCount ? 'Your tracked containers are not in the running inventory. If a container was redeployed and its replacement could not be identified, use Add container to select it.' : 'No containers added yet. An administrator can add a running container.'}</p>}
   </div>;
 }

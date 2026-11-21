@@ -32,7 +32,7 @@ export type Target = {
   summary: Summary | null; suggestions: Suggestion[]; recommendation_note: string | null;
 };
 export type Container = { sourceRepository?: string; discoveryKey?: string; environment?: string; displayName?: string; id: string; name: string; image: string; target_id: string; project: string; service: string; manager: string };
-export type Dashboard = { projectNames?: Record<string, string>; targets: Target[]; containers: Container[]; inventoryAt: number | null; inventoryError: string | null; intervalHours: number };
+export type Dashboard = { selectedContainerCount?: number; projectNames?: Record<string, string>; targets: Target[]; containers: Container[]; inventoryAt: number | null; inventoryError: string | null; intervalHours: number };
 
 export function summarize(report: Report): Summary {
   const counts = Object.fromEntries(severities.map(s => [s, 0])) as Record<Severity, number>;
