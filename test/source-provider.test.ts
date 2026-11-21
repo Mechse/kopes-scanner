@@ -65,11 +65,13 @@ test('credentials are authenticated and bound to connection and origin', () => {
 test('immutable public bundle keeps root/workspace inputs; truncated trees and symlinks fail closed', async () => {
   const sha = 'a'.repeat(40); let bad = '';
   const provider = new GitProvider({ provider: 'github', origin: 'https://api.github.com', token: '' }, async (_c, path) => {
-    if (path.includes('/git/trees/')) return { truncated: bad === 'truncated', tree: ['package.json','apps/web/package.json','pnpm-lock.yaml','requirements.txt','backend/uv.lock','backend/pyproject.toml'].map(path => ({ path, type: 'blob', mode: bad === 'symlink' ? '120000' : '100644' })) };
+    if (path.includes('/git/trees/')) return { truncated: bad === 'truncated', tree: ['package.json','apps/web/package.json','pnpm-lock.yaml','requirements.txt','backend/uv.lock','backend/pyproject.toml','public/favicon.svg'].map(path => ({ path, type: 'blob', mode: bad === 'symlink' ? '120000' : '100644' })) };
+    if (path.endsWith(`/contents/public/favicon.svg?ref=${sha}`)) return { type: 'file', encoding: 'base64', content: Buffer.from('<svg/>').toString('base64') };
     assert.ok(path.endsWith(`?ref=${sha}`)); return { type: 'file', encoding: 'base64', content: Buffer.from('{}').toString('base64') };
   });
   const repo = { providerId: '1', name: 'owner/name', branch: 'main' };
   const bundle = await provider.bundle(repo, sha); assert.equal(Object.keys(bundle.files).length, 6);
+  assert.equal(bundle.favicon, `data:image/svg+xml;base64,${Buffer.from('<svg/>').toString('base64')}`);
   await assert.rejects(provider.bundle(repo, 'main'), /immutable/);
   bad = 'truncated'; await assert.rejects(provider.bundle(repo, sha), /incomplete/);
   bad = 'symlink'; await assert.rejects(provider.bundle(repo, sha), /Unsafe/);

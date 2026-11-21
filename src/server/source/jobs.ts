@@ -98,7 +98,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     const savedInventory = saved ? JSON.parse(String(saved.inventory_json)) : undefined;
     const rematch = String(job.kind) === 'poll' && savedInventory?.sbom && last && last.analyzer === sourceAnalyzerVersion ? { analyzer: sourceAnalyzerVersion, inventory: JSON.parse(String(last.result_json)), sbom: savedInventory.sbom } : undefined;
     stage = 'Repository input collection';
-    const bundle = rematch ? { commit, files: {}, hash: String(saved!.bundle_hash), collectedAt: Date.now() } : await provider.bundle(repo, commit);
+    const { favicon, ...bundle } = rematch ? { favicon: rematch.inventory.favicon, commit, files: {}, hash: String(saved!.bundle_hash), collectedAt: Date.now() } : await provider.bundle(repo, commit);
     if (!active()) return true;
     await mkdir(join(spool,'in'), { recursive: true, mode: 0o700 }); await mkdir(join(spool,'out'), { recursive: true, mode: 0o700 });
     await admission(store,spool);
@@ -136,7 +136,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
       const snapshotId = randomUUID();
       store.db.prepare('INSERT OR IGNORE INTO source_snapshots VALUES (?,?,?,?,?,?)').run(snapshotId, job.repository_id, commit, bundle.hash, JSON.stringify({ nodes: result.analysis.nodes, edges: result.analysis.edges, roots: result.analysis.roots, manager: result.analysis.manager, analyzerPackages: result.analysis.analyzerPackages, sbom: result.sbom }), Date.now());
       const snapshot = store.db.prepare('SELECT id FROM source_snapshots WHERE repository_id=? AND commit_sha=? AND bundle_hash=?').get(job.repository_id, commit, bundle.hash)!;
-      store.db.prepare('INSERT INTO source_scans VALUES (?,?,?,?,?,?,?,?)').run(randomUUID(), job.binding_id, snapshot.id, jobId, Date.now(), result.analyzer, JSON.stringify(result.database), JSON.stringify({ ...result.analysis, paths: result.paths }));
+      store.db.prepare('INSERT INTO source_scans VALUES (?,?,?,?,?,?,?,?)').run(randomUUID(), job.binding_id, snapshot.id, jobId, Date.now(), result.analyzer, JSON.stringify(result.database), JSON.stringify({ ...result.analysis, paths: result.paths, favicon }));
       if (history) {
         appendEvidence(store, evidenceProject, 'commit-metadata-observed', history, null, String(job.binding_id));
         for (const change of history.associatedRequests) if (change.merged && change.mergeCommit === commit && change.targetBranch === repo.branch) appendEvidence(store, evidenceProject, 'merged', { ...change, commit, actorRole: 'merger', authenticatedFixer: null }, change.mergedAt && Number.isFinite(Date.parse(change.mergedAt)) ? Date.parse(change.mergedAt) : null, String(job.binding_id), change.merger ? { ...change.merger, role: 'merger' } : null);

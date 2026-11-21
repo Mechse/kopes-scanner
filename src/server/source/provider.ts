@@ -9,7 +9,7 @@ export type Provider = 'github' | 'gitlab';
 export type Connection = { provider: Provider; origin: string; token: string };
 export type NetworkPolicy = { gitlabOrigins: string[]; privateOrigins?: string[]; ca?: string };
 export type Repository = { providerId: string; name: string; branch: string };
-export type Bundle = { commit: string; files: Record<string, string>; hash: string; collectedAt: number };
+export type Bundle = { favicon?: string; commit: string; files: Record<string, string>; hash: string; collectedAt: number };
 export class ProviderError extends Error {
   constructor(public status: number) { super(status === 401 || status === 403 ? 'Repository access denied or expired.' : status === 404 ? 'Repository, branch or input no longer available.' : status === 429 ? 'Provider rate limit reached.' : 'Provider request failed.'); }
 }
@@ -122,7 +122,7 @@ export class GitProvider {
     if (!fullSha(commit)) throw new Error('An immutable commit is required.');
     const deadline = Date.now() + 120_000;
     const checkDeadline = () => { if (Date.now() > deadline) throw new Error('Repository collection deadline exceeded.'); };
-    const root = this.root(repo); const entries: { path: string; type: string; mode?: string }[] = [];
+    const root = this.root(repo); const entries: { path: string; type: string; mode?: string; size?: number }[] = [];
     if (this.connection.provider === 'github') {
       const tree = await this.read(this.connection, `${root}/git/trees/${commit}?recursive=1`);
       if (tree.truncated || !Array.isArray(tree.tree)) throw new Error('Repository tree coverage is incomplete.');
@@ -153,6 +153,18 @@ export class GitProvider {
       files[entry.path] = entry.path.split('/').at(-1) === 'bun.lockb' ? `sha256:${createHash('sha256').update(bytes).digest('hex')}` : bytes.toString('utf8');
     }
     const hash = createHash('sha256').update(JSON.stringify(Object.entries(files).sort(([a],[b]) => a.localeCompare(b)))).digest('hex');
-    return { commit, files, hash, collectedAt: Date.now() };
+    const icon = entries.filter(e => e.type === 'blob' && ['100644','100755'].includes(e.mode ?? '') && (e.size ?? 0) <= 32768 && /^(?:(?:public|static|app|src\/app)\/)?(?:favicon|icon)\.(?:ico|svg|png)$/.test(e.path)).sort((a,b) => a.path.length - b.path.length)[0];
+    let favicon: string | undefined;
+    if (icon) {
+      try {
+        const file = await this.read(this.connection, this.connection.provider === 'github' ? `${root}/contents/${icon.path}?ref=${commit}` : `${root}/repository/files/${segment(icon.path)}?ref=${commit}`);
+        if (file.encoding === 'base64' && typeof file.content === 'string' && file.content.length <= 46000 && file.type !== 'symlink') {
+          const bytes = Buffer.from(file.content, 'base64');
+          const mime = icon.path.endsWith('.svg') ? 'image/svg+xml' : icon.path.endsWith('.png') ? 'image/png' : 'image/x-icon';
+          if (bytes.length && bytes.length <= 32768) favicon = `data:${mime};base64,${bytes.toString('base64')}`;
+        }
+      } catch { /* Optional artwork must not fail a dependency scan. */ }
+    }
+    return { commit, files, hash, collectedAt: Date.now(), favicon };
   }
 }

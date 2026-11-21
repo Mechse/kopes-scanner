@@ -13,7 +13,12 @@ import { useFavourites } from './favourites';
 import { ResourceCard, resourceCardActionClass } from './resource-card';
 import { type Scan } from './project-sources';
 
-export type Binding = { first_run_finished?: number; id: string; connection_id?: string; connection_label?: string; connection_owner?: string; connection_health?: string; auth_kind?: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
+export function RepositoryIcon({ favicon }: { favicon?: string | null }) {
+  const [failed, setFailed] = useState<string>();
+  return favicon && favicon !== failed ? <img src={favicon} alt="" width={20} height={20} className="size-5 object-contain" onError={() => setFailed(favicon)}/> : <GitBranch size={20} aria-hidden="true"/>;
+}
+
+export type Binding = { favicon?: string | null; first_run_finished?: number; id: string; connection_id?: string; connection_label?: string; connection_owner?: string; connection_health?: string; auth_kind?: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
 export type RepositoryInventory = { administrator: boolean; flags: { connections: boolean; scanning: boolean }; storageError: string | null; projects: { id: string; name: string; archived: number }[]; resources: { id: string; name: string; project_id: string | null; containerIds: string[] }[]; bindings: Binding[] };
 type Context = { projectId?: string; group?: string; containerId?: string; resourceId?: string };
 const RepositoryContext = createContext<{
@@ -92,7 +97,7 @@ export function RepositoryCard({ binding: b, view = 'grid' }: { binding: Binding
   const repos = useRepositories(), item = { scope: 'resource' as const, key: `repo:${b.id}` };
   const repositoryName = b.repository.split('/').pop() || b.repository;
   const scan = b.scans[0];
-  return <ResourceCard view={view} icon={<GitBranch size={20}/>}
+  return <ResourceCard view={view} icon={<RepositoryIcon favicon={b.favicon}/>}
     title={<Link to="/repositories/$repository" params={{ repository: b.id }} aria-label={b.repository} title={b.repository} className="block truncate after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{repositoryName}</Link>}
     subtitle={b.branch} vulnerabilities={scan && (sourceAssessment(scan) === 'Scanned' || scan.occurrences > 0) ? scan.occurrences : undefined}
     favourite={{ name: b.repository, active: repos.favourites.has(item), disabled: repos.favourites.disabled, onClick: () => void repos.favourites.toggle(item) }}

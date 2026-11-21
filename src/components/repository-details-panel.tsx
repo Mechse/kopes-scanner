@@ -1,5 +1,5 @@
-import { Download, GitBranch, RefreshCw } from 'lucide-react';
-import type { Binding } from './repositories';
+import { Download, RefreshCw } from 'lucide-react';
+import { RepositoryIcon, type Binding } from './repositories';
 import type { Scan } from './project-sources';
 import { ResourcePanelHeader, ScanPanelSummary } from './resource-panel-layout';
 import { Button } from './ui/button';
@@ -34,7 +34,7 @@ export function RepositoryDetailsPanel(props: Props) {
     ['Package manager', analysis?.manager === 'unknown' || !analysis ? 'Not identified yet' : analysis.manager],
   ];
   return <>
-    <ResourcePanelHeader name={binding.repository} icon={<GitBranch size={20} aria-hidden="true"/>} badges={<>
+    <ResourcePanelHeader name={binding.repository} icon={<RepositoryIcon favicon={binding.favicon}/>} badges={<>
       <span className={pillClass}>Repository</span><span className={pillClass}><span aria-hidden="true" className={`size-1 shrink-0 rounded-full bg-current ${status.state === 'error' ? 'text-critical' : ''}`}/>{status.label}</span>
     </>}/>
     <section aria-label="Resource summary" className="mt-5 rounded-xl border border-border p-4 sm:p-5">

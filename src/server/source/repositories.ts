@@ -76,6 +76,7 @@ export async function handleRepositories(request: Request, store: Store, princip
       return json({ result });
     }
     const bindings = store.db.prepare(`SELECT b.*,r.name AS repository,
+      (SELECT json_extract(s.result_json,'$.favicon') FROM source_scans s JOIN source_jobs j ON j.id=s.job_id WHERE s.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' ORDER BY s.observed_at DESC LIMIT 1) AS favicon,
       EXISTS(SELECT 1 FROM source_jobs j WHERE j.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' AND j.state IN ('complete','failed')) AS first_run_finished,
       c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
     return json({ administrator: principal.administrator, flags: sourceFlags(), storageError: store.getMeta('source.storage.error') || null,
