@@ -1,6 +1,6 @@
-import { Select, SelectTrigger, SelectItem, SelectContent } from './ui/select';
-import { resourceName } from '../lib/display-name';
-import { useSyncExternalStore } from 'react';
+import { SelectItem } from './ui/select';
+import { SelectField } from './ui/select-field';
+import { createElement, useSyncExternalStore } from 'react';
 import { Box, Database, Globe, HardDrive, Layers, ListTree, Network, Radar, Server } from 'lucide-react';
 import type { Container } from '../lib/model';
 
@@ -40,23 +40,27 @@ function subscribe(update: () => void) {
   };
 }
 
-export function ResourceIcon({ container }: { container?: Container }) {
+function useIcon(container?: Container) {
   const key = 'kopes.resource-icon:' + JSON.stringify(container ? [container.project, container.name] : ['host']);
   const override = useSyncExternalStore(subscribe, () => localStorage.getItem(key), () => null);
   const automatic = guessType(container);
   const selected = override && Object.hasOwn(icons, override) ? override as ResourceType : null;
-  const type = selected ?? automatic;
-  const Icon = icons[type];
-  const label = `Change icon for ${container ? resourceName(container) : 'Host OS packages'} (currently ${type})`;
-  return <Select value={selected ?? 'automatic'} onValueChange={value => {
+  return { key, automatic, selected, type: selected ?? automatic };
+}
+
+export function ResourceIcon({ container }: { container?: Container }) {
+  const Icon = icons[useIcon(container).type];
+  return <Icon aria-hidden="true" />;
+}
+
+export function ResourceIconField({ id, container, className }: { id: string; container?: Container; className?: string }) {
+  const { key, automatic, selected } = useIcon(container);
+  return <SelectField id={id} className={className} value={selected ?? 'automatic'} onValueChange={value => {
     if (value === 'automatic') localStorage.removeItem(key);
     else localStorage.setItem(key, value);
     window.dispatchEvent(new Event('resource-icon-change'));
   }}>
-    <SelectTrigger title={label} aria-label={label} className="relative z-10 gap-0 px-1"><Icon aria-hidden="true" /></SelectTrigger>
-    <SelectContent>
-      <SelectItem value="automatic">Automatic ({automatic})</SelectItem>
-      {Object.keys(icons).map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-    </SelectContent>
-  </Select>;
+    <SelectItem value="automatic">{createElement(icons[automatic], { 'aria-hidden': true })}Automatic ({automatic})</SelectItem>
+    {Object.entries(icons).map(([option, Icon]) => <SelectItem key={option} value={option}><Icon aria-hidden="true" />{option}</SelectItem>)}
+  </SelectField>;
 }

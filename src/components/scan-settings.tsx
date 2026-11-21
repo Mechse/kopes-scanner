@@ -10,6 +10,8 @@ import { useWorkspace } from './app-shell';
 import { Button } from './ui/button';
 import { SettingsTabs, SettingsPanel } from './settings-tabs';
 import { Tooltip } from './ui/tooltip';
+import { ResourceIconField } from './resource-icon';
+import type { Container } from '../lib/model';
 export function ScanSettingsLink({ project, target, app, iconOnly = false }: { project?: string; target?: string; app?: string; iconOnly?: boolean }) {
   const link = <Button asChild variant={iconOnly ? 'ghost' : 'outline'} size="sm" className={iconOnly ? 'size-8 p-0' : undefined}><Link to="/settings" search={{ project, target, app }} aria-label={iconOnly ? 'Settings' : undefined}><Settings size={14} aria-hidden="true" />{!iconOnly && 'Settings'}</Link></Button>;
   return iconOnly ? <Tooltip label="Settings">{link}</Tooltip> : link;
@@ -18,7 +20,7 @@ export function ScanSettingsLink({ project, target, app, iconOnly = false }: { p
 const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-raised px-3 py-2 text-sm disabled:opacity-50';
 const rowClass = 'grid min-w-0 gap-3 py-4 @min-[580px]:grid-cols-[minmax(0,1fr)_260px] @min-[580px]:items-center';
 
-export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTabChange }: { tab?: string; onTabChange: (tab: string) => void; scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
+export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTabChange, container }: { container?: Container; tab?: string; onTabChange: (tab: string) => void; scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
   const { revision, refresh } = useWorkspace();
   const path = `settings?scope=${scope}&key=${encodeURIComponent(settingsKey)}`;
   const result = useResource<SettingsData>(path, revision);
@@ -75,6 +77,13 @@ export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTa
           <input id="display-name" aria-describedby="display-name-help" maxLength={120} className={fieldClass} value={displayName} placeholder={detectedName} onChange={event => { setNameDraft(event.target.value); setMessage(''); }} />
           <Button type="button" variant="ghost" size="sm" className="mt-2" disabled={!displayName} onClick={() => { setNameDraft(''); setMessage(''); }}>Reset to detected name</Button>
         </fieldset>
+        {scope === 'resource' && <div className={`${rowClass} border-t border-border`}>
+          <div className="min-w-0">
+            <label htmlFor="resource-icon" className="text-sm">Icon</label>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Saved in this browser and applied immediately.</p>
+          </div>
+          <ResourceIconField id="resource-icon" container={container} className="w-full min-w-0" />
+        </div>}
         <fieldset disabled={busy} className="min-w-0 border-t border-border pt-4">
           <legend className="sr-only">Scanning</legend>
           <h2 className="m-0! text-sm! font-medium">Scanning</h2>
