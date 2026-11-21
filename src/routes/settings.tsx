@@ -46,10 +46,10 @@ function SettingsPage() {
   const back = { view: 'apps' as const, target: targetId, app };
   const sections: SettingsNavData['sections'] = appSettings
     ? [
+      { tab: 'users', label: 'Users' },
       { tab: 'integrations', label: 'Integrations', children: [{ section: 'github', label: 'GitHub' },{section:'gitlab',label:'GitLab'}] },
       { tab: 'auth', label: 'Auth', children: Object.entries(providerNames).map(([section, label]) => ({ section, label })) },
       { tab: 'notifications', label: 'Notifications', children: [{ section: 'telegram', label: 'Telegram' }] },
-      { tab: 'users', label: 'Users' },
     ]
     : [{ tab: 'general', label: 'General' }, { tab: 'notifications', label: 'Notifications' }, ...(container && data?.isAdmin ? [{ tab: 'danger', label: 'Danger zone' }] : [])];
   const current = activeTab(tab, sections);
