@@ -28,7 +28,7 @@ export function RepositoryDetailsPanel(props: Props) {
   const packages = analysis?.nodes.length ?? scan?.packageCount;
   const fields = [
     ['Repository', binding.repository], ['Default branch', binding.branch],
-    ['Connection', binding.connection_label || (binding.auth_kind==='anonymous'?'Public repository':'Legacy connection')],
+    ['Connection', binding.connection_label || (binding.auth_kind==='anonymous'?'Public repository':binding.connection_id?'Repository connection':'Not connected')],
     ['Connection owner', binding.connection_owner || 'Not applicable'],
     ['Connection access', binding.connection_health || 'Unknown'],
     ['Package manager', analysis?.manager === 'unknown' || !analysis ? 'Not identified yet' : analysis.manager],

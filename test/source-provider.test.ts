@@ -91,6 +91,23 @@ test('source API is disabled by default and explicit grants are required even fo
   assert.equal((await handleSource(req, s, member, options)).status, 403);
 });
 
+test('generic source API cannot create a GitHub token connection or upgrade public access to one', async t => {
+  const store = new Store(':memory:');
+  t.after(() => store.db.close());
+  const original = process.env.KOPES_SOURCE_PILOT;
+  process.env.KOPES_SOURCE_PILOT = '1';
+  t.after(() => { if (original === undefined) delete process.env.KOPES_SOURCE_PILOT; else process.env.KOPES_SOURCE_PILOT = original; });
+  store.db.exec("INSERT INTO source_connections(id,provider,origin,credential) VALUES ('public','github','https://api.github.com','')");
+  const origin = 'https://scanner.test';
+  for (const body of [{action:'connect', provider:'github', origin:'https://api.github.com', repository:'owner/repo', token:'token'}, {action:'rotate', connectionId:'public', token:'token'}]) {
+    const req = new Request(`${origin}/api/data/source`, {method:'POST', headers:{origin}, body:JSON.stringify(body)});
+    const res = await handleSource(req,store,{userId:'admin',administrator:true},{origin,secret:'fixture'},async()=>{ throw new Error('Unexpected network call'); });
+    assert.equal(res.status,400);
+    assert.match(await res.text(),/Use GitHub settings/);
+  }
+  assert.deepEqual(store.db.prepare('SELECT auth_kind,credential FROM source_connections').all().map(c=>[c.auth_kind,c.credential]),[['anonymous','']]);
+});
+
 test('shared snapshots do not authorize another project scan detail or SBOM export',async t=>{
   const s=new Store(':memory:'),old=process.env.KOPES_SOURCE_PILOT;process.env.KOPES_SOURCE_PILOT='1';
   t.after(()=>{s.db.close();if(old===undefined)delete process.env.KOPES_SOURCE_PILOT;else process.env.KOPES_SOURCE_PILOT=old;});

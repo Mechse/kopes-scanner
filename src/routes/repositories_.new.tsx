@@ -108,7 +108,7 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
       <h1 ref={heading} tabIndex={-1} className={title}>Review access</h1>
       <p className="my-5 break-all rounded-lg border border-border px-4 py-3 text-sm font-medium">{choice.name}</p>
       <label className="block text-sm">Repository connection<SelectField aria-label="Repository connection" className="mt-1 w-full" disabled={busy || choice.fromList} value={connection || 'anonymous'} onValueChange={v => setConnection(v === 'anonymous' ? '' : v)}>
-        <SelectItem value="anonymous">Public access</SelectItem>{connections.map(c => <SelectItem key={c.id} value={c.id}>{c.label || c.owner_login || 'Legacy connection'}</SelectItem>)}
+        <SelectItem value="anonymous">Public access</SelectItem>{connections.map(c => <SelectItem key={c.id} value={c.id}>{c.label || c.owner_login || 'GitHub connection'}</SelectItem>)}
       </SelectField></label>
       <label className="mt-5 block text-sm">Container access<SelectField aria-label="Container access" className="mt-1 w-full" disabled={busy} value={project} onValueChange={setProject}>
         <SelectItem value="administrators">Administrators only</SelectItem>{inventory.projects.filter(p => !p.archived).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}

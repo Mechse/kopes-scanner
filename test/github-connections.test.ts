@@ -13,7 +13,7 @@ import { GithubError, githubHttp, githubId, githubPages, type GithubHttp } from 
 import { startSetup, resumeSetup, setupState, claimSetup, setupCallback, expireSetup, manifest, type GithubContext } from '../src/server/source/github-setup';
 import { handleGithub, githubSettings } from '../src/server/source/github-connections';
 import { githubSettingsFailure } from '../src/server/source/github-settings-error';
-import { githubSetupNotice } from '../src/lib/github';
+import { githubSetupNotice, githubConnectionGroups } from '../src/lib/github';
 import { validatePat } from '../src/server/source/github-pat';
 import { reconcileInstallation, restrictInstallation, reconcileGithub } from '../src/server/source/github-reconcile';
 import { githubWebhook, recoverGithubDeliveries } from '../src/server/source/github-webhook';
@@ -39,6 +39,17 @@ function fixture(t: any) {
   s.db.exec("INSERT INTO source_connections(id,provider,origin,credential,auth_kind,label,installation_id,owner_login) VALUES ('connection','github','https://api.github.com','','github_app','Owner App','install','owner'); INSERT INTO source_repositories VALUES ('repo','github','https://api.github.com','99','owner/private'); INSERT INTO source_bindings(id,repository_id,connection_id,branch,folder,next_poll) VALUES ('binding','repo','connection','main','',9999999999999); INSERT INTO github_installation_repositories(installation_id,repository_id,name,private,status,generation,observed_at) VALUES ('install','99','owner/private',1,'active','first',1)");
   return s;
 }
+test('settings groups installation access with its App, not another credential for the same owner', t=>{
+  const s=fixture(t);
+  s.db.exec("INSERT INTO source_connections(id,provider,origin,credential,auth_kind,label,owner_login) VALUES ('token','github','https://api.github.com','','pat','Backup','owner')");
+  const data=githubSettings(s,config.origin);
+  const all=githubConnectionGroups(data,'owner');
+  assert.deepEqual(all.apps.map(g=>[g.app.id,g.installations.map(c=>c.id)]),[['app',['connection']]]);
+  assert.deepEqual(all.standalone.map(c=>c.id),['token']);
+  assert.equal(githubConnectionGroups(data,'Owner App').apps.length,1);
+  assert.equal(githubConnectionGroups(data,'Backup').apps.length,0);
+  assert.equal(githubConnectionGroups({...data,connections:[]},'').apps.length,1);
+});
 const never = async()=>{throw new Error('Unexpected anonymous or legacy fallback');};
 const api: GithubHttp = async request => {
   if(request.path==='/app')return remoteApp;

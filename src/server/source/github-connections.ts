@@ -28,7 +28,7 @@ export function githubSettings(store: Store, origin: string): GithubSettingsData
   expireSetup(store);
   return {
     connections:store.db.prepare(`SELECT c.id,c.auth_kind,c.label,c.owner_login,c.health,c.disconnected,c.expires_at,c.validated_at,c.history,c.validation_repository,c.installation_id,i.github_id AS installation_github_id,i.app_id,
-      (SELECT COUNT(*) FROM source_bindings b WHERE b.connection_id=c.id) AS repository_count FROM source_connections c LEFT JOIN github_installations i ON i.id=c.installation_id WHERE c.provider='github' AND c.auth_kind<>'anonymous'`).all().map(c=>({...c,manageUrl:c.installation_github_id ? `https://github.com/settings/installations/${c.installation_github_id}`:'https://github.com/settings/personal-access-tokens'} as unknown as GithubConnection)),
+      (SELECT COUNT(*) FROM source_bindings b WHERE b.connection_id=c.id) AS repository_count FROM source_connections c LEFT JOIN github_installations i ON i.id=c.installation_id WHERE c.provider='github' AND c.auth_kind IN ('github_app','pat')`).all().map(c=>({...c,manageUrl:c.installation_github_id ? `https://github.com/settings/installations/${c.installation_github_id}`:'https://github.com/settings/personal-access-tokens'} as unknown as GithubConnection)),
     apps:store.db.prepare(`SELECT id,github_id,client_id,slug,owner_login,owner_type,origin,status,history,webhook_mode,updated_at,
       (SELECT status FROM github_setup_attempts t WHERE t.app_id=github_apps.id ORDER BY expires_at DESC LIMIT 1) AS setup_status,
       (SELECT COUNT(*) FROM source_bindings b JOIN source_connections c ON c.id=b.connection_id JOIN github_installations i ON i.id=c.installation_id WHERE i.app_id=github_apps.id) AS repository_count,
@@ -65,7 +65,7 @@ export async function handleGithub(request: Request, store: Store, context: Gith
     if (body.action==='start') return json(await startSetup(store,context,config,body));
     if (body.action==='resume') return json(await resumeSetup(store,body.appId,context,config,http));
     if (body.action==='test-pat' || body.action==='save-pat') {
-      const previous = body.connectionId ? store.db.prepare("SELECT * FROM source_connections WHERE id=? AND auth_kind IN ('pat','legacy_pat')").get(body.connectionId) : undefined;
+      const previous = body.connectionId ? store.db.prepare("SELECT * FROM source_connections WHERE id=? AND auth_kind='pat'").get(body.connectionId) : undefined;
       if (body.connectionId && !previous || previous?.owner_login && String(previous.owner_login).toLowerCase()!==body.owner.toLowerCase()) throw new Error();
       const token = body.token || (previous?.credential ? unseal(String(previous.credential),config.secret,`${previous.id}:${previous.origin}`) : '');
       const result = await validatePat(token,body.repository,body.owner,body.history,http);
@@ -112,7 +112,7 @@ export async function handleGithub(request: Request, store: Store, context: Gith
         auditGithub(store,context.userId,'github-app-removed',body.appId);
       }); return json({ok:true});
     }
-    const c = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND provider='github' AND auth_kind<>'anonymous'").get(body.connectionId);
+    const c = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND provider='github' AND auth_kind IN ('github_app','pat')").get(body.connectionId);
     if (!c) throw new Error();
     if (body.action==='disconnect') {
       store.transaction(()=>{

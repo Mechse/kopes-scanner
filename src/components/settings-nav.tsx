@@ -71,11 +71,11 @@ export function SettingsNav({ back: { label, ...back }, sections, scroll, onNavi
             requestAnimationFrame(() => document.getElementById(tab)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
           }}>{content}</a>
         : <div key={tab} className="grid min-w-0 gap-1">
-            <Link to="." search={(prev: Record<string, unknown>) => ({ ...prev, tab, section: undefined })} replace resetScroll={false} className={`${linkClass} ${ariaCurrent && children?.length ? 'text-foreground' : ''}`} aria-current={children?.length ? undefined : ariaCurrent} onClick={onNavigate}>{content}</Link>
+            <Link to="." search={(prev: Record<string, unknown>) => ({ ...prev, tab, section: undefined, connection: undefined })} replace resetScroll={false} className={`${linkClass} ${ariaCurrent && children?.length ? 'text-foreground' : ''}`} aria-current={children?.length ? undefined : ariaCurrent} onClick={onNavigate}>{content}</Link>
             {tab === current && !!children?.length && <div className="ml-[17px] grid min-w-0 gap-1 border-l border-border pl-2">
               {children.map(child => {
                 const ChildIcon = childIcons[child.section] ?? Settings2;
-                return <Link key={child.section} to="." search={(prev: Record<string, unknown>) => ({ ...prev, tab, section: child.section })} replace resetScroll={false} className={linkClass} aria-current={child.section === activeSection(search.section, children) ? 'page' : undefined} onClick={onNavigate}><ChildIcon size={16}/><span className="truncate">{child.label}</span></Link>;
+                return <Link key={child.section} to="." search={(prev: Record<string, unknown>) => ({ ...prev, tab, section: child.section, connection: undefined })} replace resetScroll={false} className={linkClass} aria-current={child.section === activeSection(search.section, children) ? 'page' : undefined} onClick={onNavigate}><ChildIcon size={16}/><span className="truncate">{child.label}</span></Link>;
               })}
             </div>}
           </div>;

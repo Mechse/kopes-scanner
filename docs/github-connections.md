@@ -31,7 +31,7 @@ Callbacks require the initiating local session and current administrator status,
 
 ## Personal access token fallback
 
-Choose **Use personal access token**. The link opens GitHub's fine-grained token form with owner, Contents read, optional Pull requests read and a suggested 90-day expiry. Select only the required repositories. Classic PAT onboarding is not supported by this UI; existing legacy credentials remain usable and labeled unvalidated.
+Choose **Use personal access token**. The link opens GitHub's fine-grained token form with owner, Contents read, optional Pull requests read and a suggested 90-day expiry. Select only the required repositories. Legacy GitHub connections are removed on upgrade. To resume scanning an affected repository, select a GitHub App or fine-grained PAT in its settings. Existing scan history is retained.
 
 Enter a connection name, owner, masked token and an actual **private** repository URL. **Test connection** reads metadata, default branch, the recursive tree and supported dependency inputs. It does not save credentials. **Save connection** repeats the reads with exactly the submitted token before encrypting it. Public-only access cannot pass private-access validation. Empty repositories are reported separately and cannot pass this gate; a nonempty repository without supported dependency inputs can prove private Contents access but is not scan-ready. Optional history failure does not block dependency scans.
 
@@ -52,6 +52,8 @@ App tokens stay in process memory, renew before their returned expiry and are sc
 Jobs check connection, App credential, installation/access and binding revisions before collecting inputs, dispatching the worker and publishing. Disconnect, key/token replacement, suspension and repository removal cancel publication even if analysis is running. Polling bounds detection latency for external changes; instant revocation is not promised when webhooks cannot arrive. Worker input contains dependency data, never provider credentials. Private dependency data uses the existing protected spool and cleanup/retention paths.
 
 ## Access and history
+
+In GitHub settings, search by app name, connection name, or owner. Open an App to manage its registration. Under **Repository access**, select an installation to check or disconnect its access. Personal access tokens open directly from the connections list. Each detail page can be bookmarked.
 
 **“Repository access failed” before a scan:** this older message covers credential loading, repository metadata, the default-branch head and local scan-history reads, before the isolated dependency worker is dispatched. It does not establish that the worker is broken or that GitHub denied access. Updated builds report the failed stage and fixed diagnostic codes for credential decryption, App keys/token expiry, incomplete metadata, changed repository identity and missing branch commits. If a numeric-ID lookup omits the default branch, Kopes now reads full metadata by the returned repository name with the same credentials and verifies that the immutable ID still matches. Restart the updated application and retry the scan; if it still fails, report the new stage/code without credentials. This path is covered by simulated private-scan regression tests; the exact cause in a live installation still requires its retry result. Existing scan history is retained.
 

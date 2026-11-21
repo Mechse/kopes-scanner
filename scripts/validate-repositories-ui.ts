@@ -51,6 +51,43 @@ try {
   const browserContext=await browser.newContext({viewport:{width:1440,height:1000}});
   await browserContext.addCookies([{name:context.authCookies.sessionToken.name,value:encodeURIComponent(value),url:origin,httpOnly:true,sameSite:'Lax'}]);
   const page=await browserContext.newPage();const errors:string[]=[];page.on('pageerror',(e:Error)=>errors.push(e.message));
+  let githubMutations = 0;
+  await page.route('**/api/data/github', (route:any) => {
+    if (route.request().method()==='POST') {
+      assert.deepEqual(route.request().postDataJSON(),{action:'disconnect',connectionId:'access'});
+      githubMutations++;
+      return route.fulfill({json:{ok:true}});
+    }
+    return route.fulfill({json:{
+    apps:[{id:'app',slug:'Fixture scanner',owner_login:'fixture',status:'connected',repository_count:1,urls:{setup:`${origin}/api/github/install/callback`},webhook_mode:'polling'}],
+    connections:[{id:'access',label:'Fixture installation',owner_login:'fixture',app_id:'app',auth_kind:'github_app',health:'ready',repository_count:1},{id:'token',label:'Backup token',auth_kind:'pat',health:'ready',repository_count:0}]
+  }}); });
+  await browserContext.grantPermissions(['clipboard-read','clipboard-write'],{origin});
+  await page.goto(origin+'/settings?tab=integrations');
+  await page.getByRole('link',{name:/Fixture scanner/}).click();
+  await page.getByRole('heading',{name:'Registration recovery'}).waitFor();
+  await page.getByRole('button',{name:'Copy setup URL'}).click();
+  await page.getByText('Copied',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),`${origin}/api/github/install/callback`);
+  await page.getByRole('button',{name:'Remove local registration'}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'Cancel'}).click();
+  assert.equal(githubMutations,0);
+  await page.getByRole('link',{name:/Fixture installation/}).click();
+  await page.reload();
+  await page.getByRole('heading',{name:'Fixture installation',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Test / refresh access'}).waitFor();
+  await page.getByRole('button',{name:'Disconnect',exact:true}).click();
+  await Promise.all([page.waitForResponse((res:any)=>res.url().endsWith('/api/data/github') && res.request().method()==='POST'),page.getByRole('alertdialog').getByRole('button',{name:'Disconnect',exact:true}).click()]);
+  assert.equal(githubMutations,1);
+  await page.getByRole('link',{name:'GitHub connections',exact:true}).click();
+  await page.getByRole('link',{name:/Backup token/}).click();
+  await page.getByRole('button',{name:'Replace token'}).click();
+  await page.getByLabel('Private repository URL for validation').waitFor();
+  await page.goBack();
+  await page.getByRole('searchbox',{name:'Search apps and connections'}).waitFor();
+  await page.goto(origin+'/settings?tab=integrations&connection=missing');
+  await page.getByText('This connection no longer exists.').waitFor();
+  await page.unroute('**/api/data/github');
   await page.goto(origin+'/repositories');
   await page.getByRole('link',{name:'Add repository',exact:true}).click();
   await page.waitForURL('**/repositories/new');

@@ -32,19 +32,21 @@ export function migrateSource(db: DatabaseSync) {
   `);
 }
 
-/** Rebuild only the two project-owned tables; dependent foreign keys retain their names. */
+/** Rebuild the table without renaming the target of dependent foreign keys. */
+function makeNullable(db: DatabaseSync, table: string, column: string) {
+  if (!db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column && c.notnull === 1)) return;
+  const schema = String(db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table)!.sql);
+  const indexes = db.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL").all(table);
+  db.exec(`CREATE TABLE ${table}_new ` + schema.slice(schema.indexOf('(')).replace(`${column} TEXT NOT NULL`, `${column} TEXT`));
+  db.exec(`INSERT INTO ${table}_new SELECT * FROM ${table}; DROP TABLE ${table}; ALTER TABLE ${table}_new RENAME TO ${table}`);
+  for (const index of indexes) db.exec(String(index.sql));
+}
+
 export function migrateStandaloneSources(db: DatabaseSync) {
   db.exec('PRAGMA foreign_keys=OFF');
   try {
     db.exec('BEGIN IMMEDIATE');
-    for (const table of ['source_bindings', 'source_events']) {
-      if (!db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === 'project_id' && c.notnull === 1)) continue;
-      const schema = String(db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table)!.sql);
-      const indexes = db.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL").all(table);
-      db.exec(schema.replace(`CREATE TABLE ${table}`, `CREATE TABLE ${table}_new`).replace('project_id TEXT NOT NULL', 'project_id TEXT'));
-      db.exec(`INSERT INTO ${table}_new SELECT * FROM ${table}; DROP TABLE ${table}; ALTER TABLE ${table}_new RENAME TO ${table}`);
-      for (const index of indexes) db.exec(String(index.sql));
-    }
+    for (const table of ['source_bindings', 'source_events']) makeNullable(db, table, 'project_id');
     db.exec(`CREATE TABLE IF NOT EXISTS source_discovery(resource_id TEXT NOT NULL REFERENCES resources(id), repository TEXT NOT NULL,
       attempted_at INTEGER NOT NULL DEFAULT 0, error TEXT, PRIMARY KEY(resource_id,repository))`);
     if (db.prepare('PRAGMA foreign_key_check').all().length) throw new Error('Source migration foreign key check failed.');
@@ -115,4 +117,22 @@ export function migrateGithubPollingSchedule(db: DatabaseSync) {
     db.exec('ALTER TABLE source_connections ADD COLUMN next_check INTEGER NOT NULL DEFAULT 0');
   }
   db.exec('PRAGMA user_version=16');
+}
+
+export function removeLegacyGithubConnections(db: DatabaseSync) {
+  const legacy = "SELECT id FROM source_connections WHERE provider='github' AND auth_kind='legacy_pat'";
+  db.exec('PRAGMA foreign_keys=OFF');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    makeNullable(db, 'source_bindings', 'connection_id');
+    db.exec(`UPDATE source_jobs SET state='cancelled' WHERE state IN ('queued','running') AND binding_id IN
+        (SELECT id FROM source_bindings WHERE connection_id IN (${legacy}));
+      UPDATE source_bindings SET connection_id=NULL, access_status='disconnected', access_revision=access_revision+1,
+        error='Select a new GitHub connection in repository settings.' WHERE connection_id IN (${legacy});
+      DELETE FROM source_deliveries WHERE connection_id IN (${legacy});
+      DELETE FROM source_connections WHERE id IN (${legacy});`);
+    if (db.prepare('PRAGMA foreign_key_check').all().length) throw new Error('Source migration foreign key check failed.');
+    db.exec('PRAGMA user_version=18; COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  finally { db.exec('PRAGMA foreign_keys=ON'); }
 }

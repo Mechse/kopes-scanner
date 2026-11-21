@@ -14,7 +14,7 @@ This feature is not generally released. Review `plans/phase-6/README.md` before 
 
 Projects require explicit memberships for source data. Legacy inventory access does not grant source access. Administrators manage projects/connections; members can read assigned source results and request scans. Unassigned discoveries remain visible to administrators for adoption. Resource moves preserve settings by default, preview resets, and detach old project source links. Conflicting aliases are kept separate for review, never silently merged.
 
-GitHub: prefer repository-selected App installation tokens with contents, metadata and pull-request read permissions. These are separate from sign-in OAuth. Current onboarding accepts a supplied read token; automatic App JWT/installation-token renewal is not implemented. Plan rotation before expiry. GitLab: use an API-capable read-only token (`read_api` is the proposed contract); repository-only tokens may not cover MR history. Minimum scopes/roles and self-hosted versions still require live validation. Never request write scopes for this pilot.
+GitHub: configure a GitHub App or fine-grained PAT in [GitHub connections](github-connections.md). These are separate from sign-in OAuth. GitLab: use an API-capable read-only token (`read_api` is the proposed contract); repository-only tokens may not cover MR history. Minimum scopes/roles and self-hosted versions still require live validation. Never request write scopes for this pilot.
 
 ## Worker and data
 
@@ -36,7 +36,7 @@ Polling is enabled as reconciliation even with hooks. An administrator can retri
 
 Before upgrading a real installation, take a consistent database/data backup and preserve the authentication encryption secret. Local rehearsal can use `node --import tsx scripts/rehearse-project-migration.ts PATH_TO_DATABASE`; it opens the source read-only, upgrades a disposable backup, compares legacy rows and verifies restore. It does not migrate the supplied database.
 
-The current schema is version 9. Older binaries reject newer schemas. Turning flags off stops new pilot work but does not downgrade schema. Binary rollback requires the pre-upgrade data backup and matching older application version/secret. No in-place downgrade is provided.
+Schema version 18 removes legacy GitHub source connections and retains their scan history. Older binaries reject newer schemas. Turning flags off stops new pilot work but does not downgrade schema. Binary rollback requires the pre-upgrade data backup and matching older application version/secret. No in-place downgrade is provided.
 
 Interrupted jobs recover on restart; source retries are bounded and errors preserve prior results. Disconnect removes the encrypted token and cancels pending work; data purge is a separate action. An active worker claim prevents another expensive scan from starting while cancellation stops the analyzer. Restarting the worker clears claims from the terminated process. If the worker stays offline, restart it before resuming scanning, or clear only stale job spool files while all workers are stopped—never delete the saved database or inventories as a recovery shortcut.
 

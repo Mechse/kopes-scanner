@@ -18,7 +18,7 @@ export function RepositoryIcon({ favicon }: { favicon?: string | null }) {
   return favicon && favicon !== failed ? <img src={favicon} alt="" width={20} height={20} className="size-5 object-contain" onError={() => setFailed(favicon)}/> : <GitBranch size={20} aria-hidden="true"/>;
 }
 
-export type Binding = { favicon?: string | null; first_run_finished?: number; id: string; connection_id?: string; connection_label?: string; connection_owner?: string; connection_health?: string; auth_kind?: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
+export type Binding = { favicon?: string | null; first_run_finished?: number; id: string; connection_id?: string | null; connection_label?: string | null; connection_owner?: string | null; connection_health?: string | null; auth_kind?: string | null; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
 export type RepositoryInventory = { administrator: boolean; flags: { connections: boolean; scanning: boolean }; storageError: string | null; projects: { id: string; name: string; archived: number }[]; resources: { id: string; name: string; project_id: string | null; containerIds: string[] }[]; bindings: Binding[] };
 type Context = { projectId?: string; group?: string; containerId?: string; resourceId?: string };
 const RepositoryContext = createContext<{

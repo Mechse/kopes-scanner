@@ -78,7 +78,7 @@ export async function handleRepositories(request: Request, store: Store, princip
     const bindings = store.db.prepare(`SELECT b.*,r.name AS repository,
       (SELECT json_extract(s.result_json,'$.favicon') FROM source_scans s JOIN source_jobs j ON j.id=s.job_id WHERE s.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' ORDER BY s.observed_at DESC LIMIT 1) AS favicon,
       EXISTS(SELECT 1 FROM source_jobs j WHERE j.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' AND j.state IN ('complete','failed')) AS first_run_finished,
-      c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
+      c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id LEFT JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
     return json({ administrator: principal.administrator, flags: sourceFlags(), storageError: store.getMeta('source.storage.error') || null,
       projects: projects.list(), resources: store.db.prepare('SELECT id,name,project_id FROM resources r WHERE project_id IS NOT NULL OR EXISTS (SELECT 1 FROM runtime_instances i JOIN selected_containers s ON s.id=i.container_id WHERE i.resource_id=r.id) ORDER BY name').all().filter(resourceVisible).map(r => ({ ...r, containerIds: store.db.prepare('SELECT container_id FROM runtime_instances WHERE resource_id=? AND active=1').all(r.id).map(i => i.container_id) })),
       bindings: bindings.map(b => ({ ...b, resources: [],
@@ -143,7 +143,7 @@ export async function handleRepositories(request: Request, store: Store, princip
 
 async function addConnectedRepository(store: Store, input: { repository: string; connectionId: string | null; projectId: string | null; asProject: boolean }, secret: string, reader: ReadJson, actor: string, recheck: () => Promise<void>, http: GithubHttp) {
   validateLinks(store,input.projectId,[]);
-  const connection = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND provider='github' AND auth_kind<>'anonymous' AND disconnected=0").get(input.connectionId!);
+  const connection = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND provider='github' AND auth_kind IN ('github_app','pat') AND disconnected=0").get(input.connectionId!);
   if (!connection) throw new Error('Select an active connection.');
   const name = githubRepository(input.repository);
   const cached = connection.installation_id ? store.db.prepare("SELECT repository_id FROM github_installation_repositories WHERE installation_id=? AND name=? AND status='active'").get(connection.installation_id,name) : undefined;

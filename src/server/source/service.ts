@@ -92,6 +92,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
       return json({ ok: true });
     }
     if (body.action === 'connect') {
+      if (body.provider === 'github' && body.token) return json({ error: 'Use GitHub settings to add a credential.' }, 400);
       if (/[\r\n]/.test(body.token)) throw new Error('Invalid credential.');
       const connection = { provider: body.provider, origin: body.origin, token: body.token };
       const origin = validateOrigin(connection, sourcePolicy());
@@ -101,18 +102,18 @@ export async function handleSource(request: Request, store: Store, principal: Pr
       const connectionId = randomUUID();
       store.transaction(() => {
       store.db.prepare("INSERT INTO source_connections(id,provider,origin,credential,health,observed_at,auth_kind) VALUES (?,?,?,?,?,?,?)")
-        .run(connectionId, body.provider, origin, body.token ? seal(body.token, options.secret, `${connectionId}:${origin}`) : '', body.token ? 'repository-read; permissions-unvalidated' : 'public-read', Date.now(),body.token ? body.provider==='github'?'legacy_pat':'legacy_token':'anonymous');
+        .run(connectionId, body.provider, origin, body.token ? seal(body.token, options.secret, `${connectionId}:${origin}`) : '', body.token ? 'repository-read; permissions-unvalidated' : 'public-read', Date.now(),body.token ? 'legacy_token' : 'anonymous');
       audit('source-connection-created', connectionId);
       });
       return json({ id: connectionId, repository: repo, compatibility: 'Repository read only; private permissions and lifecycle unvalidated.' });
     }
     if (body.action === 'rotate') {
       if (/[\r\n]/.test(body.token)) throw new Error('Invalid credential.');
-      const row = store.db.prepare('SELECT origin,auth_kind FROM source_connections WHERE id=?').get(body.connectionId);
-      if (!row || ['github_app','pat'].includes(String(row.auth_kind))) throw new Error('Use GitHub settings to update this connection.');
+      const row = store.db.prepare('SELECT origin,provider FROM source_connections WHERE id=?').get(body.connectionId);
+      if (!row || row.provider !== 'gitlab') return json({ error: 'Use GitHub settings to update GitHub credentials.' }, 400);
       if (!body.token) return json({ok:true});
       store.transaction(() => {
-      store.db.prepare("UPDATE source_connections SET credential=?,credential_version=credential_version+1,health='unvalidated',disconnected=0,auth_kind=CASE WHEN provider='github' THEN 'legacy_pat' ELSE 'legacy_token' END WHERE id=?")
+      store.db.prepare("UPDATE source_connections SET credential=?,credential_version=credential_version+1,health='unvalidated',disconnected=0,auth_kind='legacy_token' WHERE id=?")
         .run(body.token ? seal(body.token, options.secret, `${body.connectionId}:${row.origin}`) : '', body.connectionId);
       audit('source-credential-rotated', body.connectionId);
       });

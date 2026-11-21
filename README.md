@@ -585,7 +585,7 @@ This implementation still requires **live personal-account and organization
 acceptance**; automated provider fixtures are not live GitHub evidence. Read the
 [setup, permissions, recovery and validation guide](docs/github-connections.md)
 before enabling private scans. Existing sign-in methods and GitLab connections
-remain independent. Database migration 15 preserves legacy encrypted tokens; migration 16 repairs early version-15 databases missing the polling schedule column.
+remain independent. Migration 18 removes legacy GitHub tokens and connections without deleting repository scan history. Select a GitHub App or fine-grained PAT in repository settings to resume scans for affected repositories.
 
 ### Underlying container images
 

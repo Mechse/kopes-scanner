@@ -1,5 +1,5 @@
 import { normalizeAncestry, preserveAncestry } from '../lib/ancestry';
-import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections, migrateGithubPollingSchedule } from './source/schema';
+import { migrateSource, migrateStandaloneSources, migrateIndependentRepositories, migrateGithubConnections, migrateGithubPollingSchedule, removeLegacyGithubConnections } from './source/schema';
 import { randomUUID } from 'node:crypto';
 import { migrateProjects, syncResources, linkScanResources } from './project-store';
 import { groupPulse, pulseChanges, type PulseEvent, type PulseState } from '../lib/pulse';
@@ -20,7 +20,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 17) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 18) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -131,6 +131,7 @@ export class Store {
       DELETE FROM containers WHERE id NOT IN (SELECT id FROM selected_containers);
       DELETE FROM targets WHERE kind='image' AND id NOT IN (SELECT target_id FROM containers);
       PRAGMA user_version=17`));
+    if (version.user_version < 18) removeLegacyGithubConnections(this.db);
     if (!this.getMeta('pulseInitialized')) this.transaction(() => {
       for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
         this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));

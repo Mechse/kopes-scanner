@@ -14,11 +14,12 @@ import { activeSection, activeTab, useSettingsNav, type SettingsNavData } from '
 import { providerNames } from '../components/auth-setup';
 import { githubSetupNotice, type GithubSetupNotice } from '../lib/github';
 
-type SettingsSearch = { project?: string; target?: string; app?: string; tab?: string; section?: string; githubSetup?: GithubSetupNotice };
+type SettingsSearch = { project?: string; target?: string; app?: string; tab?: string; section?: string; connection?: string; githubSetup?: GithubSetupNotice };
 export const Route = createFileRoute('/settings')({
   validateSearch: (input: Record<string, unknown>): SettingsSearch => ({
     tab: typeof input.tab === 'string' ? input.tab : undefined,
     section: typeof input.section === 'string' ? input.section : undefined,
+    connection: typeof input.connection === 'string' ? input.connection : undefined,
     githubSetup: githubSetupNotice(input.githubSetup),
     project: typeof input.project === 'string' ? input.project : undefined,
     target: typeof input.target === 'string' ? input.target : undefined,
@@ -29,7 +30,7 @@ export const Route = createFileRoute('/settings')({
 });
 
 function SettingsPage() {
-  const { project, target: targetId, app, tab, section, githubSetup } = Route.useSearch();
+  const { project, target: targetId, app, tab, section, connection, githubSetup } = Route.useSearch();
   const navigate = Route.useNavigate();
   const { inventory, refresh } = useWorkspace();
   const data = inventory?.data;
@@ -69,7 +70,7 @@ function SettingsPage() {
     {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <>
       <h1 className="sr-only">Settings</h1>
       <SettingsTabs value={current}>
-        <SettingsPanel value="integrations">{current === 'integrations' && <GithubSettings setupNotice={githubSetup} />}</SettingsPanel>
+        <SettingsPanel value="integrations">{current === 'integrations' && <GithubSettings key={connection ?? ''} selection={connection} setupNotice={githubSetup} />}</SettingsPanel>
         <SettingsPanel value="auth">{current === 'auth' && <AuthMethodsSettings section={currentSection!} />}</SettingsPanel>
         <SettingsPanel value="users"><div className="pt-6"><p className="mb-4 text-sm text-muted-foreground">Manage who can sign in and access this workspace.</p><UserAccess /></div></SettingsPanel>
       </SettingsTabs>
