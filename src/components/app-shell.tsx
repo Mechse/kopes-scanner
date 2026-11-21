@@ -27,12 +27,14 @@ import { Button } from "./ui/button";
 import type { Dashboard } from "../lib/model";
 import { useResource } from "../lib/use-resource";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { SettingsNav, type SettingsNavData } from "./settings-nav";
 
 type Inventory = Dashboard & { isAdmin: boolean };
 const WorkspaceContext = createContext<{
   inventory: ReturnType<typeof useResource<Inventory>>;
   revision: number;
   refresh: () => void;
+  setSettingsNav: (nav: SettingsNavData | null) => void;
 } | null>(null);
 export function useWorkspace() {
   const state = useContext(WorkspaceContext);
@@ -78,7 +80,7 @@ export function WorkspaceBar({
     </nav>
   );
 }
-const navLinkClass =
+export const navLinkClass =
   "flex min-h-11 items-center gap-3 rounded-lg px-3 py-3 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground aria-[current=page]:bg-brand-tint aria-[current=page]:text-brand-ink desktop:min-h-10 desktop:gap-2.5 desktop:py-2.5 desktop:text-[13px] [&_svg]:shrink-0";
 
 const auth = createAuthClient();
@@ -153,6 +155,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
     </div>
   );
+  const [settingsNav, setSettingsNav] = useState<SettingsNavData | null>(null);
   const navigate = () => {
     setOpen(false);
   };
@@ -167,7 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Logo width={88} />
       </Link>
-      <nav className="grid gap-1 desktop:mx-1" aria-label="Workspace">
+      {settingsNav ? <SettingsNav {...settingsNav} onNavigate={navigate}/> : <nav className="grid gap-1 desktop:mx-1" aria-label="Workspace">
         {(
           [
             ["Pulse", undefined, Activity],
@@ -196,7 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {inventory?.data?.isAdmin && <Link className={navLinkClass} to="/settings" search={{}} aria-current={pathname === '/settings' || pathname.startsWith('/settings/') ? 'page' : undefined} onClick={navigate}>
           <Settings size={16} />Settings
         </Link>}
-      </nav>
+      </nav>}
       {actions}
     </div>
   );
@@ -237,6 +240,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             inventory,
             revision,
             refresh: () => setRevision((n) => n + 1),
+            setSettingsNav,
           }}
         >
           <header className="flex items-center gap-2.5 border-b border-border px-3 py-1 desktop:hidden">

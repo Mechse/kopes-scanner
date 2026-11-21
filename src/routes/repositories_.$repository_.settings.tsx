@@ -7,6 +7,7 @@ import { SelectItem } from '../components/ui/select';
 import { Button } from '../components/ui/button';
 import { ContentSkeleton } from '../components/ui/loading';
 import { useWorkspace } from '../components/app-shell';
+import { useSettingsNav } from '../components/settings-nav';
 
 export const Route = createFileRoute('/repositories_/$repository_/settings')({
   head: () => ({ meta: [{ title: 'Repository settings · kopes.dev' }] }),
@@ -18,6 +19,8 @@ function RepositorySettingsPage() {
   const repos = useRepositories(), data = repos.data;
   const { refresh } = useWorkspace();
   const binding = data?.bindings.find(b => b.id === repository);
+  const sections = [{ tab: 'general', label: 'General' }, { tab: 'danger', label: 'Danger zone' }];
+  useSettingsNav({ back: { to: '/repositories/$repository', params: { repository }, label: binding?.repository.split('/').at(-1) ?? 'repository' }, sections, scroll: true });
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   async function save(form: HTMLFormElement) {
     if (!binding) return;
@@ -43,16 +46,16 @@ function RepositorySettingsPage() {
       : !binding ? <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This repository is no longer in the inventory. Return to Repositories to select another.</p>
       : <div className="max-w-3xl py-6">
         <header className="mb-6"><h1 className="mb-1 text-xl font-medium tracking-tight">Repository settings</h1><p className="text-sm text-muted-foreground">Scan the default branch using public access or an explicitly selected GitHub connection.</p></header>
-        <form className="space-y-4 pb-6" onSubmit={e => { e.preventDefault(); void save(e.currentTarget); }} onChange={() => setMessage('')}>
+        <form id="general" className="scroll-mt-4 space-y-4" onSubmit={e => { e.preventDefault(); void save(e.currentTarget); }} onChange={() => setMessage('')}>
           <RepositoryConnectionSelector/>
           <label className="block text-sm">Container access<SelectField aria-label="Container access" className="mt-1 w-full" name="projectId" defaultValue={binding.project_id ?? 'administrators'}><SelectItem value="administrators">Administrators only</SelectItem>{data.projects.filter(p => !p.archived || p.id === binding.project_id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectField></label>
           <p className="text-xs text-muted-foreground">Changing the container changes who can access this repository’s scan history.</p>
           {!(data.flags.connections && data.flags.scanning) && <p className="text-sm text-muted-foreground">Source scanning is currently unavailable.</p>}
           {error && <p role="alert" className="text-sm text-critical">{error}</p>}
           {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
-          <div className="flex justify-end"><Button busy={busy}>Save settings</Button></div>
+          <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-raised py-3"><Button busy={busy}>Save settings</Button></div>
         </form>
-        <section className="border-t border-border py-6">
+        <section id="danger" className="scroll-mt-4 border-t border-border py-6">
           <h2 className="m-0! text-sm! font-medium">Remove repository</h2>
           <p className="mt-1 mb-3 text-xs leading-5 text-muted-foreground">Permanently remove this repository and its scan history from Kopes.</p>
           <Button type="button" variant="outline" size="sm" className="border-critical text-critical" onClick={() => repos.remove(binding)}>Remove repository</Button>

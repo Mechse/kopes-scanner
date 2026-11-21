@@ -27,7 +27,7 @@ export function UntrackContainer({ id, name, onDone }: { id: string; name: strin
     catch (e) { setError(e instanceof Error ? e.message : 'Could not untrack container.'); }
     finally { setBusy(false); }
   }
-  return <section className="max-w-3xl border-t border-border py-6">
+  return <section id="danger" className="max-w-3xl scroll-mt-4 border-t border-border py-6">
     <h2 className="m-0! text-sm! font-medium">Untrack container</h2>
     <p className="mt-1 mb-3 text-xs leading-5 text-muted-foreground">Stop scanning this container without changing it in Docker. Scan history is kept.</p>
     <Dialog.Root open={open} onOpenChange={value => { if (!busy) { setOpen(value); setError(''); } }}>

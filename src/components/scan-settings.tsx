@@ -8,7 +8,6 @@ import { cadenceLabels, type ScanSettings, type SettingsData } from '../lib/sett
 import { useResource } from '../lib/use-resource';
 import { useWorkspace } from './app-shell';
 import { Button } from './ui/button';
-import { SettingsTabs, SettingsPanel } from './settings-tabs';
 import { Tooltip } from './ui/tooltip';
 import { ResourceIconField } from './resource-icon';
 import type { Container } from '../lib/model';
@@ -20,7 +19,7 @@ export function ScanSettingsLink({ project, target, app, iconOnly = false }: { p
 const fieldClass = 'w-full min-w-0 rounded-md border border-border bg-raised px-3 py-2 text-sm disabled:opacity-50';
 const rowClass = 'grid min-w-0 gap-3 py-4 @min-[580px]:grid-cols-[minmax(0,1fr)_260px] @min-[580px]:items-center';
 
-export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTabChange, container }: { container?: Container; tab?: string; onTabChange: (tab: string) => void; scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
+export function SettingsForm({ scope, settingsKey, name, detectedName, container }: { container?: Container; scope: 'project' | 'resource'; settingsKey: string; name: string; detectedName: string }) {
   const { revision, refresh } = useWorkspace();
   const path = `settings?scope=${scope}&key=${encodeURIComponent(settingsKey)}`;
   const result = useResource<SettingsData>(path, revision);
@@ -65,11 +64,10 @@ export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTa
           : `Use ${data?.project === null ? 'workspace' : 'container'} defaults or choose a value for this resource.`}
       </p>
     </header>
-    <SettingsTabs value={tab === 'notifications' ? tab : 'general'} onValueChange={onTabChange} tabs={[{ value: 'general', label: 'General' }, { value: 'notifications', label: 'Notifications' }]}>
     {result?.error && <p role="alert" className="mb-4 rounded-md border border-critical/20 bg-critical/5 p-3 text-sm text-critical">{result.error}</p>}
     {!data ? !result?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : (
       <form onSubmit={event => { event.preventDefault(); if (!busy && changed) void save(); }}>
-        <SettingsPanel value="general">
+        <section id="general" className="scroll-mt-4">
         <fieldset disabled={busy} className="min-w-0 py-5">
           <legend className="sr-only">Display name</legend>
           <label htmlFor="display-name" className="text-sm font-medium">Display name</label>
@@ -102,8 +100,8 @@ export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTa
           <summary className="w-fit rounded-sm">How scanning works</summary>
           <p className="mt-3 max-w-prose leading-5">New resources and container starts are still scanned. Shared images use the shortest active rescan interval. Changes apply to future scans.</p>
         </details>
-        </SettingsPanel>
-        <SettingsPanel value="notifications">
+        </section>
+        <section id="notifications" className="scroll-mt-4 border-t border-border">
         <fieldset disabled={busy} className="min-w-0 pt-5">
           <legend className="sr-only">Pulse notifications</legend>
           <h2 className="m-0! text-sm! font-medium">Pulse notifications</h2>
@@ -134,8 +132,8 @@ export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTa
             <p>Changes apply to future scans.</p>
           </div>
         </details>
-        </SettingsPanel>
-        <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+        </section>
+        <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-raised py-3">
           {message && <p role="status" className="mr-auto flex items-center gap-1.5 text-xs text-brand-ink"><Check size={14} aria-hidden="true" />{message}</p>}
           {changed && <p className="mr-auto text-xs text-muted-foreground">Unsaved changes</p>}
           <Button type="submit" size="sm" busy={busy} disabled={busy || !changed}>{busy ? 'Saving…' : 'Save changes'}</Button>
@@ -143,6 +141,5 @@ export function SettingsForm({ scope, settingsKey, name, detectedName, tab, onTa
         {error && <p role="alert" className="mt-3 rounded-md border border-critical/20 bg-critical/5 p-3 text-sm text-critical">{error}</p>}
       </form>
     )}
-    </SettingsTabs>
   </div>;
 }
