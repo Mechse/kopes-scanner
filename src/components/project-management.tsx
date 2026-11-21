@@ -3,7 +3,6 @@ import { SelectItem } from './ui/select';
 import { LayoutGrid, List, Box } from 'lucide-react';
 import { useEffect } from 'react';
 import { useWorkspace } from './app-shell';
-import { AddResource } from './add-resource';
 import { ProjectHistory } from '../components/project-history';
 import { RepositoryMenu } from './repositories';
 import { Link } from '@tanstack/react-router';
@@ -58,7 +57,6 @@ export function ProjectManagement({ id, resource, overviewOnly = false }: { id?:
       {admin && <form className="flex flex-wrap gap-2" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void mutate({ action: 'create', name: f.get('name') }); }}><input className={field} name="name" aria-label="New container name" placeholder="New container name" required maxLength={120}/><Button busy={busy}>Create container</Button></form>}</>}
     {id && admin && detail?.data && <section className="space-y-3"><h2>Container settings</h2><form key={id + revision} className="flex flex-wrap items-center gap-3" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void mutate({ action: 'update', id, name: f.get('name'), archived: f.has('archived') }); }}><input className={field} name="name" aria-label="Container name" defaultValue={detail.data.project.name} required maxLength={120}/><label><input type="checkbox" name="archived" defaultChecked={!!detail.data.project.archived}/> Archived</label><Button busy={busy}>Save container</Button></form>
       <form key={'defaults'+id+revision} className="flex flex-wrap gap-3 items-center" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void mutate({action:'defaults',id,settings:{rescanHours:Number(f.get('hours')),notifyNewCve:f.has('new'),notifyFix:f.has('fix')}});}}><label>Default scan interval<SelectField aria-label="Default scan interval" name="hours" defaultValue={String(JSON.parse(detail.data.project.settings_json??'{}').rescanHours??168)}>{Object.entries(cadenceLabels).map(([value,label])=><SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectField></label><label><input name="new" type="checkbox" defaultChecked={JSON.parse(detail.data.project.settings_json??'{}').notifyNewCve??true}/> New findings</label><label><input name="fix" type="checkbox" defaultChecked={JSON.parse(detail.data.project.settings_json??'{}').notifyFix??true}/> Fix available</label><Button busy={busy}>Save scan defaults</Button></form>
-      <AddResource refresh={refreshWorkspace} removeFromProject={id}/>
       <h2>Container members</h2><p className="text-sm text-muted-foreground">Only people who have signed in appear here. Instance administrators always have access.</p>
       {members?.data?.map(m => <label key={m.id} className="block"><input type="checkbox" disabled={busy} checked={!!m.member} onChange={e => void mutate({ action: 'membership', id, userId: m.id, enabled: e.target.checked })}/> {m.name} · {m.email}</label>)}
     </section>}

@@ -9,6 +9,7 @@ import { resourceKey } from '../lib/settings';
 import { AuthMethodsSettings } from '../components/auth-settings';
 import { CoolifySettings } from '../components/coolify-settings';
 import { UserAccess } from '../components/user-access';
+import { UntrackContainer } from '../components/add-resource';
 import { SettingsTabs, SettingsPanel } from '../components/settings-tabs';
 import { githubSetupNotice, type GithubSetupNotice } from '../lib/github';
 
@@ -29,7 +30,7 @@ function SettingsPage() {
   const { project, target: targetId, app, tab, githubSetup } = Route.useSearch();
   const navigate = Route.useNavigate();
   const onTabChange = (tab: string) => { void navigate({ search: { project, target: targetId, app, tab }, replace: true, resetScroll: false }); };
-  const { inventory } = useWorkspace();
+  const { inventory, refresh } = useWorkspace();
   const data = inventory?.data;
   const target = data?.targets.find(item => item.id === targetId);
   const container = data?.containers.find(item => item.id === app && item.target_id === targetId);
@@ -57,6 +58,6 @@ function SettingsPage() {
         <SettingsPanel value="auth"><AuthMethodsSettings /></SettingsPanel>
         <SettingsPanel value="users"><div className="pt-6"><p className="mb-4 text-sm text-muted-foreground">Manage who can sign in and access this workspace.</p><UserAccess /></div></SettingsPanel>
       </SettingsTabs>
-    </> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <SettingsForm container={container} tab={tab} onTabChange={onTabChange} key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} /> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}
+    </> : <p role="status" className="py-6 text-sm">Administrator access is required to manage connections and sign-in methods.</p> : valid ? <><SettingsForm container={container} tab={tab} onTabChange={onTabChange} key={`${isResource}:${settingsKey}`} scope={isResource ? 'resource' : 'project'} settingsKey={settingsKey} name={name} detectedName={isResource ? container?.name ?? target?.name ?? 'Resource' : project || 'Ungrouped'} />{container && data.isAdmin && <UntrackContainer id={container.id} name={name} onDone={() => { refresh(); void navigate({ to: '/', search: { view: 'apps' } }); }} />}</> : <p role="status" className="mt-6 max-w-3xl rounded-xl border border-dashed border-border p-5 text-sm leading-6 text-muted-foreground">This {isResource ? 'resource' : 'container'} is no longer in the inventory. Return to Containers to select another.</p>}
   </main>;
 }
