@@ -78,7 +78,7 @@ test('v5 copied database migration preserves legacy rows and imports reports exa
       DROP TABLE project_members; DROP TABLE projects; PRAGMA user_version=5;`);
     s.db.close(); s = new Store(directory);
     for (const table of tables) assert.deepEqual(s.db.prepare(`SELECT * FROM ${table}`).all(), before[table], table);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 18);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 19);
     assert.deepEqual(s.selectedContainers(), []);
     assert.deepEqual(s.dashboard().containers, []);
     const imported = s.db.prepare('SELECT * FROM scan_observations').all();
@@ -110,7 +110,7 @@ for (const missingLinks of [true, false]) test(`v10 upgrade preserves history an
     if (missingLinks) s.db.exec('DROP TABLE scan_observation_resources');
     s.db.exec('PRAGMA user_version=10');
     s.db.close(); s = new Store(directory);
-    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 18);
+    assert.equal(s.db.prepare('PRAGMA user_version').get()!.user_version, 19);
     assert.deepEqual(s.selectedContainers(), [a.id]);
     assert.deepEqual(s.db.prepare('SELECT * FROM scan_observations').all(), history);
     assert.deepEqual(s.db.prepare('SELECT * FROM resources').all(), resources);

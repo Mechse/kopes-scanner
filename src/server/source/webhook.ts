@@ -6,7 +6,7 @@ export const hookSecret = (secret: string, id: string, version: number) => creat
 function equal(a:string,b:string){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
 export async function handleSourceHook(request:Request,store:Store,secret:string,connectionId:string){
   if(!sourceFlags().connections||!sourceFlags().scanning)return new Response('Pilot disabled.',{status:503});
-  const connection=store.db.prepare("SELECT provider,credential_version FROM source_connections WHERE id=? AND disconnected=0 AND auth_kind NOT IN ('pat','github_app')").get(connectionId);
+  const connection=store.db.prepare("SELECT provider,credential_version FROM source_connections WHERE id=? AND disconnected=0 AND auth_kind NOT IN ('pat','github_app','gitlab_oauth')").get(connectionId);
   if(!connection)return new Response('Not found.',{status:404});
   let raw:string;try{raw=await boundedBody(request,1024*1024);}catch{return new Response('Payload too large.',{status:413});}
   const expected=hookSecret(secret,connectionId,Number(connection.credential_version));

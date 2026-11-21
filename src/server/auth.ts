@@ -1,5 +1,7 @@
 import { betterAuth, APIError } from 'better-auth';
 import { getMigrations } from 'better-auth/db/migration';
+import { gitlabLogin } from './gitlab-login';
+import { gitlabApp } from './source/gitlab';
 import nodemailer from 'nodemailer';
 import { configuredProviders, isGithubUsername, type Config } from './config';
 import type { Store } from './store';
@@ -7,7 +9,7 @@ import type { Store } from './store';
 export function isAllowed(login: unknown, config: Config, store: Store, githubId?: string) {
   return isGithubUsername(login) && (login.toLowerCase() === config.admin || store.hasUser(login.toLowerCase(), githubId));
 }
-export function createAuth(config: Config, store: Store) {
+export function createAuth(config: Config, store: Store, gitlabRead?: Parameters<typeof gitlabLogin>[2]) {
   const providers = configuredProviders(config);
   const mail = providers.includes('microsoft') ? nodemailer.createTransport(config.smtpUrl) : null;
   const mapEmailProfile = (provider: string, id: string, email: unknown) => {
@@ -20,6 +22,7 @@ export function createAuth(config: Config, store: Store) {
   return betterAuth({
     appName: 'kopes.dev', baseURL: config.origin, secret: config.secret,
     database: store.db,
+    plugins: gitlabLogin(store,config,gitlabRead),
     trustedOrigins: [config.origin],
     // Startup runs migrations before serving requests; avoid caching a pre-migration schema failure.
     advanced: { database: { validateSchema: false } },
@@ -115,6 +118,10 @@ export async function migrateAuth(auth: ReturnType<typeof createAuth>) {
 }
 export async function requireSession(request: Request, auth: ReturnType<typeof createAuth>, config: Config, store: Store) {
   const session = await auth.api.getSession({ headers: request.headers });
+  if (session?.user.accessId?.startsWith('gitlab:')) {
+    const app=gitlabApp(store);
+    if (!app?.login || JSON.parse(session.user.accessId.slice(7))[0]!==app.origin) throw new Response('GitLab sign-in unavailable.',{status:401});
+  }
   if (!session || !(session.user.accessId
     ? session.user.emailVerified && (session.user.accessLogin === config.adminEmail || store.hasUser(session.user.accessLogin ?? '', session.user.accessId))
     : isAllowed(session.user.githubLogin, config, store, session.user.githubId ?? undefined))) throw new Response('Sign in with an allowed account.', { status: 401 });

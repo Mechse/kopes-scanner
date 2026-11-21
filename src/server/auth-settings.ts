@@ -26,7 +26,7 @@ export function readAuthConfig(store: Store, base: Config): Config { return { ..
 export function savedAuthRuntime(store: Store, base: Config) {
   let previous: string | undefined, snapshot: { config: Config; auth: ReturnType<typeof createAuth> } | undefined;
   return () => {
-    const saved = store.getMeta(key);
+    const saved = JSON.stringify([store.getMeta(key),store.getMeta('settings.gitlab')]);
     if (!snapshot || saved !== previous) {
       const config = readAuthConfig(store, base);
       snapshot = { config, auth: createAuth(config, store) };

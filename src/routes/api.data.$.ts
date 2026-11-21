@@ -1,3 +1,4 @@
+import { handleGitlab } from '../server/source/gitlab-api';
 import { handleGithub } from '../server/source/github-connections';
 import { githubContext } from '../server/source/github-auth';
 import { findingEvidence, annotateReport, syncSourcePulse } from '../server/source/finding-evidence';
@@ -24,6 +25,11 @@ async function handle({ request }: { request: Request }) {
   const url = new URL(request.url);
   const action = url.pathname.replace('/api/data/', '');
   const id = url.searchParams.get('id') ?? '';
+  if (action==='gitlab' || action.startsWith('gitlab/')) return handleGitlab(request,store,config,{user:session.user.id,session:session.session.id,admin:isAdmin,recovery:!session.user.accessId?.startsWith('gitlab:'),recheck:async()=>{
+    const fresh=await runtime(), current=await requireSession(request,fresh.auth,fresh.config,store);
+    if(current.session.id!==session.session.id || isAdmin!==isAdministrator(current.user,fresh.config))throw new Error('Session changed.');
+  }});
+  if (action==='auth-settings' && session.user.accessId?.startsWith('gitlab:')) return new Response('Use the independent administrator login.',{status:403});
   if (action === 'github' || action === 'github-repositories') return handleGithub(request,store,await githubContext(request),config);
   if (action === 'favourites') return handleFavourites(request, store, session.user.id, config.origin, isAdmin);
   if (action === 'provenance') return handleProvenance(request, store, { userId: session.user.id, administrator: isAdmin });

@@ -284,7 +284,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Authentication is unavailable. Check installation settings.
               </p>
             )}
-            {settings?.providers.map(provider => <Button
+            {(settings?.gitlab ? [...settings.providers,'gitlab' as const] : settings?.providers)?.map(provider => <Button
               key={provider}
               disabled={authAction === "in"}
               busy={authAction === "in"}
@@ -300,7 +300,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   if (result.error) {
                     setAuthAction(null);
                     setError(
-                      `${providerNames[provider]} sign-in failed. Check OAuth configuration and your access invitation.`,
+                      `${provider === 'gitlab' ? 'GitLab' : providerNames[provider]} sign-in failed. Check OAuth configuration and your access invitation.`,
                     );
                   }
                 } catch {
@@ -310,7 +310,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               }}
             >
               {authAction !== "in" && <LogIn />}
-              {authAction === "in" ? "Connecting…" : `Sign in with ${providerNames[provider]}`}
+              {authAction === "in" ? "Connecting…" : `Sign in with ${provider === 'gitlab' ? 'GitLab' : providerNames[provider]}`}
             </Button>)}
             <AuthError />
             <div className="mt-6 border-t border-border pt-6 text-xs text-muted-foreground">

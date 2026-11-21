@@ -4,15 +4,15 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Store } from '../store';
 import { ProjectStore, type ProjectPrincipal } from '../project-store';
-import { GitProvider, providerReader, validateOrigin, safeInputPath, type Connection, type NetworkPolicy, type ReadJson } from './provider';
+import { GitProvider, providerReader, validateOrigin, safeInputPath, type Connection, sourcePolicy, type ReadJson } from './provider';
 
 export const sourceFlags = () => ({ connections: process.env.KOPES_SOURCE_PILOT === '1', scanning: process.env.KOPES_SOURCE_SCAN_PILOT === '1', provenance: process.env.KOPES_PROVENANCE_PILOT === '1' });
-export const sourcePolicy = (): NetworkPolicy => ({ gitlabOrigins: (process.env.KOPES_GITLAB_ORIGINS ?? '').split(',').filter(Boolean), privateOrigins: (process.env.KOPES_GITLAB_PRIVATE_ORIGINS ?? '').split(',').filter(Boolean), ca: process.env.KOPES_GITLAB_CA_PEM || undefined });
+export { sourcePolicy };
 export { seal, unseal } from './credentials';
 import { seal, unseal } from './credentials';
 export function connectionFor(store: Store, id: string, secret: string): Connection {
   const row = store.db.prepare('SELECT * FROM source_connections WHERE id=? AND disconnected=0').get(id);
-  if (!row || row.auth_kind === 'github_app' || !['github','gitlab'].includes(String(row.provider))) throw new Error('Connection unavailable.');
+  if (!row || ['github_app','gitlab_oauth'].includes(String(row.auth_kind)) || !['github','gitlab'].includes(String(row.provider))) throw new Error('Connection unavailable.');
   return { provider: row.provider as Connection['provider'], origin: String(row.origin), token: row.credential ? unseal(String(row.credential), secret, `${row.id}:${row.origin}`) : '' };
 }
 export function enqueueSource(store: Store, bindingId: string, kind = 'scan', commit?: string) {
@@ -67,7 +67,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
     if (!principal.administrator) return json({ error: 'Administrator access required.' }, 403);
     if (url.searchParams.get('view') === 'webhook') {
       const id = url.searchParams.get('connectionId') ?? '';
-      const c = store.db.prepare("SELECT credential_version FROM source_connections WHERE id=? AND disconnected=0 AND auth_kind NOT IN ('pat','github_app')").get(id);
+      const c = store.db.prepare("SELECT credential_version FROM source_connections WHERE id=? AND disconnected=0 AND auth_kind NOT IN ('pat','github_app','gitlab_oauth')").get(id);
       if (!c) return json({ error: 'Connection not found.' }, 404);
       return json({ url: options.origin + '/api/source-hook/' + encodeURIComponent(id), secret: createHmac('sha256',options.secret).update(`kopes.source.hook:${id}:${c.credential_version}`).digest('hex'), events: 'Push only. Manual registration; keep polling enabled.' });
     }
@@ -109,7 +109,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
     }
     if (body.action === 'rotate') {
       if (/[\r\n]/.test(body.token)) throw new Error('Invalid credential.');
-      const row = store.db.prepare('SELECT origin,provider FROM source_connections WHERE id=?').get(body.connectionId);
+      const row = store.db.prepare("SELECT origin,provider FROM source_connections WHERE id=? AND auth_kind!='gitlab_oauth'").get(body.connectionId);
       if (!row || row.provider !== 'gitlab') return json({ error: 'Use GitHub settings to update GitHub credentials.' }, 400);
       if (!body.token) return json({ok:true});
       store.transaction(() => {
@@ -119,6 +119,7 @@ export async function handleSource(request: Request, store: Store, principal: Pr
       });
       return json({ ok: true });
     }
+    if ('connectionId' in body && store.db.prepare("SELECT 1 FROM source_connections WHERE id=? AND auth_kind='gitlab_oauth'").get(body.connectionId)) throw new Error('Use your personal GitLab connection.');
     if (body.action === 'disconnect') {
       store.transaction(() => {
         audit('source-disconnected', body.connectionId);

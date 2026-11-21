@@ -6,7 +6,7 @@ import { isIP } from 'node:net';
 import { createHash } from 'node:crypto';
 
 export type Provider = 'github' | 'gitlab';
-export type Connection = { provider: Provider; origin: string; token: string };
+export type Connection = { provider: Provider; origin: string; token: string; bearer?: boolean };
 export type NetworkPolicy = { gitlabOrigins: string[]; privateOrigins?: string[]; ca?: string };
 export type Repository = { providerId: string; name: string; branch: string };
 export type Bundle = { favicon?: string; commit: string; files: Record<string, string>; hash: string; collectedAt: number };
@@ -27,20 +27,22 @@ export function blockedAddress(address: string, allowPrivate: boolean) {
   if (x === 0 || x === 127 || x === 169 && y === 254 || x >= 224) return true;
   return !allowPrivate && (x === 10 || x === 172 && y >= 16 && y <= 31 || x === 192 && y === 168 || x === 100 && y >= 64 && y <= 127);
 }
-export type ReadJson = (connection: Connection, path: string) => Promise<any>;
+export const sourcePolicy = (): NetworkPolicy => ({ gitlabOrigins: (process.env.KOPES_GITLAB_ORIGINS ?? '').split(',').filter(Boolean), privateOrigins: (process.env.KOPES_GITLAB_PRIVATE_ORIGINS ?? '').split(',').filter(Boolean), ca: process.env.KOPES_GITLAB_CA_PEM || undefined });
+export type ReadJson = (connection: Connection, path: string, form?: URLSearchParams) => Promise<any>;
 export function providerReader(policy: NetworkPolicy): ReadJson {
-  return async (connection, path) => {
+  return async (connection, path, form) => {
     const origin = validateOrigin(connection, policy);
     if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Invalid provider path.');
     const url = new URL(origin + path);
+    if (url.origin !== origin || form && (connection.provider !== 'gitlab' || path !== '/oauth/token')) throw new Error('Invalid provider endpoint.');
     const addresses = await lookup(url.hostname, { all: true });
     if (!addresses.length || addresses.some(a => blockedAddress(a.address, policy.privateOrigins?.includes(origin) ?? false))) throw new Error('Provider address is not permitted.');
     // Resolve each request and pin the validated address at connection time. Redirects are never followed.
     return new Promise((resolve, reject) => {
       const chosen = addresses[0];
-      const req = https.request(url, { method: 'GET', family: chosen.family, ca: policy.ca, signal: AbortSignal.timeout(30_000),
+      const req = https.request(url, { method: form ? 'POST' : 'GET', family: chosen.family, ca: policy.ca, signal: AbortSignal.timeout(30_000),
         lookup: (_hostname, _options, callback) => callback(null, chosen.address, chosen.family),
-        headers: { 'User-Agent': 'kopes-source', Accept: 'application/json', ...(connection.provider==='github'?{'X-GitHub-Api-Version':'2026-03-10'}:{}), ...(connection.token ? connection.provider === 'github' ? { Authorization: `Bearer ${connection.token}` } : { 'PRIVATE-TOKEN': connection.token } : {}) },
+        headers: { 'User-Agent': 'kopes-source', Accept: 'application/json', ...(form ? {'Content-Type':'application/x-www-form-urlencoded'} : {}), ...(connection.provider==='github'?{'X-GitHub-Api-Version':'2026-03-10'}:{}), ...(connection.token ? connection.provider === 'github' || connection.bearer ? { Authorization: `Bearer ${connection.token}` } : { 'PRIVATE-TOKEN': connection.token } : {}) },
       }, res => {
         if (res.statusCode !== 200) { res.resume(); reject(new ProviderError(res.statusCode ?? 0)); return; }
         const chunks: Buffer[] = []; let size = 0;
@@ -49,7 +51,7 @@ export function providerReader(policy: NetworkPolicy): ReadJson {
         res.on('error', () => reject(new Error('Provider response interrupted.')));
       });
       req.setTimeout(20_000, () => req.destroy(new Error('Provider timeout.')));
-      req.on('error', () => reject(new Error('Provider connection failed.'))); req.end();
+      req.on('error', () => reject(new Error('Provider connection failed.'))); req.end(form?.toString());
     });
   };
 }
@@ -82,6 +84,7 @@ export class GitProvider {
         }
       }
     }
+    if (this.connection.provider === 'gitlab' && /^\d+$/.test(locator) && String(repo?.id) !== locator) throw new SourceError('repository-identity');
     if (!repo?.id || typeof (repo.full_name ?? repo.path_with_namespace) !== 'string') throw new SourceError('repository-response');
     if (typeof repo.default_branch !== 'string' || !repo.default_branch) throw new SourceError('default-branch');
     return { providerId: String(repo.id), name: repo.full_name ?? repo.path_with_namespace, branch: repo.default_branch };

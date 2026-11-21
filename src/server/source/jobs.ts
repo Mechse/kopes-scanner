@@ -1,5 +1,8 @@
 import { GithubError, githubErrorMessage, githubHttp, type GithubHttp } from './github-http';
 import { SourceError, sourceErrorMessage } from './errors';
+import { readAuthConfig } from '../auth-settings';
+import { isAdministrator } from '../auth';
+import { gitlabApp, pause } from './gitlab';
 import { credentialProvider, connectionRevision } from './github-app';
 import { sourceAnalyzerVersion } from './version';
 import { enrichLegacyCvss } from './legacy-cvss';
@@ -62,7 +65,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     recordStorageError(store,'');
   } catch(e) { recordStorageError(store,e instanceof SourceStoragePressure?e.reason:'Source scanning paused: temporary storage maintenance failed.'); return false; }
   queueDueSources(store);
-  const job = store.db.prepare(`SELECT j.*,b.repository_id,b.connection_id,b.branch,b.folder,b.project_id,b.head_sha,b.error AS binding_error,r.provider_id,c.credential_version,b.access_revision AS binding_revision
+  const job = store.db.prepare(`SELECT j.*,b.repository_id,b.connection_id,b.branch,b.folder,b.project_id,b.head_sha,b.error AS binding_error,r.provider_id,c.auth_kind,c.credential_version,b.access_revision AS binding_revision
     FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id LEFT JOIN projects p ON p.id=b.project_id
     JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id
     WHERE j.state='queued' AND j.available_at<=? AND b.enabled=1 AND b.access_status='active' AND c.disconnected=0 AND (b.project_id IS NULL OR p.archived=0) ORDER BY j.created_at LIMIT 1`).get(Date.now());
@@ -73,12 +76,21 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
   store.db.prepare("UPDATE source_jobs SET state='running',attempted_at=?,attempts=attempts+1 WHERE id=?").run(Date.now(), jobId);
   let accessRevision = '';
   try { accessRevision = connectionRevision(store,String(job.connection_id),String(job.provider_id)); } catch { store.db.prepare("UPDATE source_jobs SET state='cancelled' WHERE id=?").run(jobId); return true; }
-  const accessCurrent = () => { try { return connectionRevision(store,String(job.connection_id),String(job.provider_id))===accessRevision; } catch { return false; } };
+  const grantUser=job.auth_kind==='gitlab_oauth' ? store.db.prepare('SELECT user_id FROM gitlab_grants WHERE connection_id=?').get(job.connection_id)?.user_id : null;
+  const checkOwner=()=>{
+    if(job.auth_kind!=='gitlab_oauth')return;
+    const owner=store.db.prepare('SELECT githubLogin,accessLogin,emailVerified,accessId FROM user WHERE id=?').get(grantUser??null);
+    const app=gitlabApp(store), accessId=String(owner?.accessId??'');
+    if(!owner || !isAdministrator({githubLogin:String(owner.githubLogin??''),accessLogin:String(owner.accessLogin??''),emailVerified:!!owner.emailVerified},readAuthConfig(store,config)) || accessId.startsWith('gitlab:') && (!app?.login || JSON.parse(accessId.slice(7))[0]!==app.origin)){
+      pause(store,String(job.connection_id),!owner,owner?String(job.provider_id):undefined);throw new Error('Reauthorization required');
+    }
+  };
+  const accessCurrent = () => { try { checkOwner(); return connectionRevision(store,String(job.connection_id),String(job.provider_id))===accessRevision; } catch { return false; } };
   const active = () => accessCurrent() && !signal.aborted && Boolean(store.db.prepare(`SELECT 1 FROM source_jobs j JOIN source_bindings b ON b.id=j.binding_id JOIN source_connections c ON c.id=b.connection_id LEFT JOIN projects p ON p.id=b.project_id
     WHERE (b.project_id IS NULL OR p.archived=0) AND j.id=? AND j.state='running' AND b.enabled=1 AND b.access_status='active' AND c.disconnected=0 AND c.credential_version=? AND b.connection_id=? AND b.access_revision=?`).get(jobId, job.credential_version,job.connection_id,job.binding_revision));
   let stage = 'Repository credentials';
   try {
-    const { provider } = credentialProvider(store,String(job.connection_id),config.secret,read,String(job.provider_id),http);
+    const { provider } = credentialProvider(store,String(job.connection_id),config.secret,read,String(job.provider_id),http,grantUser ? {user:String(grantUser),check:()=>{if(!active())throw new Error('GitLab binding unavailable.');}}:undefined);
     stage = 'Repository metadata lookup';
     const repo = await provider.repository(String(job.provider_id));
     if (!active()) return true;
@@ -127,6 +139,11 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
     if (sourceFlags().provenance && store.db.prepare("SELECT 1 FROM source_connections WHERE id=? AND (auth_kind NOT IN ('pat','github_app') OR history=1)").get(job.connection_id)) { try { history = await provider.history(repo, commit); } catch { /* Attribution unavailable; scan evidence is still useful. */ } }
     if (!active()) return true;
     await admission(store,spool);
+    if (job.auth_kind === 'gitlab_oauth') {
+      stage = 'Rechecking GitLab repository access';
+      const current = await provider.repository(String(job.provider_id));
+      await provider.head(current, current.branch);
+    }
     stage = 'Saving source scan results';
     store.transaction(() => {
       if (!active()) return;
@@ -149,7 +166,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
       store.db.prepare("UPDATE source_jobs SET state='complete',commit_sha=?,error=NULL WHERE id=?").run(commit, jobId);
       if (!historical) store.db.prepare('UPDATE source_bindings SET head_sha=?,error=NULL,polled_at=? WHERE id=?').run(commit, Date.now(), job.binding_id);
       store.db.prepare('UPDATE source_repositories SET name=? WHERE id=?').run(repo.name, job.repository_id);
-      store.db.prepare("UPDATE source_connections SET health='read-success',observed_at=? WHERE id=?").run(Date.now(), job.connection_id);
+      store.db.prepare("UPDATE source_connections SET health='read-success',observed_at=? WHERE id=? AND auth_kind!='gitlab_oauth'").run(Date.now(), job.connection_id);
     });
   } catch (failure) {
     if (active()) {
@@ -166,7 +183,7 @@ export async function runSourceJob(store: Store, config: Config, signal: AbortSi
       const attempts = Number(job.attempts)+1;
       store.db.prepare("UPDATE source_jobs SET state=?,error=?,available_at=? WHERE id=?").run(attempts >= 3 ? 'failed' : 'queued', error, failure instanceof GithubError && failure.retryAt ? failure.retryAt : Date.now()+Math.min(3600_000, 60_000*2**attempts), jobId);
       store.db.prepare('UPDATE source_bindings SET error=? WHERE id=?').run(error, job.binding_id);
-      store.db.prepare("UPDATE source_connections SET health=?,observed_at=? WHERE id=?").run(failure instanceof GithubError ? failure.reason : 'stale-or-error',Date.now(),job.connection_id);
+      store.db.prepare("UPDATE source_connections SET health=?,observed_at=? WHERE id=? AND auth_kind!='gitlab_oauth'").run(failure instanceof GithubError ? failure.reason : 'stale-or-error',Date.now(),job.connection_id);
     } else store.db.prepare("UPDATE source_jobs SET state='cancelled' WHERE id=? AND state='running'").run(jobId);
   } finally {
     if (!active()) store.db.prepare("UPDATE source_jobs SET state=?,available_at=? WHERE id=? AND state='running'").run(signal.aborted ? 'queued' : 'cancelled', Date.now(), jobId);

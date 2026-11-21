@@ -587,6 +587,10 @@ acceptance**; automated provider fixtures are not live GitHub evidence. Read the
 before enabling private scans. Existing sign-in methods and GitLab connections
 remain independent. Migration 18 removes legacy GitHub tokens and connections without deleting repository scan history. Select a GitHub App or fine-grained PAT in repository settings to resume scans for affected repositories.
 
+### GitLab
+
+Register one application in **Settings → Integrations → GitLab**. Optional verified-email sign-in uses no SMTP; browsing always requires a separate personal repository grant. See [registration, worker prerequisites, recovery and smoke checks](docs/gitlab.md).
+
 ### Underlying container images
 
 After a new scan, the **Images** tab includes declared bases, bases discovered

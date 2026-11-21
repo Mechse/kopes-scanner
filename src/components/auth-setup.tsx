@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export const providerNames = { github: 'GitHub', google: 'Google', microsoft: 'Microsoft' };
 export type AuthProvider = keyof typeof providerNames;
-export type AuthSettings = { providers: AuthProvider[]; origin: string };
+export type AuthSettings = { providers: AuthProvider[]; gitlab?: boolean; origin: string };
 
 export function AuthSetup({ origin }: { origin: string }) {
   const [provider, setProvider] = useState<AuthProvider>('github');

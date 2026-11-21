@@ -14,7 +14,7 @@ This feature is not generally released. Review `plans/phase-6/README.md` before 
 
 Projects require explicit memberships for source data. Legacy inventory access does not grant source access. Administrators manage projects/connections; members can read assigned source results and request scans. Unassigned discoveries remain visible to administrators for adoption. Resource moves preserve settings by default, preview resets, and detach old project source links. Conflicting aliases are kept separate for review, never silently merged.
 
-GitHub: configure a GitHub App or fine-grained PAT in [GitHub connections](github-connections.md). These are separate from sign-in OAuth. GitLab: use an API-capable read-only token (`read_api` is the proposed contract); repository-only tokens may not cover MR history. Minimum scopes/roles and self-hosted versions still require live validation. Never request write scopes for this pilot.
+GitHub: configure a GitHub App or fine-grained PAT in [GitHub connections](github-connections.md). These are separate from sign-in OAuth. GitLab: for new imports use [personal GitLab consent](gitlab.md), which requests `read_api` separately from sign-in. Legacy pilot token connections remain supported; repository-only tokens may not cover MR history. Minimum scopes/roles and self-hosted versions still require live validation. Never request write scopes for this pilot.
 
 ## Worker and data
 
@@ -30,7 +30,7 @@ Retention pruning is not enabled: active, deployed, unresolved and historical ev
 
 ## Webhooks and polling
 
-Polling is enabled as reconciliation even with hooks. An administrator can retrieve connection-specific setup values through `GET /api/data/source?view=webhook&connectionId=…` while signed in. Register the returned URL/secret manually for push events; Kopes does not change upstream hooks. GitHub validates `X-Hub-Signature-256`; GitLab validates `X-Gitlab-Token` and requires an event UUID for deduplication. Do not claim a self-hosted version supports this until tested. Rotating credentials also changes the derived hook secret; update the manual registration or rely on polling. Do not paste secrets into issues/chat.
+Personal GitLab connections use polling only; there is no webhook to configure. For legacy pilot connections, polling is enabled as reconciliation even with hooks. An administrator can retrieve connection-specific setup values through `GET /api/data/source?view=webhook&connectionId=…` while signed in. Register the returned URL/secret manually for push events; Kopes does not change upstream hooks. GitHub validates `X-Hub-Signature-256`; GitLab validates `X-Gitlab-Token` and requires an event UUID for deduplication. Do not claim a self-hosted version supports this until tested. Rotating credentials also changes the derived hook secret; update the manual registration or rely on polling. Do not paste secrets into issues/chat.
 
 ## Backup, recovery and rollback
 

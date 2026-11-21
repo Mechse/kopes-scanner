@@ -1,3 +1,4 @@
+import { personalReader } from './gitlab';
 import { sign } from 'node:crypto';
 import type { Store } from '../store';
 import { GitProvider, ProviderError, type Connection, type ReadJson } from './provider';
@@ -94,12 +95,17 @@ export async function installationToken(store: Store, installationId: string, se
   cached.pending = pending;
   try { cached.value = await pending; return cached.value.token; } finally { cached.pending = undefined; }
 }
-export function credentialProvider(store: Store, id: string, secret: string, read: ReadJson, repositoryId?: string, http: GithubHttp = githubHttp) {
+export function credentialProvider(store: Store, id: string, secret: string, read: ReadJson, repositoryId?: string, http: GithubHttp = githubHttp, personalAccess?: {user:string;check:()=>void}) {
   const revision = connectionRevision(store,id,repositoryId);
   const row = store.db.prepare('SELECT * FROM source_connections WHERE id=?').get(id)!;
   if(row.auth_kind==='github_app' && !repositoryId) throw new Error('A repository-scoped App reader is required. Use the administrator discovery endpoint to list repositories.');
   const connection: Connection = { provider: row.provider as Connection['provider'], origin: String(row.origin), token: '' };
   const current = () => { if (connectionRevision(store,id,repositoryId) !== revision) throw new Error('Connection changed during operation.'); };
+  if(row.auth_kind==='gitlab_oauth') {
+    if(!personalAccess || !repositoryId || !/^[1-9]\d*$/.test(repositoryId))throw new Error('Personal project access required.');
+    const check=()=>{current();personalAccess.check();};
+    return {provider:new GitProvider(connection,personalReader(store,id,personalAccess.user,secret,read,check,repositoryId)),connection,current:check,revision};
+  }
   const reader: ReadJson = async (_connection, path) => {
     current();
     const app = row.auth_kind === 'github_app';

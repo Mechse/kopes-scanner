@@ -143,29 +143,33 @@ export async function handleRepositories(request: Request, store: Store, princip
 
 async function addConnectedRepository(store: Store, input: { repository: string; connectionId: string | null; projectId: string | null; asProject: boolean }, secret: string, reader: ReadJson, actor: string, recheck: () => Promise<void>, http: GithubHttp) {
   validateLinks(store,input.projectId,[]);
-  const connection = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND provider='github' AND auth_kind IN ('github_app','pat') AND disconnected=0").get(input.connectionId!);
+  const connection = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND disconnected=0 AND ((provider='github' AND auth_kind IN ('github_app','pat')) OR (auth_kind='gitlab_oauth' AND id IN (SELECT connection_id FROM gitlab_grants WHERE user_id=?)))").get(input.connectionId!,actor);
   if (!connection) throw new Error('Select an active connection.');
-  const name = githubRepository(input.repository);
+  const personal=connection.auth_kind==='gitlab_oauth';
+  const name = personal ? input.repository : githubRepository(input.repository);
   const cached = connection.installation_id ? store.db.prepare("SELECT repository_id FROM github_installation_repositories WHERE installation_id=? AND name=? AND status='active'").get(connection.installation_id,name) : undefined;
   if (connection.installation_id && !cached) throw new Error('Refresh App access and select an available repository.');
-  const access = credentialProvider(store,String(connection.id),secret,reader,cached ? String(cached.repository_id) : undefined,http);
+  const access = credentialProvider(store,String(connection.id),secret,reader,personal ? name : cached ? String(cached.repository_id) : undefined,http,personal ? {user:actor,check:()=>{}} : undefined);
   const repo = await access.provider.repository(name); await access.provider.head(repo,repo.branch); await recheck(); access.current();
-  if (cached && repo.providerId!==cached.repository_id || connection.owner_login && repo.name.split('/')[0].toLowerCase()!==String(connection.owner_login).toLowerCase()) throw new Error('Repository identity changed.');
+  if (cached && repo.providerId!==cached.repository_id || !personal && connection.owner_login && repo.name.split('/')[0].toLowerCase()!==String(connection.owner_login).toLowerCase()) throw new Error('Repository identity changed.');
   return store.transaction(()=>{
     validateLinks(store,input.projectId,[]);
     let projectId = input.projectId;
     if (input.asProject) {
       projectId = randomUUID(); store.db.prepare('INSERT INTO projects(id,name,created_at) VALUES (?,?,?)').run(projectId,repo.name.split('/').pop()!,Date.now());
     }
-    store.db.prepare('INSERT OR IGNORE INTO source_repositories(id,provider,origin,provider_id,name) VALUES (?,?,?,?,?)').run(randomUUID(),'github','https://api.github.com',repo.providerId,repo.name);
-    const repository = store.db.prepare("SELECT id FROM source_repositories WHERE provider='github' AND origin='https://api.github.com' AND provider_id=?").get(repo.providerId)!;
+    store.db.prepare('INSERT OR IGNORE INTO source_repositories(id,provider,origin,provider_id,name) VALUES (?,?,?,?,?)').run(randomUUID(),connection.provider,connection.origin,repo.providerId,repo.name);
+    const repository = store.db.prepare("SELECT id FROM source_repositories WHERE provider=? AND origin=? AND provider_id=?").get(connection.provider,connection.origin,repo.providerId)!;
     // A retry after a lost response must not create a second binding or switch credentials.
     const existing = store.db.prepare(`SELECT id FROM source_bindings WHERE repository_id=? AND connection_id=?
       AND project_id IS ? AND branch=? AND folder='' AND enabled=1`).get(repository.id, connection.id, projectId, repo.branch);
-    if (existing) return { id: existing.id, projectId, queued: sourceFlags().connections && sourceFlags().scanning };
+    if (existing) {
+      if(personal)store.db.prepare("UPDATE source_bindings SET access_status='active',next_poll=0,error=NULL WHERE id=? AND access_status='blocked'").run(existing.id);
+      return { id: existing.id, projectId, queued: sourceFlags().connections && sourceFlags().scanning };
+    }
     const id = randomUUID();
     store.db.prepare("INSERT INTO source_bindings(id,project_id,repository_id,connection_id,branch,folder) VALUES (?,?,?,?,?,'')").run(id,projectId,repository.id,connection.id,repo.branch);
-    auditGithub(store,actor,'github-repository-bound',id);
+    auditGithub(store,actor,`${connection.provider}-repository-bound`,id);
     if (sourceFlags().connections && sourceFlags().scanning) enqueueSource(store,id);
     return {id,projectId,queued:sourceFlags().connections && sourceFlags().scanning};
   });

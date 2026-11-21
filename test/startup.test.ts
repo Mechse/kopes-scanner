@@ -28,7 +28,7 @@ for (const incomplete of [true,false]) test(`v18 opens ${incomplete?'early':'com
     }
     const history=store.db.prepare('SELECT * FROM source_scans').all();
     store.db.close();store=undefined;store=new Store(dir);
-    assert.equal(store.db.prepare('PRAGMA user_version').get()!.user_version,18);
+    assert.equal(store.db.prepare('PRAGMA user_version').get()!.user_version,19);
     assert.equal(store.db.prepare('SELECT next_check FROM source_connections').get()!.next_check,0);
     assert.deepEqual(store.db.prepare('SELECT id,credential FROM source_connections').all().map(c=>[c.id,c.credential]),[['gitlab','keep']]);
     assert.equal(store.db.prepare('SELECT connection_id FROM source_bindings').get()!.connection_id,null);

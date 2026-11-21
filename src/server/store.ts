@@ -13,6 +13,8 @@ import type { AccessData, AccessPerson } from '../lib/user-access';
 import { summarize } from '../lib/model';
 
 type TargetRow = Omit<Target, 'summary' | 'suggestions'> & { summary_json: string | null; suggestions_json: string; requested: number };
+import { pauseInTransaction } from './source/gitlab';
+
 export class Store {
   readonly db: DatabaseSync;
   constructor(directory: string) {
@@ -20,7 +22,7 @@ export class Store {
     this.db = new DatabaseSync(directory === ':memory:' ? directory : join(directory, 'kopes.sqlite'));
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
     const version = this.db.prepare('PRAGMA user_version').get() as { user_version: number };
-    if (version.user_version > 18) throw new Error('Database is newer than this application. Refusing to downgrade.');
+    if (version.user_version > 19) throw new Error('Database is newer than this application. Refusing to downgrade.');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS targets (
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, image_id TEXT,
@@ -132,6 +134,10 @@ export class Store {
       DELETE FROM targets WHERE kind='image' AND id NOT IN (SELECT target_id FROM containers);
       PRAGMA user_version=17`));
     if (version.user_version < 18) removeLegacyGithubConnections(this.db);
+    if (version.user_version < 19) this.transaction(() => this.db.exec(`
+      CREATE TABLE IF NOT EXISTS gitlab_grants(connection_id TEXT PRIMARY KEY REFERENCES source_connections(id), user_id TEXT NOT NULL, subject TEXT NOT NULL, tokens TEXT NOT NULL, refresh_until INTEGER NOT NULL DEFAULT 0, UNIQUE(user_id,connection_id));
+      CREATE TABLE IF NOT EXISTS gitlab_attempts(hash TEXT PRIMARY KEY, revision TEXT NOT NULL, purpose TEXT NOT NULL, session TEXT NOT NULL, verifier TEXT NOT NULL, expires INTEGER NOT NULL);
+      PRAGMA user_version=19`));
     if (!this.getMeta('pulseInitialized')) this.transaction(() => {
       for (const row of this.db.prepare('SELECT id, scanned_at, report_json FROM targets WHERE report_json IS NOT NULL').all()) {
         this.recordPulse(String(row.id), null, JSON.parse(String(row.report_json)), Number(row.scanned_at));
@@ -215,6 +221,8 @@ export class Store {
         this.db.prepare('DELETE FROM allowed_users WHERE login=?').run(row.login);
         this.accessEvent(actor, 'revoked', String(row.login));
       }
+      const personalGrants=this.db.prepare(`SELECT g.connection_id FROM gitlab_grants g JOIN user u ON u.id=g.user_id WHERE lower(u.githubLogin)=? OR u.githubId=? OR u.accessLogin=? OR u.accessId=?`).all(login,profile?.github_id??grant.github_id,login,profile?.github_id??grant.github_id);
+      for(const row of personalGrants)pauseInTransaction(this,String(row.connection_id),true);
       if (login !== actor) this.db.prepare('DELETE FROM session WHERE userId IN (SELECT id FROM user WHERE lower(githubLogin)=? OR githubId=? OR accessLogin=? OR accessId=?)').run(login, profile?.github_id ?? grant.github_id, login, profile?.github_id ?? grant.github_id);
     });
   }

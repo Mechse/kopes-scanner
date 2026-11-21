@@ -12,6 +12,7 @@ const noticeClass = 'mt-3 mb-5 rounded-sm border border-border bg-sunken px-4 py
 type Props = { binding: Binding; analysis?: Scan['result']; submitting: boolean };
 function scanStatus({ binding, submitting }: Props) {
   const job = binding.jobs[0], scan = binding.scans[0];
+  if (binding.error === 'Reauthorization required') return {state:'error',label:'Reauthorization required'};
   if (job?.state === 'queued') return { state: 'queued', label: 'Queued' };
   if (submitting || job?.state === 'running') return { state: 'scanning', label: 'Scanning' };
   if (binding.error || job?.state === 'failed') return { state: 'error', label: 'Scan failed' };

@@ -85,8 +85,8 @@ export function RepositoryWorkspace({ children }: { children: ReactNode }) {
 }
 export function RepositoryActions() {
   const repos = useRepositories();
-  if (!repos.data?.administrator) return null;
-  return <Button size="sm" asChild><Link to="/repositories/new"><Plus size={14}/>Add repository</Link></Button>;
+  if (!repos.data) return null;
+  return <Button size="sm" asChild><Link to="/repositories/new"><Plus size={14}/>{repos.data.administrator?'Add repository':'Browse repositories'}</Link></Button>;
 }
 export function RepositoryMenu({ label, onSettings, ...context }: Context & { label: string; onSettings?: () => void }) {
   const repos = useRepositories();

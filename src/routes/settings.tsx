@@ -1,3 +1,4 @@
+import { GitlabSettings } from '../components/gitlab';
 import { GithubSettings } from '../components/github-settings';
 import { resourceName, projectName as displayProjectName } from '../lib/display-name';
 import { ContentSkeleton } from "../components/ui/loading";
@@ -44,7 +45,7 @@ function SettingsPage() {
   const back = { view: 'apps' as const, target: targetId, app };
   const sections: SettingsNavData['sections'] = appSettings
     ? [
-      { tab: 'integrations', label: 'Integrations', children: [{ section: 'github', label: 'GitHub' }] },
+      { tab: 'integrations', label: 'Integrations', children: [{ section: 'github', label: 'GitHub' },{section:'gitlab',label:'GitLab'}] },
       { tab: 'auth', label: 'Auth', children: [...Object.entries(providerNames).map(([section, label]) => ({ section, label })), { section: 'email', label: 'Email' }] },
       { tab: 'users', label: 'Users' },
     ]
@@ -70,7 +71,7 @@ function SettingsPage() {
     {!data ? !inventory?.error && <ContentSkeleton label="Loading settings…" layout="settings" /> : appSettings ? data.isAdmin ? <>
       <h1 className="sr-only">Settings</h1>
       <SettingsTabs value={current}>
-        <SettingsPanel value="integrations">{current === 'integrations' && <GithubSettings key={connection ?? ''} selection={connection} setupNotice={githubSetup} />}</SettingsPanel>
+        <SettingsPanel value="integrations">{current === 'integrations' && (currentSection==='gitlab'?<GitlabSettings/>:<GithubSettings key={connection ?? ''} selection={connection} setupNotice={githubSetup} />)}</SettingsPanel>
         <SettingsPanel value="auth">{current === 'auth' && <AuthMethodsSettings section={currentSection!} />}</SettingsPanel>
         <SettingsPanel value="users"><div className="pt-6"><p className="mb-4 text-sm text-muted-foreground">Manage who can sign in and access this workspace.</p><UserAccess /></div></SettingsPanel>
       </SettingsTabs>

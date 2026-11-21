@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BookMarked, Link2, Search } from 'lucide-react';
 import { WorkspaceBar, useWorkspace } from '../components/app-shell';
+import { GitlabPicker } from '../components/gitlab';
 import { post, type RepositoryInventory } from '../components/repositories';
 import { Button } from '../components/ui/button';
 import { SelectField } from '../components/ui/select-field';
@@ -22,7 +23,7 @@ function AddRepositoryPage() {
     <WorkspaceBar section="Repositories" repository="Add repository"/>
     <div className="mx-auto max-w-3xl py-10 sm:px-6 sm:py-16">
       {inventory?.error ? <p role="alert">{inventory.error}</p> : !inventory?.data ? <p role="status">Loading repositories…</p> :
-        inventory.data.administrator ? <RepositoryImport inventory={inventory.data}/> : <p>Administrator access is required to add a repository.</p>}
+        inventory.data.administrator ? <RepositoryImport inventory={inventory.data}/> : <><p>Administrator access is required to add a repository.</p><GitlabPicker/></>}
     </div>
   </main>;
 }
@@ -39,7 +40,7 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
   const params = new URLSearchParams({ view: 'picker', q: query.trim(), connectionId: account, page: String(page) });
   const picker = useResource<RepositoryPickerData>(apps.length ? 'github-repositories?' + params : '', 0);
   const [url, setUrl] = useState('');
-  const [choice, setChoice] = useState<{ name: string; fromList: boolean } | null>(null);
+  const [choice, setChoice] = useState<{ name: string; fromList: boolean; label?:string } | null>(null);
   const [connection, setConnection] = useState('');
   const [project, setProject] = useState('administrators');
   const [busy, setBusy] = useState(false);
@@ -51,9 +52,9 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
     else trigger.current?.focus();
   }, [choice]);
 
-  function review(name: string, connectionId = '') {
+  function review(name: string, connectionId = '', label?:string) {
     trigger.current = document.activeElement as HTMLElement;
-    setChoice({ name, fromList: !!connectionId });
+    setChoice({ name, label, fromList: !!connectionId });
     setConnection(connectionId);
     setError('');
   }
@@ -81,6 +82,7 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
           <Button size="sm" disabled={!url.trim()}>Continue</Button>
         </div>
       </form>
+      <GitlabPicker review={review}/>
       <section className="mt-12" aria-labelledby="github-import">
         <h2 id="github-import" className="text-xl font-semibold tracking-tight">Import from GitHub</h2>
         {settings?.error ? <p role="alert">{settings.error}</p> : !settings?.data ? <p role="status">Loading connections…</p> : !apps.length ?
@@ -106,9 +108,9 @@ function RepositoryImport({ inventory }: { inventory: RepositoryInventory }) {
     {choice && <form className="max-w-xl" onSubmit={event => { event.preventDefault(); void add(); }}>
       <Button className="mb-6" type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setChoice(null)}><ArrowLeft/>Choose another repository</Button>
       <h1 ref={heading} tabIndex={-1} className={title}>Review access</h1>
-      <p className="my-5 break-all rounded-lg border border-border px-4 py-3 text-sm font-medium">{choice.name}</p>
+      <p className="my-5 break-all rounded-lg border border-border px-4 py-3 text-sm font-medium">{choice.label??choice.name}</p>
       <label className="block text-sm">Repository connection<SelectField aria-label="Repository connection" className="mt-1 w-full" disabled={busy || choice.fromList} value={connection || 'anonymous'} onValueChange={v => setConnection(v === 'anonymous' ? '' : v)}>
-        <SelectItem value="anonymous">Public access</SelectItem>{connections.map(c => <SelectItem key={c.id} value={c.id}>{c.label || c.owner_login || 'GitHub connection'}</SelectItem>)}
+        {choice.label&&<SelectItem value={connection}>Personal GitLab account</SelectItem>}<SelectItem value="anonymous">Public access</SelectItem>{connections.map(c => <SelectItem key={c.id} value={c.id}>{c.label || c.owner_login || 'GitHub connection'}</SelectItem>)}
       </SelectField></label>
       <label className="mt-5 block text-sm">Container access<SelectField aria-label="Container access" className="mt-1 w-full" disabled={busy} value={project} onValueChange={setProject}>
         <SelectItem value="administrators">Administrators only</SelectItem>{inventory.projects.filter(p => !p.archived).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
