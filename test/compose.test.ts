@@ -33,6 +33,7 @@ test('Compose supports a public checkout, Coolify values, local ports and Deskto
     assert.equal(linux.services.scanner.environment.GITHUB_ADMIN_USER, 'alice');
     assert.equal(linux.services.scanner.environment.COOLIFY_URL, undefined);
     assert.equal(linux.services.scanner.environment.KOPES_SOURCE_SCAN_PILOT, '1');
+    assert.equal(linux.services.scanner.environment.KOPES_PROVENANCE_PILOT, '1');
     const worker = linux.services['source-worker'];
     assert.equal(worker.network_mode, 'none');
     assert.equal(worker.environment, undefined);

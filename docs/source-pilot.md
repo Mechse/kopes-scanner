@@ -1,6 +1,6 @@
 # Git source pilot operations
 
-Source scanning is enabled by default in `compose.yaml`, including Coolify deployments. Review `plans/phase-6/README.md` for the remaining release gates. To turn it off, set `KOPES_SOURCE_PILOT=0` and `KOPES_SOURCE_SCAN_PILOT=0` in the deployment environment.
+Source scanning is enabled by default in `compose.yaml`, including Coolify deployments. Review `plans/phase-6/README.md` for the remaining release gates. To turn it off, set `KOPES_SOURCE_PILOT=0` and `KOPES_SOURCE_SCAN_PILOT=0` in the deployment environment. Provenance is also on by default; set `KOPES_PROVENANCE_PILOT=0` to disable only that.
 
 ## Flags and permissions
 
