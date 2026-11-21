@@ -1,17 +1,14 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowUpRight, LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { resourceName } from '../lib/display-name';
 import type { Container, Dashboard } from '../lib/model';
 import { resourceKey } from '../lib/settings';
-import { Assessment } from './assessment';
-import { FavouriteButton } from './favourites';
 import { FindingsSearch } from './findings-search';
 import { useRepositories } from './repositories';
+import { ResourceCard, resourceCardActionClass } from './resource-card';
 import { ResourceIcon } from './resource-icon';
 import { SearchToolbar } from './search-toolbar';
-import { BusyIndicator } from './ui/loading';
-import { pillClass } from './ui/pill';
 
 type View = 'grid' | 'line';
 const preferenceKey = 'kopes.projects-view';
@@ -42,24 +39,11 @@ export function ContainersInventory({ data }: { data: Dashboard }) {
     const name = resourceName(c), target = targets.get(c.target_id);
     const search = { view: 'apps' as const, app: c.id, target: c.target_id };
     const findings = target?.summary && Object.values(target.summary.counts).reduce((sum, count) => sum + count, 0);
-    return <article key={c.id} className={`group relative isolate flex min-w-0 gap-3 ${grid ? 'flex-col justify-between rounded-xl border border-border bg-raised p-5 hover:border-brand-ink' : 'flex-wrap items-center border-b border-border/60 px-3 py-2.5 hover:bg-sunken/50'}`}>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <ResourceIcon container={c}/>
-        <div className="min-w-0 flex-1 text-sm font-medium">
-          {target ? <Link to="/" search={search} title={name} aria-label={`Open report for ${name}`} className="block truncate after:absolute after:inset-0 focus-visible:after:outline-2">{name}</Link> : <span className="block truncate" title={name}>{name}</span>}
-          <span className="block truncate text-xs font-normal text-muted-foreground" title={c.image}>{c.image}</span>
-        </div>
-        <FavouriteButton name={name} active={favourites.has(favourite(c))} disabled={favourites.disabled} onClick={() => void favourites.toggle(favourite(c))}/>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {target ? <Assessment targets={[target]}/> : 'Awaiting scan target'}
-        {findings !== undefined && <span className={pillClass}>{findings} {findings === 1 ? 'finding' : 'findings'}</span>}
-        {target?.status === 'error' && <Link to="/" search={{ ...search, tab: 'activity', events: 'scans' }} hash={`scan-status-${target.id}`} className="relative z-10 text-critical hover:underline">Scan failed</Link>}
-        {target?.status === 'scanning' && <span className={pillClass}><BusyIndicator/>Scanning</span>}
-        {target?.status === 'queued' && <span className={pillClass}>Queued</span>}
-        {grid && target && <ArrowUpRight size={16} className="ml-auto text-muted-foreground" aria-hidden="true"/>}
-      </div>
-    </article>;
+    return <ResourceCard key={c.id} view={view} icon={<ResourceIcon container={c}/>}
+      title={target ? <Link to="/" search={search} title={name} aria-label={`Open report for ${name}`} className="block truncate after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{name}</Link> : <span className="block truncate" title={name}>{name}</span>}
+      subtitle={<span title={c.image}>{c.image}</span>} vulnerabilities={findings ?? undefined}
+      favourite={{ name, active: favourites.has(favourite(c)), disabled: favourites.disabled, onClick: () => void favourites.toggle(favourite(c)) }}
+      settings={target && <Link to="/settings" search={{ target: target.id, app: c.id, project: c.project }} aria-label={`Settings for ${name}`} title="Settings" className={resourceCardActionClass}><Settings size={17}/></Link>}/>;
   }
   return <div>
     <SearchToolbar>

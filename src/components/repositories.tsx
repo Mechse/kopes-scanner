@@ -6,14 +6,13 @@ import { Link } from '@tanstack/react-router';
 import { sourceAssessment } from '../lib/source-assessment';
 import { createContext, useContext, useState, useRef, type ReactNode } from 'react';
 import { Dialog } from 'radix-ui';
-import { GitBranch, Plus, X, Ellipsis, ArrowUpRight } from 'lucide-react';
+import { GitBranch, Plus, X, Ellipsis, Settings } from 'lucide-react';
 import { Button } from './ui/button';
-import { BusyIndicator } from './ui/loading';
 import { api, useResource } from '../lib/use-resource';
 import { useWorkspace } from './app-shell';
-import { FavouriteButton, useFavourites } from './favourites';
+import { useFavourites } from './favourites';
+import { ResourceCard, resourceCardActionClass } from './resource-card';
 import { type Scan } from './project-sources';
-import { pillClass } from './ui/pill';
 
 export type Binding = { first_run_finished?: number; id: string; connection_id?: string; connection_label?: string; connection_owner?: string; connection_health?: string; auth_kind?: string; project_id: string | null; repository: string; branch: string; error: string | null; resources: { id: string; name: string }[]; scans: Scan[]; jobs: { state: string; error: string | null }[] };
 export type RepositoryInventory = { administrator: boolean; flags: { connections: boolean; scanning: boolean }; storageError: string | null; projects: { id: string; name: string; archived: number }[]; resources: { id: string; name: string; project_id: string | null; containerIds: string[] }[]; bindings: Binding[] };
@@ -112,20 +111,10 @@ export function RepositoryMenu({ label, onSettings, ...context }: Context & { la
 export function RepositoryCard({ binding: b, view = 'grid' }: { binding: Binding; view?: 'grid' | 'line' }) {
   const repos = useRepositories(), item = { scope: 'resource' as const, key: `repo:${b.id}` };
   const repositoryName = b.repository.split('/').pop() || b.repository;
-  const awaitingFirstRun = !b.first_run_finished && !b.scans.length;
-  const jobState = b.jobs[0]?.state;
-  const scanActive = jobState === 'running' || jobState === 'queued';
-  let status: string = b.scans[0] ? sourceAssessment(b.scans[0]) : awaitingFirstRun ? 'Awaiting first scan' : 'Not scanned';
-  if (jobState === 'running') status = awaitingFirstRun ? 'Running first scan' : 'Scanning';
-  else if (jobState === 'queued') status = awaitingFirstRun ? 'First scan queued' : 'Queued';
-  else if (b.error || jobState === 'failed') status = 'Scan failed';
-  return <article data-pending={awaitingFirstRun || undefined} className={view === 'grid' ? 'group relative isolate data-[pending]:bg-background data-[pending]:text-muted-foreground flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-raised p-5 hover:border-brand-ink' : 'mobile-project-row group relative isolate data-[pending]:bg-background data-[pending]:text-muted-foreground flex min-w-0 items-center gap-4 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-sunken/50'}>
-    <div className={`flex min-w-0 flex-1 ${view === 'grid' ? 'items-start gap-3' : 'items-center gap-2'}`}>
-      <span className={view === 'grid' ? 'grid size-10 shrink-0 place-items-center rounded-lg bg-background text-muted-foreground' : 'grid size-8 shrink-0 place-items-center text-muted-foreground'}><GitBranch size={view === 'grid' ? 20 : 17}/></span>
-      <div className="min-w-0 flex-1"><Link to="/repositories/$repository" params={{ repository: b.id }} aria-label={b.repository} title={b.repository} className="block w-full truncate text-left text-sm font-medium after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{repositoryName}</Link><span className="mt-1 block truncate text-xs text-muted-foreground">{b.branch}</span>{b.connection_label && <span className="mt-1 block truncate text-xs text-muted-foreground">{b.connection_label} · {b.connection_owner} · {b.connection_health}</span>}</div>
-      <FavouriteButton name={b.repository} active={repos.favourites.has(item)} disabled={repos.favourites.disabled} onClick={() => void repos.favourites.toggle(item)}/>
-      {repos.data?.administrator && <button type="button" aria-label={`Repository settings for ${b.repository}`} onClick={() => repos.edit(b)} className="relative z-10 grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-sunken"><Ellipsis size={17}/></button>}
-    </div>
-    <div className={view === 'grid' ? 'flex flex-wrap items-center gap-2' : 'flex shrink-0 flex-col items-end gap-1 @min-[480px]:flex-row @min-[480px]:gap-3'}><span role="status" className={pillClass}>{awaitingFirstRun && scanActive && <BusyIndicator/>}{status}</span>{b.scans[0] && (sourceAssessment(b.scans[0]) === 'Scanned' || b.scans[0].occurrences > 0) && <span className={view === 'grid' ? pillClass : 'text-xs text-muted-foreground'}>{b.scans[0].occurrences} vulnerabilities</span>}{view === 'grid' && <ArrowUpRight size={16} className="ml-auto text-muted-foreground"/>}</div>
-  </article>;
+  const scan = b.scans[0];
+  return <ResourceCard view={view} icon={<GitBranch size={20}/>}
+    title={<Link to="/repositories/$repository" params={{ repository: b.id }} aria-label={b.repository} title={b.repository} className="block truncate after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-brand-ink">{repositoryName}</Link>}
+    subtitle={b.branch} vulnerabilities={scan && (sourceAssessment(scan) === 'Scanned' || scan.occurrences > 0) ? scan.occurrences : undefined}
+    favourite={{ name: b.repository, active: repos.favourites.has(item), disabled: repos.favourites.disabled, onClick: () => void repos.favourites.toggle(item) }}
+    settings={repos.data?.administrator && <button type="button" aria-label={`Settings for ${b.repository}`} title="Settings" onClick={() => repos.edit(b)} className={resourceCardActionClass}><Settings size={17}/></button>}/>;
 }

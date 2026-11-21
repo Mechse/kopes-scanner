@@ -361,9 +361,6 @@
   .search-toolbar { --toolbar-control-height: 2.75rem; }
   .search-toolbar [data-toolbar-control] button { min-width: 44px; }
   .search-toolbar [data-toolbar-search] > span { font-size: 16px; }
-  .mobile-project-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 4px; }
-  .mobile-project-row > div:last-child { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px; padding-left: 40px; }
-  .mobile-project-row > div:first-child > span:last-child { white-space: normal; overflow-wrap: anywhere; }
   .mobile-resource-row { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 4px; gap: 8px 12px; }
   .mobile-resource-row > div:first-child { grid-column: 1 / -1; }
   .mobile-resource-row > div:first-child :is(a, span) { white-space: normal; overflow-wrap: anywhere; }
