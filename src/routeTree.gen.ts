@@ -16,6 +16,7 @@ import { Route as RepositoriesRouteImport } from './routes/repositories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IssuesIssueRouteImport } from './routes/issues.$issue'
 import { Route as RepositoriesRepositoryRouteImport } from './routes/repositories_.$repository'
+import { Route as RepositoriesNewRouteImport } from './routes/repositories_.new'
 import { Route as SettingsUsersRouteImport } from './routes/settings_.users'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiDataSplatRouteImport } from './routes/api.data.$'
@@ -57,6 +58,11 @@ const IssuesIssueRoute = IssuesIssueRouteImport.update({
 const RepositoriesRepositoryRoute = RepositoriesRepositoryRouteImport.update({
   id: '/repositories_/$repository',
   path: '/repositories/$repository',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepositoriesNewRoute = RepositoriesNewRouteImport.update({
+  id: '/repositories_/new',
+  path: '/repositories/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsUsersRoute = SettingsUsersRouteImport.update({
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories/$repository': typeof RepositoriesRepositoryRoute
+  '/repositories/new': typeof RepositoriesNewRoute
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories/$repository': typeof RepositoriesRepositoryRoute
+  '/repositories/new': typeof RepositoriesNewRoute
   '/settings/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/issues/$issue': typeof IssuesIssueRoute
   '/repositories_/$repository': typeof RepositoriesRepositoryRoute
+  '/repositories_/new': typeof RepositoriesNewRoute
   '/settings_/users': typeof SettingsUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/data/$': typeof ApiDataSplatRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/issues/$issue'
     | '/repositories/$repository'
+    | '/repositories/new'
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/issues/$issue'
     | '/repositories/$repository'
+    | '/repositories/new'
     | '/settings/users'
     | '/api/auth/$'
     | '/api/data/$'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/issues/$issue'
     | '/repositories_/$repository'
+    | '/repositories_/new'
     | '/settings_/users'
     | '/api/auth/$'
     | '/api/data/$'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   IssuesIssueRoute: typeof IssuesIssueRoute
   RepositoriesRepositoryRoute: typeof RepositoriesRepositoryRoute
+  RepositoriesNewRoute: typeof RepositoriesNewRoute
   SettingsUsersRoute: typeof SettingsUsersRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDataSplatRoute: typeof ApiDataSplatRoute
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       path: '/repositories/$repository'
       fullPath: '/repositories/$repository'
       preLoaderRoute: typeof RepositoriesRepositoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/repositories_/new': {
+      id: '/repositories_/new'
+      path: '/repositories/new'
+      fullPath: '/repositories/new'
+      preLoaderRoute: typeof RepositoriesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings_/users': {
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   IssuesIssueRoute: IssuesIssueRoute,
   RepositoriesRepositoryRoute: RepositoriesRepositoryRoute,
+  RepositoriesNewRoute: RepositoriesNewRoute,
   SettingsUsersRoute: SettingsUsersRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDataSplatRoute: ApiDataSplatRoute,

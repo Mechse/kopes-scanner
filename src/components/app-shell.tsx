@@ -59,7 +59,7 @@ export function WorkspaceBar({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={`${actions || repository || report || managedProject || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&_a]:text-muted-foreground [&_a:hover]:underline [&>svg]:text-muted-foreground`}
+      className={`${actions || repository || report || managedProject || project !== undefined ? "" : "mobile:hidden"} -mx-4 flex min-h-[55px] min-w-0 items-center gap-2 border-b border-border px-4 py-2 text-xs [&>a]:text-muted-foreground [&>a:hover]:underline [&>svg]:text-muted-foreground`}
     >
       <Link to="/" search={{}}>
         Workspace

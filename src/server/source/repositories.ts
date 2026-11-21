@@ -75,7 +75,9 @@ export async function handleRepositories(request: Request, store: Store, princip
       const result = JSON.parse(String(scan.result_json));
       return json({ result });
     }
-    const bindings = store.db.prepare(`SELECT b.*,r.name AS repository,c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
+    const bindings = store.db.prepare(`SELECT b.*,r.name AS repository,
+      EXISTS(SELECT 1 FROM source_jobs j WHERE j.binding_id=b.id AND j.kind NOT LIKE 'deployed:%' AND j.state IN ('complete','failed')) AS first_run_finished,
+      c.label AS connection_label,c.owner_login AS connection_owner,c.health AS connection_health,c.auth_kind FROM source_bindings b JOIN source_repositories r ON r.id=b.repository_id JOIN source_connections c ON c.id=b.connection_id ORDER BY r.name`).all().filter(b => canRead(b.project_id));
     return json({ administrator: principal.administrator, flags: sourceFlags(), storageError: store.getMeta('source.storage.error') || null,
       projects: projects.list(), resources: store.db.prepare('SELECT id,name,project_id FROM resources ORDER BY name').all().filter(resourceVisible).map(r => ({ ...r, containerIds: store.db.prepare('SELECT container_id FROM runtime_instances WHERE resource_id=? AND active=1').all(r.id).map(i => i.container_id) })),
       bindings: bindings.map(b => ({ ...b, resources: [],

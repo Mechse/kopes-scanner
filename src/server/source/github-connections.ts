@@ -8,6 +8,7 @@ import { validatePat } from './github-pat';
 import { appRecord, appSeal, appSecret, verifyApp, invalidateConnection, auditGithub, type GithubApp } from './github-app';
 import { githubHttp, githubId, GithubError, githubErrorMessage, type GithubHttp } from './github-http';
 import { startSetup, resumeSetup, ownerSchema, expireSetup, setupHeaders, type GithubContext } from './github-setup';
+import { githubRepositoryPicker } from './github-repository-picker';
 import { reconcileInstallation, reconcilePatConnection } from './github-reconcile';
 
 const id = z.string().min(1).max(200), credential = z.string().max(20000).regex(/^[^\r\n]*$/);
@@ -38,6 +39,10 @@ export async function handleGithub(request: Request, store: Store, context: Gith
   await context.recheck();
   if (request.method==='GET') {
     if (new URL(request.url).pathname.endsWith('/github-repositories')) {
+      if (new URL(request.url).searchParams.get('view') === 'picker') {
+        const result = githubRepositoryPicker(store, new URL(request.url));
+        return result ? json(result) : json({ error: 'Invalid repository search.' }, 400);
+      }
       const url = new URL(request.url), id = url.searchParams.get('connectionId') ?? '', page = Number(url.searchParams.get('page') ?? 1);
       if (!Number.isInteger(page) || page<1 || page>200) return json({error:'Invalid page.'},400);
       const c = store.db.prepare("SELECT * FROM source_connections WHERE id=? AND auth_kind='github_app' AND disconnected=0").get(id);
