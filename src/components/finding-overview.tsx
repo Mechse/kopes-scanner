@@ -8,6 +8,7 @@ import { useState, type ReactNode } from 'react';
 import { Copy, ShieldAlert, ExternalLink } from 'lucide-react';
 import type { Container, Finding, Target } from '../lib/model';
 import { explainVector, isCve, safeUrl, type Advisory } from '../lib/advisory';
+import { fixPrompt } from '../lib/fix-prompt';
 import { remediation } from '../lib/remediation';
 import { useResource } from '../lib/use-resource';
 import { Button } from './ui/button';
@@ -26,6 +27,17 @@ function Command({ command }: { command: string }) {
     <pre className="overflow-x-auto p-3 text-xs leading-6"><code>{command}</code></pre>
   </div>;
 }
+function FixPrompt({ text }: { text: string }) {
+  const [message, setMessage] = useState('');
+  return <div className="mb-5">
+    <Button size="sm" variant="outline" onClick={async () => {
+      try { await navigator.clipboard.writeText(text); setMessage('Prompt copied'); }
+      catch { setMessage('Open the preview and select the prompt to copy it manually.'); }
+    }}><Copy aria-hidden="true" />Copy fix prompt</Button>
+    <span role="status" className="ml-2 text-xs">{message}</span>
+    <details className="mt-2"><summary className="cursor-pointer">Preview agent prompt</summary><pre className="mt-2 whitespace-pre-wrap rounded-md bg-sunken p-3 text-xs leading-6">{text}</pre></details>
+  </div>;
+}
 function displayDate(value?: string) {
   if (!value || !Number.isFinite(Date.parse(value))) return 'Not reported';
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -42,6 +54,7 @@ export function FindingOverview({ finding, locked, target, sourceEvidence, conta
   const explanation = explainVector(vector);
   const description = finding.description || external?.description;
   const sources = [...new Set([...(finding.references ?? []), ...(external?.references ?? []), ...(isCve(finding.id) ? [`https://www.cve.org/CVERecord?id=${finding.id}`, `https://nvd.nist.gov/vuln/detail/${finding.id}`] : [])])].filter(safeUrl);
+  const prompt = fixPrompt(finding);
   const steps = target ? remediation(finding, target.kind, container, locked) : [];
   const sourceEdits = sourceEvidence && (sourceEvidence.edits.length ? sourceEvidence.edits : [{ manifest: 'Unknown manifest', dependency: undefined, direct: false }]);
   const properties = [
@@ -76,6 +89,7 @@ export function FindingOverview({ finding, locked, target, sourceEvidence, conta
     {advisory?.status === 'rejected' && <p role="status" className="mt-6 rounded border border-border bg-sunken p-4 text-sm">This CVE record has been rejected. Review the CVE record before acting on the scanner finding. {advisory.description}</p>}
     {!historical && advisory?.status !== 'rejected' && <section className="my-8 border-l-[3px] border-brand-ink bg-brand-tint/30 px-5 py-5 text-sm" aria-label="How to fix it">
       <h2 className="mb-2 text-xl">{finding.fixed ? 'How to fix it' : 'What to do while no fix is reported'}</h2>
+      <FixPrompt key={prompt} text={prompt} />
       {finding.fixed && <p className="mb-5 leading-6">The scanner reports <code className="rounded bg-sunken px-1.5 py-0.5">{finding.fixed}</code> as fixed. Multiple versions can refer to different release branches; check the vendor advisory for yours.</p>}
       {sourceEvidence && sourceEdits ? <ol className="list-decimal space-y-5 pl-5">{sourceEdits.map((edit, index) => {
         const guidance = remediationGuidance(sourceEvidence.manager, edit.dependency, finding.package, finding.fixed, edit.direct);
